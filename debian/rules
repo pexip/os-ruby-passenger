@@ -1,0 +1,27 @@
+#!/usr/bin/make -f
+#export DH_VERBOSE=1
+
+export USE_VENDORED_LIBEV=false
+
+%:
+	dh $@ --buildsystem=ruby --with ruby,apache2
+
+override_dh_auto_build:
+	/usr/bin/ruby1.8 /usr/bin/rake fakeroot
+	mv pkg/fakeroot pkg/fakeroot1.8
+	/usr/bin/ruby1.9.1 /usr/bin/rake fakeroot
+	mv pkg/fakeroot pkg/fakeroot1.9.1
+
+override_dh_auto_install:
+	mkdir debian/tmp/
+	cp -a pkg/fakeroot1.8/* debian/tmp/
+	cp -a pkg/fakeroot1.9.1/* debian/tmp/
+	rm -f debian/tmp/usr/share/doc/phusion-passenger/images/._phusion_banner.png
+
+override_dh_auto_clean:
+	dh_auto_clean -O--buildsystem=ruby
+	rm -rf pkg/fakeroot1.8
+	rm -rf pkg/fakeroot1.9.1
+
+override_dh_install:
+	dh_install --list-missing -O--buildsystem=ruby
