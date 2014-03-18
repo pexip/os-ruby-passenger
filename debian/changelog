@@ -1,3 +1,9 @@
+ruby-passenger (3.0.13debian-1.2pexip2) pexip; urgency=low
+
+  * Correct control file.
+
+ -- Alan Ford <alan@pexip.com>  Tue, 18 Mar 2014 16:40:20 +0000
+
 ruby-passenger (3.0.13debian-1.2pexip1) pexip; urgency=low
 
   * Package for Pexip.

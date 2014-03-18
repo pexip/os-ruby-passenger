@@ -12,6 +12,7 @@ Homepage: http://www.modrails.com/
 Vcs-Git: git://anonscm.debian.org/pkg-ruby-extras/ruby-passenger.git
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-ruby-extras/ruby-passenger.git;a=summary
 XS-Ruby-Versions: all
+XS-Pexip-Upstream: http://archive.ubuntu.com/ubuntu/ saucy
 
 Package: ruby-passenger
 Architecture: any
