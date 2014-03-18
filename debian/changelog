@@ -1,3 +1,9 @@
+ruby-passenger (3.0.13debian-1.2pexip1) pexip; urgency=low
+
+  * Package for Pexip.
+
+ -- Alan Ford <alan@pexip.com>  Tue, 18 Mar 2014 15:32:53 +0000
+
 ruby-passenger (3.0.13debian-1.2) unstable; urgency=high
 
   * Non-maintainer upload.
