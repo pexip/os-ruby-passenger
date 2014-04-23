@@ -3,8 +3,8 @@ require 'resolv'
 require 'net/http'
 require 'uri'
 require 'support/multipart'
-require 'phusion_passenger'
-require 'phusion_passenger/platform_info/ruby'
+PhusionPassenger.require_passenger_lib 'debug_logging'
+PhusionPassenger.require_passenger_lib 'platform_info/ruby'
 
 # Module containing helper methods, to be included in unit tests.
 module TestHelper
@@ -85,7 +85,7 @@ module TestHelper
 		end
 	end
 	
-	class RailsStub < Stub
+	class ClassicRailsStub < Stub
 		def self.use(name, app_root = nil)
 			stub = new(name, app_root)
 			begin
@@ -103,20 +103,7 @@ module TestHelper
 			return "#{@full_app_root}/config/environment.rb"
 		end
 		
-		def use_vendor_rails(name)
-			FileUtils.mkdir_p("#{@full_app_root}/vendor/rails")
-			FileUtils.cp_r("stub/vendor_rails/#{name}/.", "#{@full_app_root}/vendor/rails")
-		end
-		
-		def dont_use_vendor_rails
-			remove_dir_tree("#{@full_app_root}/vendor/rails")
-		end
-		
 	private
-		def stub_source_dir
-			return "stub/rails_apps/#{@name}"
-		end
-		
 		def copy_stub_contents
 			super
 			FileUtils.mkdir_p("#{@full_app_root}/log")
@@ -126,6 +113,18 @@ module TestHelper
 	class RackStub < Stub
 		def startup_file
 			return "#{@full_app_root}/config.ru"
+		end
+	end
+
+	class PythonStub < Stub
+		def startup_file
+			return "#{@full_app_root}/passenger_wsgi.py"
+		end
+	end
+
+	class NodejsStub < Stub
+		def startup_file
+			return "#{@full_app_root}/app.js"
 		end
 	end
 	
@@ -236,9 +235,7 @@ module TestHelper
 				"127.0.0.1 7.passenger.test 8.passenger.test 9.passenger.test\n"
 			if RUBY_PLATFORM =~ /darwin/
 				message << "\n\nThen run:\n\n" <<
-					"  lookupd -flushcache      (OS X Tiger)\n\n" <<
-					"-OR-\n\n" <<
-					"  dscacheutil -flushcache  (OS X Leopard)"
+					"  dscacheutil -flushcache"
 			end
 			STDERR.puts "---------------------------"
 			STDERR.puts message
@@ -263,7 +260,7 @@ module TestHelper
 		end
 	end
 	
-	def eventually(deadline_duration = 1, check_interval = 0.05)
+	def eventually(deadline_duration = 2, check_interval = 0.05)
 		deadline = Time.now + deadline_duration
 		while Time.now < deadline
 			if yield
@@ -367,16 +364,20 @@ module TestHelper
 		end
 	end
 	
-	def spawn_logging_agent(log_dir, password)
+	def spawn_logging_agent(dump_file, password)
 		passenger_tmpdir = PhusionPassenger::Utils.passenger_tmpdir
 		socket_filename = "#{passenger_tmpdir}/logging.socket"
-		pid = spawn_process("#{AGENTS_DIR}/PassengerLoggingAgent",
-			"analytics_log_dir",   log_dir,
+		pid = spawn_process("#{PhusionPassenger.agents_dir}/PassengerLoggingAgent",
+			"passenger_root", PhusionPassenger.source_root,
+			"log_level", PhusionPassenger::DebugLogging.log_level,
+			"analytics_dump_file", dump_file,
 			"analytics_log_user",  CONFIG['normal_user_1'],
 			"analytics_log_group", CONFIG['normal_group_1'],
 			"analytics_log_permissions", "u=rwx,g=rwx,o=rwx",
 			"logging_agent_address", "unix:#{socket_filename}",
-			"logging_agent_password", password)
+			"logging_agent_password", password,
+			"logging_agent_admin_address", "unix:#{socket_filename}_admin",
+			"admin_tool_status_password", password)
 		eventually do
 			File.exist?(socket_filename)
 		end
@@ -390,7 +391,7 @@ module TestHelper
 	end
 	
 	def flush_logging_agent(password, socket_address)
-		require 'phusion_passenger/message_client' if !defined?(PhusionPassenger::MessageClient)
+		PhusionPassenger.require_passenger_lib 'message_client' if !defined?(PhusionPassenger::MessageClient)
 		client = PhusionPassenger::MessageClient.new("logging", password, socket_address)
 		begin
 			client.write("flush")
@@ -408,6 +409,16 @@ module TestHelper
 			end
 		else
 			return instance
+		end
+	end
+
+	if "".respond_to?(:force_encoding)
+		def binary_string(str)
+			return str.force_encoding("binary")
+		end
+	else
+		def binary_string(str)
+			return str
 		end
 	end
 end

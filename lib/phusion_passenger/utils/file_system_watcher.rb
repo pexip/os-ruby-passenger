@@ -1,4 +1,4 @@
-#  Phusion Passenger - http://www.modrails.com/
+#  Phusion Passenger - https://www.phusionpassenger.com/
 #  Copyright (c) 2010 Phusion
 #
 #  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
@@ -21,7 +21,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #  THE SOFTWARE.
 
-require 'phusion_passenger/native_support'
+PhusionPassenger.require_passenger_lib 'native_support'
 
 module PhusionPassenger
 module Utils
@@ -39,7 +39,7 @@ module Utils
 #   This will cause +nil+ to be returned.
 # - The thread is interrupted. This will cause +nil+ to be returned.
 # 
-# The constructor will attempt to stat and possible also open all specified
+# The constructor will attempt to stat and possibly also open all specified
 # files/directories. If one of them cannot be statted or opened, then
 # +false+ will be returned by #wait_for_change.
 #

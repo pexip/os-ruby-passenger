@@ -1,6 +1,6 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
- *  Copyright (c) 2010 Phusion
+ *  Phusion Passenger - https://www.phusionpassenger.com/
+ *  Copyright (c) 2010-2013 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
  *
@@ -30,6 +30,7 @@
 #include <oxt/backtrace.hpp>
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <pwd.h>
@@ -38,23 +39,28 @@
 #include <cstring>
 #include <string>
 
-#include "Exceptions.h"
-#include "Utils.h"
-#include "Utils/StrIntUtils.h"
+#include <Constants.h>
+#include <Logging.h>
+#include <Exceptions.h>
+#include <Utils.h>
+#include <Utils/StrIntUtils.h>
 
 namespace Passenger {
 
 using namespace std;
 using namespace boost;
 
+/* TODO: I think we should move away from generation dirs in the future.
+ * That way we can become immune to existing-directory-in-tmp denial of
+ * service attacks. To achieve the same functionality as we do now, each
+ * server instance directory is tagged with the control process's PID
+ * and a creation timestamp. passenger-status should treat the server instance
+ * directory with the most recent creation timestamp as the one to query.
+ * For now, the current code does not lead to an exploit.
+ */
+
 class ServerInstanceDir: public noncopyable {
 public:
-	// Don't forget to update lib/phusion_passenger/admin_tools/server_instance.rb too.
-	static const int DIR_STRUCTURE_MAJOR_VERSION = 1;
-	static const int DIR_STRUCTURE_MINOR_VERSION = 0;
-	static const int GENERATION_STRUCTURE_MAJOR_VERSION = 1;
-	static const int GENERATION_STRUCTURE_MINOR_VERSION = 0;
-	
 	class Generation: public noncopyable {
 	private:
 		friend class ServerInstanceDir;
@@ -76,7 +82,6 @@ public:
 			TRACE_POINT();
 			bool runningAsRoot = geteuid() == 0;
 			struct passwd *defaultUserEntry;
-			struct group  *defaultGroupEntry;
 			uid_t defaultUid;
 			gid_t defaultGid;
 			
@@ -86,24 +91,28 @@ public:
 					"' does not exist.");
 			}
 			defaultUid = defaultUserEntry->pw_uid;
-			defaultGroupEntry = getgrnam(defaultGroup.c_str());
-			if (defaultGroupEntry == NULL) {
+			defaultGid = lookupGid(defaultGroup);
+			if (defaultGid == (gid_t) -1) {
 				throw NonExistentGroupException("Default group '" + defaultGroup +
 					"' does not exist.");
 			}
-			defaultGid = defaultGroupEntry->gr_gid;
 			
 			/* We set a very tight permission here: no read or write access for
 			 * anybody except the owner. The individual files and subdirectories
 			 * decide for themselves whether they're readable by anybody.
 			 */
-			makeDirTree(path, "u=rwxs,g=x,o=x");
+			makeDirTree(path, "u=rwx,g=x,o=x");
 			
 			/* Write structure version file. */
 			string structureVersionFile = path + "/structure_version.txt";
 			createFile(structureVersionFile,
-				toString(GENERATION_STRUCTURE_MAJOR_VERSION) + "." +
-				toString(GENERATION_STRUCTURE_MINOR_VERSION),
+				toString(SERVER_INSTANCE_DIR_GENERATION_STRUCTURE_MAJOR_VERSION) + "." +
+				toString(SERVER_INSTANCE_DIR_GENERATION_STRUCTURE_MINOR_VERSION),
+				S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+			
+			string passengerVersionFile = path + "/passenger_version.txt";
+			createFile(passengerVersionFile,
+				PASSENGER_VERSION "\n",
 				S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 			
 			
@@ -112,23 +121,23 @@ public:
 			 * directory.
 			 */
 			if (runningAsRoot) {
-				makeDirTree(path + "/buffered_uploads", "u=rwxs,g=,o=",
+				makeDirTree(path + "/buffered_uploads", "u=rwx,g=,o=",
 					webServerWorkerUid, webServerWorkerGid);
 			} else {
-				makeDirTree(path + "/buffered_uploads", "u=rwxs,g=,o=");
+				makeDirTree(path + "/buffered_uploads", "u=rwx,g=,o=");
 			}
 			
-			/* The web server must be able to directly connect to a backend. */
+			/* The HelperAgent must be able to connect to an application. */
 			if (runningAsRoot) {
 				if (userSwitching) {
-					/* Each backend process may be running as a different user,
+					/* Each application process may be running as a different user,
 					 * so the backends subdirectory must be world-writable.
 					 * However we don't want everybody to be able to know the
 					 * sockets' filenames, so the directory is not readable.
 					 */
-					makeDirTree(path + "/backends", "u=rwxs,g=wx,o=wx");
+					makeDirTree(path + "/backends", "u=rwx,g=wx,o=wx,+t");
 				} else {
-					/* All backend processes are running as defaultUser/defaultGroup,
+					/* All application processes are running as defaultUser/defaultGroup,
 					 * so make defaultUser/defaultGroup the owner and group of the
 					 * subdirecory.
 					 *
@@ -136,33 +145,13 @@ public:
 					 * nobody should be able to know the sockets' filenames without
 					 * having access to the application pool.
 					 */
-					makeDirTree(path + "/backends", "u=rwxs,g=x,o=x", defaultUid, defaultGid);
+					makeDirTree(path + "/backends", "u=rwx,g=x,o=x", defaultUid, defaultGid);
 				}
 			} else {
-				/* All backend processes are running as the same user as the web server,
+				/* All application processes are running as the same user as the web server,
 				 * so only allow access for this user.
 				 */
-				makeDirTree(path + "/backends", "u=rwxs,g=,o=");
-			}
-			
-			/* The helper server (containing the application pool) must be able to access
-			 * the spawn server's socket.
-			 */
-			if (runningAsRoot) {
-				if (userSwitching) {
-					/* Both the helper server and the spawn server are
-					 * running as root.
-					 */
-					makeDirTree(path + "/spawn-server", "u=rwxs,g=,o=");
-				} else {
-					/* Both the helper server and the spawn server are
-					 * running as defaultUser/defaultGroup.
-					 */
-					makeDirTree(path + "/spawn-server", "u=rwxs,g=,o=",
-						defaultUid, defaultGid);
-				}
-			} else {
-				makeDirTree(path + "/spawn-server", "u=rwxs,g=,o=");
+				makeDirTree(path + "/backends", "u=rwx,g=,o=");
 			}
 			
 			owner = true;
@@ -170,6 +159,10 @@ public:
 	
 	public:
 		~Generation() {
+			destroy();
+		}
+
+		void destroy() {
 			if (owner) {
 				removeDirTree(path);
 			}
@@ -179,7 +172,9 @@ public:
 			return number;
 		}
 		
-		string getPath() const {
+		// The 'const strng &' here is on purpose. The AgentsStarter C
+		// functions return the string pointer directly.
+		const string &getPath() const {
 			return path;
 		}
 		
@@ -188,7 +183,7 @@ public:
 		}
 	};
 	
-	typedef shared_ptr<Generation> GenerationPtr;
+	typedef boost::shared_ptr<Generation> GenerationPtr;
 	
 private:
 	string path;
@@ -217,7 +212,75 @@ private:
 		 * rights though, because we want admin tools to be able to list the available
 		 * generations no matter what user they're running as.
 		 */
-		makeDirTree(path, "u=rwxs,g=rx,o=rx");
+		if (owner) {
+			switch (getFileTypeNoFollowSymlinks(path)) {
+			case FT_NONEXISTANT:
+				createDirectory(path);
+				break;
+			case FT_DIRECTORY:
+				verifyDirectoryPermissions(path);
+				break;
+			default:
+				throw RuntimeException("'" + path + "' already exists, and is not a directory");
+			}
+		} else if (getFileType(path) != FT_DIRECTORY) {
+			throw RuntimeException("Server instance directory '" + path +
+				"' does not exist");
+		}
+	}
+
+	void createDirectory(const string &path) const {
+		// We do not use makeDirTree() here. If an attacker creates a directory
+		// just before we do, then we want to abort because we want the directory
+		// to have specific permissions.
+		if (mkdir(path.c_str(), parseModeString("u=rwx,g=rx,o=rx")) == -1) {
+			int e = errno;
+			throw FileSystemException("Cannot create server instance directory '" +
+				path + "'", e, path);
+		}
+		// Explicitly chmod the directory in case the umask is interfering.
+		if (chmod(path.c_str(), parseModeString("u=rwx,g=rx,o=rx")) == -1) {
+			int e = errno;
+			throw FileSystemException("Cannot set permissions on server instance directory '" +
+				path + "'", e, path);
+		}
+		// verifyDirectoryPermissions() checks for the owner/group so we must make
+		// sure the server instance directory has that owner/group, even when the
+		// parent directory has setgid on.
+		if (chown(path.c_str(), geteuid(), getegid()) == -1) {
+			int e = errno;
+			throw FileSystemException("Cannot change the permissions of the server "
+				"instance directory '" + path + "'", e, path);
+		}
+	}
+
+	/**
+	 * When reusing an existing server instance directory, check permissions
+	 * so that an attacker cannot pre-create a directory with too liberal
+	 * permissions.
+	 */
+	void verifyDirectoryPermissions(const string &path) {
+		TRACE_POINT();
+		struct stat buf;
+
+		if (stat(path.c_str(), &buf) == -1) {
+			int e = errno;
+			throw FileSystemException("Cannot stat() " + path, e, path);
+		} else if (buf.st_mode != (S_IFDIR | parseModeString("u=rwx,g=rx,o=rx"))) {
+			throw RuntimeException("Tried to reuse existing server instance directory " +
+				path + ", but it has wrong permissions");
+		} else if (buf.st_uid != geteuid() || buf.st_gid != getegid()) {
+			/* The server instance directory is always created by the Watchdog. Its UID/GID never
+			 * changes because:
+			 * 1. Disabling user switching only lowers the privilege of the HelperAgent.
+			 * 2. For the UID/GID to change, the web server must be completely restarted
+			 *    (not just graceful reload) so that the control process can change its UID/GID.
+			 *    This causes the PID to change, so that an entirely new server instance
+			 *    directory is created.
+			 */
+			throw RuntimeException("Tried to reuse existing server instance directory " +
+				path + ", but it has wrong owner and group");
+		}
 	}
 	
 	bool isDirectory(const string &dir, struct dirent *entry) const {
@@ -236,33 +299,15 @@ private:
 	}
 	
 public:
-	ServerInstanceDir(pid_t webServerPid, const string &parentDir = "", bool owner = true) {
-		string theParentDir;
-		
-		if (parentDir.empty()) {
-			theParentDir = getSystemTempDir();
-		} else {
-			theParentDir = parentDir;
-		}
-		
-		/* We embed the super structure version in the server instance directory name
-		 * because it's possible to upgrade Phusion Passenger without changing the
-		 * web server's PID. This way each incompatible upgrade will use its own
-		 * server instance directory.
-		 */
-		initialize(theParentDir + "/passenger." +
-			toString(DIR_STRUCTURE_MAJOR_VERSION) + "." +
-			toString(DIR_STRUCTURE_MINOR_VERSION) + "." +
-			toString<unsigned long long>(webServerPid),
-			owner);
-		
-	}
-	
 	ServerInstanceDir(const string &path, bool owner = true) {
 		initialize(path, owner);
 	}
 	
 	~ServerInstanceDir() {
+		destroy();
+	}
+
+	void destroy() {
 		if (owner) {
 			GenerationPtr newestGeneration;
 			try {
@@ -280,7 +325,9 @@ public:
 		}
 	}
 	
-	string getPath() const {
+	// The 'const strng &' here is on purpose. The AgentsStarter C
+	// functions return the string pointer directly.
+	const string &getPath() const {
 		return path;
 	}
 	
@@ -307,6 +354,8 @@ public:
 	}
 	
 	GenerationPtr getGeneration(unsigned int number) const {
+		// Must not used boost::make_shared() here because Watchdog.cpp
+		// deletes the raw pointer in cleanupAgentsInBackground().
 		return ptr(new Generation(path, number));
 	}
 	
@@ -340,7 +389,7 @@ public:
 	}
 };
 
-typedef shared_ptr<ServerInstanceDir> ServerInstanceDirPtr;
+typedef boost::shared_ptr<ServerInstanceDir> ServerInstanceDirPtr;
 
 } // namespace Passenger
 

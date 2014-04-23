@@ -1,4 +1,4 @@
-#  Phusion Passenger - http://www.modrails.com/
+#  Phusion Passenger - https://www.phusionpassenger.com/
 #  Copyright (c) 2010 Phusion
 #
 #  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
@@ -23,8 +23,9 @@
 
 ### OXT library tests ###
 
-TEST_OXT_CFLAGS = "-I../../ext -I../support #{TEST_COMMON_CFLAGS}"
-TEST_OXT_LDFLAGS = "#{TEST_BOOST_OXT_LIBRARY} #{PlatformInfo.portability_ldflags} #{EXTRA_LDFLAGS}"
+TEST_OXT_CFLAGS = "#{EXTRA_PRE_CXXFLAGS} -Iext -Itest/support #{TEST_COMMON_CFLAGS}"
+TEST_OXT_LDFLAGS = "#{TEST_BOOST_OXT_LIBRARY} #{PlatformInfo.portability_cxx_ldflags} #{EXTRA_CXX_LDFLAGS}"
+TEST_OXT_LDFLAGS << " #{PlatformInfo.adress_sanitizer_flag}" if USE_ASAN
 TEST_OXT_OBJECTS = {
 	'oxt_test_main.o' => %w(oxt_test_main.cpp),
 	'backtrace_test.o' => %w(backtrace_test.cpp counter.hpp),
@@ -51,9 +52,8 @@ end
 # Define tasks for each OXT test source file.
 TEST_OXT_OBJECTS.each_pair do |target, sources|
 	file "test/oxt/#{target}" => sources.map{ |x| "test/oxt/#{x}" } do
-		Dir.chdir('test/oxt') do
-			puts "### In test/oxt:"
-			compile_cxx sources[0], TEST_OXT_CFLAGS
-		end
+		source = "test/oxt/#{sources[0]}"
+		object = source.sub(/\.cpp$/, '.o')
+		compile_cxx source, "#{TEST_OXT_CFLAGS} -o #{object}"
 	end
 end

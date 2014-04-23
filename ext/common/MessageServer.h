@@ -1,6 +1,6 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
- *  Copyright (c) 2010 Phusion
+ *  Phusion Passenger - https://www.phusionpassenger.com/
+ *  Copyright (c) 2010, 2011, 2012 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
  *
@@ -40,15 +40,16 @@
 #include <cerrno>
 #include <cassert>
 
-#include "Account.h"
-#include "AccountsDatabase.h"
-#include "Constants.h"
-#include "FileDescriptor.h"
-#include "MessageChannel.h"
-#include "Logging.h"
-#include "Exceptions.h"
-#include "Utils/StrIntUtils.h"
-#include "Utils/IOUtils.h"
+#include <Account.h>
+#include <AccountsDatabase.h>
+#include <Constants.h>
+#include <FileDescriptor.h>
+#include <Logging.h>
+#include <Exceptions.h>
+#include <Utils/StrIntUtils.h>
+#include <Utils/IOUtils.h>
+#include <Utils/MessageIO.h>
+#include <Utils/VariantMap.h>
 
 namespace Passenger {
 
@@ -127,7 +128,7 @@ using namespace oxt;
  *       };
  *       
  *       MessageServer::ClientContextPtr newClient(MessageServer::CommonClientContext &commonContext) {
- *           return MessageServer::ClientContextPtr(new MyContext());
+ *           return boost::make_shared<MyContext>();
  *       }
  *       
  *       bool processMessage(MessageServer::CommonClientContext &commonContext,
@@ -157,13 +158,7 @@ using namespace oxt;
  */
 class MessageServer {
 public:
-	static const unsigned int CLIENT_THREAD_STACK_SIZE =
-		#ifdef __FreeBSD__
-			// localtime() on FreeBSD needs some more stack space.
-			1024 * 96;
-		#else
-			1024 * 64;
-		#endif
+	static const unsigned int CLIENT_THREAD_STACK_SIZE = 1024 * 128;
 	
 	/** Interface for client context objects. */
 	class ClientContext {
@@ -171,7 +166,7 @@ public:
 		virtual ~ClientContext() { }
 	};
 	
-	typedef shared_ptr<ClientContext> ClientContextPtr;
+	typedef boost::shared_ptr<ClientContext> ClientContextPtr;
 	
 	/**
 	 * A common client context, containing client-specific information
@@ -182,16 +177,14 @@ public:
 		/** The client's socket file descriptor. */
 		FileDescriptor fd;
 		
-		/** The channel that's associated with the client's socket. */
-		MessageChannel channel;
-		
 		/** The account with which the client authenticated. */
 		AccountPtr account;
 		
 		
-		CommonClientContext(FileDescriptor &theFd, AccountPtr &theAccount)
-			: fd(theFd), channel(theFd), account(theAccount)
-		{ }
+		CommonClientContext(FileDescriptor &_fd, AccountPtr &_account)
+			: fd(_fd),
+			  account(_account)
+			{ }
 		
 		/** Returns a string representation for this client context. */
 		string name() {
@@ -199,7 +192,7 @@ public:
 		}
 		
 		/**
-		 * Checks whether this client has all of the rights in <tt>rights</tt>. The
+		 * Checks whether this client has all of the rights in `rights`. The
 		 * client will be notified about the result of this check, by sending it a
 		 * message.
 		 *
@@ -213,8 +206,17 @@ public:
 				writeArrayMessage(fd, "SecurityException", "Insufficient rights to execute this command.", NULL);
 				throw SecurityException("Insufficient rights to execute this command.");
 			} else {
-				writeArrayMessage(fd, "Passed security", NULL);
+				passSecurity();
 			}
+		}
+
+		/** Announce to the client that it has passed the security checks.
+		 *
+		 * @throws SystemException Something went wrong while communicating with the client.
+		 * @throws boost::thread_interrupted
+		 */
+		void passSecurity() {
+			writeArrayMessage(fd, "Passed security", NULL);
 		}
 	};
 	
@@ -226,6 +228,47 @@ public:
 	 * client is closed.
 	 */
 	class Handler {
+	protected:
+		/** Utility function for checking whether the command name equals `command`,
+		 * and whether it has exactly `nargs` arguments (excluding command name).
+		 */
+		bool isCommand(const vector<string> &args, const string &command,
+			unsigned int nargs = 0) const
+		{
+			return args.size() == nargs + 1 && args[0] == command;
+		}
+
+		/** Utility function for checking whether the command name equals `command`,
+		 * and whether it has at least `minargs` and at most `maxargs` arguments
+		 * (excluding command name), inclusive.
+		 */
+		bool isCommand(const vector<string> &args, const string &command,
+			unsigned int minargs, unsigned int maxargs) const
+		{
+			return args.size() >= minargs + 1 && args.size() <= maxargs + 1 && args[0] == command;
+		}
+
+		/** Utility function for converting arguments (starting from the given index)
+		 * into a VariantMap.
+		 *
+		 * @throws ArgumentException The number of arguments isn't an even number.
+		 */
+		VariantMap argsToOptions(const vector<string> &args, unsigned int startIndex = 1) const {
+			VariantMap map;
+			vector<string>::const_iterator it = args.begin() + startIndex, end = args.end();
+			while (it != end) {
+				const string &key = *it;
+				it++;
+				if (it == end) {
+					throw ArgumentException("Invalid options");
+				}
+				const string &value = *it;
+				map.set(key, value);
+				it++;
+			}
+			return map;
+		}
+
 	public:
 		virtual ~Handler() { }
 		
@@ -274,7 +317,7 @@ public:
 		                            const vector<string> &args) = 0;
 	};
 	
-	typedef shared_ptr<Handler> HandlerPtr;
+	typedef boost::shared_ptr<Handler> HandlerPtr;
 	
 protected:
 	/** The filename of the server socket on which this MessageServer is listening. */
@@ -544,7 +587,7 @@ public:
 			this_thread::disable_interruption di;
 			this_thread::disable_syscall_interruption dsi;
 			
-			function<void ()> func(boost::bind(&MessageServer::clientHandlingMainLoop,
+			boost::function<void ()> func(boost::bind(&MessageServer::clientHandlingMainLoop,
 				this, fd));
 			string name = "MessageServer client thread ";
 			name.append(toString(fd));
@@ -574,7 +617,7 @@ public:
 	}
 };
 
-typedef shared_ptr<MessageServer> MessageServerPtr;
+typedef boost::shared_ptr<MessageServer> MessageServerPtr;
 
 } // namespace Passenger
 

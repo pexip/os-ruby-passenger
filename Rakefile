@@ -1,7 +1,5 @@
-# kate: syntax ruby
-
-#  Phusion Passenger - http://www.modrails.com/
-#  Copyright (C) 2008, 2009, 2010, 2011  Phusion
+#  Phusion Passenger - https://www.phusionpassenger.com/
+#  Copyright (C) 2008-2013  Phusion
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -22,22 +20,26 @@ $LOAD_PATH.unshift("#{source_root}/lib")
 
 require "#{source_root}/config" if File.exist?("#{source_root}/config.rb")
 require 'build/basics'
-require 'build/config'
-require 'build/common_library'
-require 'build/ruby_extension'
-require 'build/agents'
-require 'build/apache2'
-require 'build/nginx'
-require 'build/documentation'
-require 'build/packaging'
-require 'build/test_basics'
-require 'build/oxt_tests'
-require 'build/cxx_tests'
-require 'build/ruby_tests'
-require 'build/integration_tests'
-require 'build/misc'
-require 'build/rpm'
-
+if boolean_option('ONLY_RUBY')
+	require 'build/ruby_extension'
+else
+	require 'build/ruby_extension'
+	require 'build/common_library'
+	require 'build/agents'
+	require 'build/apache2'
+	require 'build/nginx'
+	require 'build/documentation'
+	require 'build/packaging'
+	require 'build/test_basics'
+	require 'build/oxt_tests'
+	require 'build/cxx_tests'
+	require 'build/ruby_tests'
+	require 'build/node_tests'
+	require 'build/integration_tests'
+	require 'build/misc'
+	require 'build/debian'
+	require 'build/rpm'
+end
 
 #### Default tasks
 
@@ -48,8 +50,10 @@ task :default do
 end
 
 desc "Remove compiled files"
-task :clean do
-	sh "rm -rf build/cache"
+task :clean => 'clean:cache'
+task 'common:clean' => 'clean:cache'
+task 'clean:cache' do
+	sh "rm -rf #{OUTPUT_DIR}cache"
 end
 
 desc "Remove all generated files"

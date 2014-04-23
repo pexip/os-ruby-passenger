@@ -1,5 +1,5 @@
-#  Phusion Passenger - http://www.modrails.com/
-#  Copyright (c) 2010 Phusion
+#  Phusion Passenger - https://www.phusionpassenger.com/
+#  Copyright (c) 2010-2013 Phusion
 #
 #  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
 #
@@ -21,51 +21,47 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #  THE SOFTWARE.
 
-desc "Build Nginx helper agent"
-task :nginx => [
-	AGENT_OUTPUT_DIR + 'nginx/PassengerHelperAgent',
-	AGENT_OUTPUT_DIR + 'PassengerWatchdog',
-	AGENT_OUTPUT_DIR + 'PassengerLoggingAgent',
-	:native_support
+auto_generated_sources = [
+	'ext/nginx/ConfigurationCommands.c',
+	'ext/nginx/CreateLocationConfig.c',
+	'ext/nginx/MergeLocationConfig.c',
+	'ext/nginx/CacheLocationConfig.c',
+	'ext/nginx/ConfigurationFields.h'
 ]
 
-dependencies = [
-	'ext/nginx/HelperAgent.cpp',
-	'ext/nginx/ScgiRequestParser.h',
-	'ext/common/StaticString.h',
-	'ext/common/Account.h',
-	'ext/common/AccountsDatabase.h',
-	'ext/common/MessageServer.h',
-	'ext/common/FileDescriptor.h',
-	'ext/common/SpawnManager.h',
-	'ext/common/Logging.h',
-	'ext/common/ResourceLocator.h',
-	'ext/common/Utils/ProcessMetricsCollector.h',
-	'ext/common/Utils/VariantMap.h',
-	'ext/common/HelperAgent/BacktracesServer.h',
-	'ext/common/ApplicationPool/Interface.h',
-	'ext/common/ApplicationPool/Pool.h',
-	'ext/common/ApplicationPool/Server.h',
-	LIBBOOST_OXT,
-	LIBCOMMON,
-]
-file AGENT_OUTPUT_DIR + 'nginx/PassengerHelperAgent' => dependencies do
-	output_dir = "#{AGENT_OUTPUT_DIR}nginx"
-	sh "mkdir -p #{output_dir}" if !File.directory?(output_dir)
-	create_executable "#{output_dir}/PassengerHelperAgent",
-		'ext/nginx/HelperAgent.cpp',
-		"-Iext -Iext/common " <<
-		"#{PlatformInfo.portability_cflags} " <<
-		"#{EXTRA_CXXFLAGS}  " <<
-		"#{LIBCOMMON} " <<
-		"#{LIBBOOST_OXT} " <<
-		"#{PlatformInfo.portability_ldflags} " <<
-		"#{AGENT_LDFLAGS} " <<
-		"#{EXTRA_LDFLAGS}"
-end
+desc "Build Nginx support files"
+task :nginx => [
+	:nginx_without_native_support,
+	NATIVE_SUPPORT_TARGET
+].compact
+
+task :nginx_without_native_support => [
+	auto_generated_sources,
+	AGENT_OUTPUT_DIR + 'PassengerHelperAgent',
+	AGENT_OUTPUT_DIR + 'PassengerWatchdog',
+	AGENT_OUTPUT_DIR + 'PassengerLoggingAgent',
+	AGENT_OUTPUT_DIR + 'SpawnPreparer',
+	AGENT_OUTPUT_DIR + 'TempDirToucher',
+	COMMON_LIBRARY.only(*NGINX_LIBS_SELECTOR).link_objects
+].flatten
 
 task :clean => 'nginx:clean'
 desc "Clean all compiled Nginx files"
 task 'nginx:clean' => 'common:clean' do
-	sh("rm", "-rf", AGENT_OUTPUT_DIR + "nginx/PassengerHelperAgent")
+	# Nothing to clean at this time.
+end
+
+def create_nginx_auto_generated_source_task(source)
+	dependencies = [
+		"#{source}.erb",
+		'lib/phusion_passenger/nginx/config_options.rb'
+	]
+	file(source => dependencies) do
+		template = TemplateRenderer.new("#{source}.erb")
+		template.render_to(source)
+	end
+end
+
+auto_generated_sources.each do |source|
+	create_nginx_auto_generated_source_task(source)
 end

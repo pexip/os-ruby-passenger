@@ -1,0 +1,94 @@
+Description: do not mess with LOAD_PATH in bin/* files
+Author: Cédric Boutillier <boutil@debian.org>
+Last-Update: 2014-01-16
+
+--- a/bin/passenger
++++ b/bin/passenger
+@@ -23,12 +23,6 @@
+ #  THE SOFTWARE.
+ 
+ ## Magic comment: begin bootstrap ##
+-source_root = File.expand_path("..", File.dirname(__FILE__))
+-$LOAD_PATH.unshift("#{source_root}/lib")
+-begin
+-	require 'rubygems'
+-rescue LoadError
+-end
+ require 'phusion_passenger'
+ ## Magic comment: end bootstrap ##
+ 
+--- a/bin/passenger-config
++++ b/bin/passenger-config
+@@ -23,12 +23,6 @@
+ #  THE SOFTWARE.
+ 
+ ## Magic comment: begin bootstrap ##
+-source_root = File.expand_path("..", File.dirname(__FILE__))
+-$LOAD_PATH.unshift("#{source_root}/lib")
+-begin
+-	require 'rubygems'
+-rescue LoadError
+-end
+ require 'phusion_passenger'
+ ## Magic comment: end bootstrap ##
+ 
+--- a/bin/passenger-install-apache2-module
++++ b/bin/passenger-install-apache2-module
+@@ -24,12 +24,6 @@
+ #  THE SOFTWARE.
+ 
+ ## Magic comment: begin bootstrap ##
+-source_root = File.expand_path("..", File.dirname(__FILE__))
+-$LOAD_PATH.unshift("#{source_root}/lib")
+-begin
+-	require 'rubygems'
+-rescue LoadError
+-end
+ require 'phusion_passenger'
+ ## Magic comment: end bootstrap ##
+ 
+--- a/bin/passenger-install-nginx-module
++++ b/bin/passenger-install-nginx-module
+@@ -23,12 +23,6 @@
+ #  THE SOFTWARE.
+ 
+ ## Magic comment: begin bootstrap ##
+-source_root = File.expand_path("..", File.dirname(__FILE__))
+-$LOAD_PATH.unshift("#{source_root}/lib")
+-begin
+-	require 'rubygems'
+-rescue LoadError
+-end
+ require 'phusion_passenger'
+ ## Magic comment: end bootstrap ##
+ 
+--- a/bin/passenger-memory-stats
++++ b/bin/passenger-memory-stats
+@@ -23,12 +23,6 @@
+ #  THE SOFTWARE.
+ 
+ ## Magic comment: begin bootstrap ##
+-source_root = File.expand_path("..", File.dirname(__FILE__))
+-$LOAD_PATH.unshift("#{source_root}/lib")
+-begin
+-	require 'rubygems'
+-rescue LoadError
+-end
+ require 'phusion_passenger'
+ ## Magic comment: end bootstrap ##
+ 
+--- a/bin/passenger-status
++++ b/bin/passenger-status
+@@ -23,12 +23,6 @@
+ #  THE SOFTWARE.
+ 
+ ## Magic comment: begin bootstrap ##
+-source_root = File.expand_path("..", File.dirname(__FILE__))
+-$LOAD_PATH.unshift("#{source_root}/lib")
+-begin
+-	require 'rubygems'
+-rescue LoadError
+-end
+ require 'phusion_passenger'
+ ## Magic comment: end bootstrap ##
+ 

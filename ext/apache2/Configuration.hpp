@@ -1,6 +1,6 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
- *  Copyright (c) 2010 Phusion
+ *  Phusion Passenger - https://www.phusionpassenger.com/
+ *  Copyright (c) 2010-2013 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
  *
@@ -25,10 +25,11 @@
 #ifndef _PASSENGER_CONFIGURATION_HPP_
 #define _PASSENGER_CONFIGURATION_HPP_
 
-#include "Utils.h"
-#include "Logging.h"
-#include "ServerInstanceDir.h"
-#include "Constants.h"
+#include <Logging.h>
+#include <ServerInstanceDir.h>
+#include <Constants.h>
+#include <Utils.h>
+#include <Utils/VariantMap.h>
 
 /* The APR headers must come after the Passenger headers. See Hooks.cpp
  * to learn why.
@@ -52,6 +53,8 @@ namespace Passenger {
 
 using namespace std;
 
+#define UNSET_INT_VALUE INT_MIN
+
 	
 /**
  * Per-directory configuration information.
@@ -61,25 +64,11 @@ using namespace std;
  */
 struct DirConfig {
 	enum Threeway { ENABLED, DISABLED, UNSET };
-	enum SpawnMethod { SM_UNSET, SM_SMART, SM_SMART_LV2, SM_CONSERVATIVE };
+	enum SpawnMethod { SM_UNSET, SM_SMART, SM_DIRECT };
 	
-	Threeway enabled;
-	
-	std::set<std::string> railsBaseURIs;
-	std::set<std::string> rackBaseURIs;
-	
-	/** Whether to autodetect Rails applications. */
-	Threeway autoDetectRails;
-	
-	/** Whether to autodetect Rack applications. */
-	Threeway autoDetectRack;
-	
-	/** Whether to autodetect WSGI applications. */
-	Threeway autoDetectWSGI;
-	
-	/** The environment (RAILS_ENV/RACK_ENV/WSGI_ENV) under which
-	 * applications should operate. */
-	const char *environment;
+	#include "ConfigurationFields.hpp"
+
+	std::set<std::string> baseURIs;
 	
 	/** The path to the application's root (for example: RAILS_ROOT
 	 * for Rails applications, directory containing 'config.ru'
@@ -88,66 +77,24 @@ struct DirConfig {
 	 */
 	const char *appRoot;
 	
-	/** The environment (i.e. value for RACK_ENV) under which
-	 * Rack applications should operate. */
-	const char *rackEnv;
-	
 	string appGroupName;
 	
 	/** The spawn method to use. */
 	SpawnMethod spawnMethod;
 	
-	/** See PoolOptions for more info. */
-	const char *user;
-	/** See PoolOptions for more info. */
-	const char *group;
-	
 	/**
-	 * The idle timeout, in seconds, of Rails framework spawners.
-	 * May also be 0 (which indicates that the framework spawner should
-	 * never idle timeout) or -1 (which means that the value is not specified).
-	 */
-	long frameworkSpawnerTimeout;
-	
-	/**
-	 * The idle timeout, in seconds, of Rails application spawners.
+	 * The idle timeout, in seconds, of preloader processes.
 	 * May also be 0 (which indicates that the application spawner should
-	 * never idle timeout) or -1 (which means that the value is not specified).
+	 * never idle timeout) or -1 (which means that the value is not specified,
+	 * and the default value should be used).
 	 */
-	long appSpawnerTimeout;
-	
-	/**
-	 * The maximum number of requests that the spawned application may process
-	 * before exiting. A value of 0 means unlimited.
-	 */
-	unsigned long maxRequests;
-	
-	/** Indicates whether the maxRequests option was explicitly specified
-	 * in the directory configuration. */
-	bool maxRequestsSpecified;
-	
-	/**
-	 * The minimum number of processes for a group that should be kept in
-	 * the pool when cleaning idle processes. Defaults to 0.
-	 */
-	unsigned long minInstances;
-	
-	/**
-	 * Indicates whether the minInstances option was explicitly specified
-	 * in the directory configuration. */
-	bool minInstancesSpecified;
-	
+	long maxPreloaderIdleTime;
+
 	/** Whether symlinks in the document root path should be resolved.
 	 * The implication of this is documented in the users guide, section
 	 * "How Phusion Passenger detects whether a virtual host is a web application".
 	 */
 	Threeway resolveSymlinksInDocRoot;
-	
-	/** Whether high performance mode should be turned on. */
-	Threeway highPerformance;
-	
-	/** Whether global queuing should be used. */
-	Threeway useGlobalQueue;
 	
 	/**
 	 * Whether encoded slashes in URLs should be supported. This however conflicts
@@ -204,55 +151,7 @@ struct DirConfig {
 		return enabled != DISABLED;
 	}
 	
-	string getAppRoot(const char *documentRoot) const {
-		if (appRoot == NULL) {
-			if (resolveSymlinksInDocRoot == DirConfig::ENABLED) {
-				return extractDirName(resolveSymlink(documentRoot));
-			} else {
-				return extractDirName(documentRoot);
-			}
-		} else {
-			return appRoot;
-		}
-	}
-	
-	string getAppRoot(const string &documentRoot) const {
-		if (appRoot == NULL) {
-			if (resolveSymlinksInDocRoot == DirConfig::ENABLED) {
-				return extractDirName(resolveSymlink(documentRoot));
-			} else {
-				return extractDirName(documentRoot);
-			}
-		} else {
-			return appRoot;
-		}
-	}
-	
-	const char *getUser() const {
-		if (user != NULL) {
-			return user;
-		} else {
-			return "";
-		}
-	}
-	
-	const char *getGroup() const {
-		if (group != NULL) {
-			return group;
-		} else {
-			return "";
-		}
-	}
-	
-	const char *getEnvironment() const {
-		if (environment != NULL) {
-			return environment;
-		} else {
-			return "production";
-		}
-	}
-	
-	string getAppGroupName(const string &appRoot) const {
+	StaticString getAppGroupName(const StaticString &appRoot) const {
 		if (appGroupName.empty()) {
 			return appRoot;
 		} else {
@@ -260,41 +159,19 @@ struct DirConfig {
 		}
 	}
 	
-	const char *getSpawnMethodString() const {
+	StaticString getSpawnMethodString() const {
 		switch (spawnMethod) {
 		case SM_SMART:
 			return "smart";
-		case SM_SMART_LV2:
-			return "smart-lv2";
-		case SM_CONSERVATIVE:
-			return "conservative";
+		case SM_DIRECT:
+			return "direct";
 		default:
-			return "smart-lv2";
+			return "smart";
 		}
 	}
-	
-	unsigned long getMaxRequests() const {
-		if (maxRequestsSpecified) {
-			return maxRequests;
-		} else {
-			return 0;
-		}
-	}
-	
-	unsigned long getMinInstances() const {
-		if (minInstancesSpecified) {
-			return minInstances;
-		} else {
-			return 1;
-		}
-	}
-	
+
 	bool highPerformanceMode() const {
 		return highPerformance == ENABLED;
-	}
-	
-	bool usingGlobalQueue() const {
-		return useGlobalQueue != DISABLED;
 	}
 	
 	bool allowsEncodedSlashes() const {
@@ -309,7 +186,7 @@ struct DirConfig {
 		}
 	}
 	
-	const char *getRestartDir() const {
+	StaticString getRestartDir() const {
 		if (restartDir != NULL) {
 			return restartDir;
 		} else {
@@ -334,7 +211,7 @@ struct DirConfig {
 	}
 
 	bool getBufferResponse() const {
-		return bufferResponse != DISABLED;
+		return bufferResponse == ENABLED;
 	}
 	
 	string getUnionStationFilterString() const {
@@ -365,11 +242,13 @@ struct DirConfig {
  * the default value if the value is not specified.
  */
 struct ServerConfig {
-	/** The filename of the Ruby interpreter to use. */
-	const char *ruby;
-	
 	/** The Passenger root folder. */
 	const char *root;
+
+	VariantMap ctl;
+
+	/** The default Ruby interpreter to use. */
+	const char *defaultRuby;
 	
 	/** The log verbosity. */
 	int logLevel;
@@ -380,10 +259,6 @@ struct ServerConfig {
 	/** The maximum number of simultaneously alive application
 	 * instances. */
 	unsigned int maxPoolSize;
-	
-	/** The maximum number of simultaneously alive Rails application
-	 * that a single Rails application may occupy. */
-	unsigned int maxInstancesPerApp;
 	
 	/** The maximum number of seconds that an application may be
 	 * idle before it gets terminated. */
@@ -404,23 +279,19 @@ struct ServerConfig {
 	int unionStationGatewayPort;
 	string unionStationGatewayCert;
 	string unionStationProxyAddress;
-	string unionStationProxyType;
 	
 	/** Directory in which analytics logs should be saved. */
-	string analyticsLogDir;
 	string analyticsLogUser;
 	string analyticsLogGroup;
-	string analyticsLogPermissions;
 	
 	set<string> prestartURLs;
 	
 	ServerConfig() {
-		ruby               = "ruby";
 		root               = NULL;
+		defaultRuby        = DEFAULT_RUBY;
 		logLevel           = DEFAULT_LOG_LEVEL;
 		debugLogFile       = NULL;
 		maxPoolSize        = DEFAULT_MAX_POOL_SIZE;
-		maxInstancesPerApp = DEFAULT_MAX_INSTANCES_PER_APP;
 		poolIdleTime       = DEFAULT_POOL_IDLE_TIME;
 		userSwitching      = true;
 		defaultUser        = DEFAULT_WEB_APP_USER;
@@ -429,10 +300,8 @@ struct ServerConfig {
 		unionStationGatewayPort    = DEFAULT_UNION_STATION_GATEWAY_PORT;
 		unionStationGatewayCert    = string();
 		unionStationProxyAddress   = string();
-		unionStationProxyType      = string();
 		analyticsLogUser   = DEFAULT_ANALYTICS_LOG_USER;
 		analyticsLogGroup  = DEFAULT_ANALYTICS_LOG_GROUP;
-		analyticsLogPermissions = DEFAULT_ANALYTICS_LOG_PERMISSIONS;
 	}
 	
 	/** Called after the configuration files have been loaded, inside
@@ -457,29 +326,6 @@ struct ServerConfig {
 			}
 			
 			defaultGroup = groupEntry->gr_name;
-		}
-		
-		if (analyticsLogDir.empty() && geteuid() == 0) {
-			analyticsLogDir = "/var/log/passenger-analytics";
-		} else if (analyticsLogDir.empty()) {
-			struct passwd *user = getpwuid(geteuid());
-			string username;
-			
-			if (user == NULL) {
-				username = user->pw_name;
-			} else {
-				username = "user-" + toString(geteuid());
-			}
-			analyticsLogDir = string(getSystemTempDir()) +
-				"/passenger-analytics-logs." +
-				username;
-		}
-		
-		if (unionStationProxyType != ""
-		 && unionStationProxyType != "http"
-		 && unionStationProxyType != "socks5") {
-			throw ConfigurationException(string("The option 'UnionStationProxyType' ") +
-				"may only be set to 'http' or 'socks5'.");
 		}
 	}
 };

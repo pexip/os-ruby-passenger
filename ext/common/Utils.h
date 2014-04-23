@@ -1,6 +1,6 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
- *  Copyright (c) 2010 Phusion
+ *  Phusion Passenger - https://www.phusionpassenger.com/
+ *  Copyright (c) 2010-2013 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
  *
@@ -39,13 +39,17 @@
 #include <cstring>
 #include <errno.h>
 #include <unistd.h>
-#include "StaticString.h"
-#include "Exceptions.h"
+#include <StaticString.h>
+#include <Exceptions.h>
+#include <Utils/LargeFiles.h>
 
 namespace Passenger {
 
 using namespace std;
 using namespace boost;
+
+#define foreach         BOOST_FOREACH
+#define reverse_foreach BOOST_REVERSE_FOREACH
 
 static const uid_t USER_NOT_GIVEN = (uid_t) -1;
 static const gid_t GROUP_NOT_GIVEN = (gid_t) -1;
@@ -61,6 +65,8 @@ typedef enum {
 	FT_REGULAR,
 	/** A directory. */
 	FT_DIRECTORY,
+	/** A symlink. Only returned by getFileTypeNoFollowSymlinks(), not by getFileType(). */
+	FT_SYMLINK,
 	/** Something else, e.g. a pipe or a socket. */
 	FT_OTHER
 } FileType;
@@ -69,23 +75,23 @@ typedef enum {
  * Convenience shortcut for creating a <tt>shared_ptr</tt>.
  * Instead of:
  * @code
- *    shared_ptr<Foo> foo;
+ *    boost::shared_ptr<Foo> foo;
  *    ...
- *    foo = shared_ptr<Foo>(new Foo());
+ *    foo = boost::shared_ptr<Foo>(new Foo());
  * @endcode
  * one can write:
  * @code
- *    shared_ptr<Foo> foo;
+ *    boost::shared_ptr<Foo> foo;
  *    ...
  *    foo = ptr(new Foo());
  * @endcode
  *
- * @param pointer The item to put in the shared_ptr object.
+ * @param pointer The item to put in the boost::shared_ptr object.
  * @ingroup Support
  */
-template<typename T> shared_ptr<T>
+template<typename T> boost::shared_ptr<T>
 ptr(T *pointer) {
-	return shared_ptr<T>(pointer);
+	return boost::shared_ptr<T>(pointer);
 }
 
 /**
@@ -106,7 +112,7 @@ bool fileExists(const StaticString &filename, CachedFileStat *cstat = 0,
 /**
  * Check whether 'filename' exists and what kind of file it is.
  *
- * @param filename The filename to check.
+ * @param filename The filename to check. It MUST be NULL-terminated.
  * @param mstat A CachedFileStat object, if you want to use cached statting.
  * @param throttleRate A throttle rate for cstat. Only applicable if cstat is not NULL.
  * @return The file type.
@@ -117,6 +123,10 @@ bool fileExists(const StaticString &filename, CachedFileStat *cstat = 0,
  */
 FileType getFileType(const StaticString &filename, CachedFileStat *cstat = 0,
                      unsigned int throttleRate = 0);
+/**
+ * Like getFileType(), but does not follow symlinks.
+ */
+FileType getFileTypeNoFollowSymlinks(const StaticString &filename);
 
 /**
  * Create the given file with the given contents, permissions and ownership.
@@ -160,20 +170,32 @@ string canonicalizePath(const string &path);
  * If <em>path</em> doesn't refer to a symlink then this method will return
  * <em>path</em>.
  *
+ * <em>path</em> MUST be null-terminated!
+ *
  * @throws FileSystemException Something went wrong.
  * @ingroup Support
  */
-string resolveSymlink(const string &path);
+string resolveSymlink(const StaticString &path);
 
 /**
  * Given a path, extracts its directory name.
+ * <em>path</em> MUST be null-terminated!
  *
  * @ingroup Support
  */
 string extractDirName(const StaticString &path);
 
 /**
+ * Given a path, extracts its directory name. This version does not use
+ * any dynamically allocated storage and does not require `path` to be
+ * NULL-terminated. It returns a StaticString that points either to static
+ * storage, or to a substring of `path`.
+ */
+StaticString extractDirNameStatic(const StaticString &path);
+
+/**
  * Given a path, extracts its base name.
+ * <em>path</em> MUST be null-terminated!
  *
  * @ingroup Support
  */
@@ -193,6 +215,20 @@ string escapeForXml(const string &input);
  * where xxxx is the current UID.
  */
 string getProcessUsername();
+
+/**
+ * Returns either the group name for the given GID, or (if the group name
+ * couldn't be looked up) a string representation of the given GID.
+ */
+string getGroupName(gid_t gid);
+
+/**
+ * Given a `groupName` which is either the name of a group, or a string
+ * containing the GID of a group, looks up the GID as a gid_t.
+ *
+ * Returns `(gid_t) -1` if the lookup fails.
+ */
+gid_t lookupGid(const string &groupName);
 
 /**
  * Converts a mode string into a mode_t value.
@@ -215,6 +251,14 @@ string getProcessUsername();
  * @throws InvalidModeStringException The mode string cannot be parsed.
  */
 mode_t parseModeString(const StaticString &mode);
+
+/**
+ * Turns the given path into an absolute path. Unlike realpath(), this function does
+ * not resolve symlinks.
+ *
+ * @throws SystemException
+ */
+string absolutizePath(const StaticString &path, const StaticString &workingDir = StaticString());
 
 /**
  * Return the path name for the directory in which the system stores general
@@ -297,53 +341,12 @@ void makeDirTree(const string &path, const StaticString &mode = "u=rwx,g=,o=",
  * Remove an entire directory tree recursively. If the directory doesn't exist then this
  * function does nothing.
  *
- * @throws FileSystemException Something went wrong.
+ * @throws RuntimeException Something went wrong.
  */
 void removeDirTree(const string &path);
 
-/**
- * Check whether the specified directory is a valid Ruby on Rails
- * application root directory.
- *
- * @param cstat A CachedFileStat object, if you want to use cached statting.
- * @param throttleRate A throttle rate for cstat. Only applicable if cstat is not NULL.
- * @throws FileSystemException Unable to check because of a system error.
- * @throws TimeRetrievalException
- * @throws boost::thread_interrupted
- * @ingroup Support
- */
-bool verifyRailsDir(const string &dir, CachedFileStat *cstat = 0,
-                    unsigned int throttleRate = 0);
-
-/**
- * Check whether the specified directory is a valid Rack application
- * root directory.
- *
- * @param cstat A CachedFileStat object, if you want to use cached statting.
- * @param throttleRate A throttle rate for cstat. Only applicable if cstat is not NULL.
- * @throws FileSystemException Unable to check because of a filesystem error.
- * @throws TimeRetrievalException
- * @throws boost::thread_interrupted
- * @ingroup Support
- */
-bool verifyRackDir(const string &dir, CachedFileStat *cstat = 0,
-                   unsigned int throttleRate = 0);
-
-/**
- * Check whether the specified directory is a valid WSGI application
- * root directory.
- *
- * @param cstat A CachedFileStat object, if you want to use cached statting.
- * @param throttleRate A throttle rate for cstat. Only applicable if cstat is not NULL.
- * @throws FileSystemException Unable to check because of a filesystem error.
- * @throws TimeRetrievalException
- * @throws boost::thread_interrupted
- * @ingroup Support
- */
-bool verifyWSGIDir(const string &dir, CachedFileStat *cstat = 0,
-                   unsigned int throttleRate = 0);
-
-void prestartWebApps(const ResourceLocator &locator, const string &serializedprestartURLs);
+void prestartWebApps(const ResourceLocator &locator, const string &ruby,
+	const vector<string> &prestartURLs);
 
 /**
  * Runs the given function and catches any tracable_exceptions. Upon catching such an exception,
@@ -351,8 +354,8 @@ void prestartWebApps(const ResourceLocator &locator, const string &serializedpre
  * otherwise the exception is swallowed.
  * thread_interrupted and all other exceptions are silently propagated.
  */
-void runAndPrintExceptions(const function<void ()> &func, bool toAbort);
-void runAndPrintExceptions(const function<void ()> &func);
+void runAndPrintExceptions(const boost::function<void ()> &func, bool toAbort);
+void runAndPrintExceptions(const boost::function<void ()> &func);
 
 /**
  * Returns the system's host name.
@@ -377,11 +380,41 @@ string getSignalName(int sig);
 void resetSignalHandlersAndMask();
 
 /**
+ * Disables malloc() debugging facilities on OS X.
+ */
+void disableMallocDebugging();
+
+/**
+ * Like system(), but properly resets the signal handler mask,
+ * disables malloc debugging and closes file descriptors > 2.
+ * _command_ must be null-terminated.
+ */
+int runShellCommand(const StaticString &command);
+
+/**
+ * Async-signal safe way to fork().
+ *
+ * On Linux, the fork() glibc wrapper grabs a ptmalloc lock, so
+ * if malloc causes a segfault then we can't fork.
+ * http://sourceware.org/bugzilla/show_bug.cgi?id=4737
+ *
+ * OS X apparently does something similar, except they use a
+ * spinlock so it results in 100% CPU. See _cthread_fork_prepare()
+ * at http://www.opensource.apple.com/source/Libc/Libc-166/threads.subproj/cthreads.c
+ */
+pid_t asyncFork();
+
+/**
  * Close all file descriptors that are higher than <em>lastToKeepOpen</em>.
  * This function is async-signal safe. But make sure there are no other
  * threads running that might open file descriptors!
  */
 void closeAllFileDescriptors(int lastToKeepOpen);
+
+/**
+ * A no-op, but usually set as a breakpoint in gdb. See CONTRIBUTING.md.
+ */
+void breakpoint();
 
 
 /**
@@ -405,7 +438,7 @@ public:
 		
 		snprintf(templ, sizeof(templ), "%s/%s.XXXXXX", dir.c_str(), identifier);
 		templ[sizeof(templ) - 1] = '\0';
-		fd = mkstemp(templ);
+		fd = lfs_mkstemp(templ);
 		if (fd == -1) {
 			char message[1024];
 			int e = errno;

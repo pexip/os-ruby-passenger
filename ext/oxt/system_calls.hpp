@@ -2,7 +2,7 @@
  * OXT - OS eXtensions for boosT
  * Provides important functionality necessary for writing robust server software.
  *
- * Copyright (c) 2010 Phusion
+ * Copyright (c) 2010-2012 Phusion
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -40,20 +40,26 @@
 #include <cstdio>
 #include <ctime>
 #include <cassert>
+#include "macros.hpp"
 
 /**
- * Support for interruption of blocking system calls and C library calls
+ * System call and C library call wrappers with extra features
  *
- * This file provides a framework for writing multithreading code that can
- * be interrupted, even when blocked on system calls or C library calls.
+ * This file provides wrappers for many system calls and C library calls
+ * and adds the following features:
  *
- * One must first call oxt::setup_syscall_interruption_support().
+ * - Interruption of blocking system calls and blocking C library calls.
+ * - Simulation of random failures.
+ *
+ * ## About system call interruption
+ *
+ * One must first call `oxt::setup_syscall_interruption_support()`.
  * Then one may use the functions in oxt::syscalls as drop-in replacements
  * for system calls or C library functions. These functions throw
  * boost::thread_interrupted upon interruption, instead of returning an EINTR
  * error.
  *
- * Once setup_syscall_interruption_support() has been called, system call
+ * Once `setup_syscall_interruption_support()` has been called, system call
  * interruption is enabled by default. You can enable or disable system call
  * interruption in the current scope by creating instances of
  * boost::this_thread::enable_syscall_interruption or
@@ -63,7 +69,8 @@
  * boost::thread_interrupted, nor will they return EINTR errors. This is similar
  * to Boost thread interruption.
  *
- * <h2>How to interrupt</h2>
+ * ### How to interrupt
+ *
  * Generally, oxt::thread::interrupt() and oxt::thread::interrupt_and_join()
  * should be used for interrupting threads. These methods will interrupt
  * the thread at all Boost interruption points, as well as system calls that
@@ -89,34 +96,34 @@
  * received. So one must keep sending signals periodically until the
  * thread has quit.
  *
- * @warning
- * After oxt::setup_syscall_interruption_support() is called, sending a signal
+ * **Warning**:
+ *
+ * After `oxt::setup_syscall_interruption_support()` is called, sending a signal
  * will cause system calls to return with an EINTR error. The oxt::syscall
  * functions will automatically take care of this, but if you're calling any
  * system calls without using that namespace, then you should check for and
  * take care of EINTR errors.
+ *
+ * ## About random simulation of failures
+ *
+ * Call `oxt::setup_random_failure_simulation()` to initialize random
+ * failure simulation.
  */
 
 // This is one of the things that Java is good at and C++ sucks at. Sigh...
 
 namespace oxt {
 	static const int INTERRUPTION_SIGNAL = SIGUSR1; // SIGUSR2 is reserved by Valgrind...
+	#define OXT_MAX_ERROR_CHANCES 16
 	
-	/**
-	 * Setup system call interruption support.
-	 * This function may only be called once. It installs a signal handler
-	 * for INTERRUPTION_SIGNAL, so one should not install a different signal
-	 * handler for that signal after calling this function. It also resets
-	 * the process signal mask.
-	 *
-	 * @warning
-	 * After oxt::setup_syscall_interruption_support() is called, sending a signal
-	 * will cause system calls to return with an EINTR error. The oxt::syscall
-	 * functions will automatically take care of this, but if you're calling any
-	 * system calls without using that namespace, then you should check for and
-	 * take care of EINTR errors.
-	 */
+	struct ErrorChance {
+		double chance;
+		int errorCode;
+	};
+
 	void setup_syscall_interruption_support();
+
+	void setup_random_failure_simulation(const ErrorChance *errorChances, unsigned int n);
 	
 	/**
 	 * System call and C library call wrappers with interruption support.
@@ -125,6 +132,8 @@ namespace oxt {
 	 * by oxt::thread::interrupt() or oxt::thread::interrupt_and_join().
 	 */
 	namespace syscalls {
+		using namespace std;
+
 		int open(const char *path, int oflag);
 		int open(const char *path, int oflag, mode_t mode);
 		ssize_t read(int fd, void *buf, size_t count);
@@ -133,6 +142,8 @@ namespace oxt {
 		int close(int fd);
 		int pipe(int filedes[2]);
 		int dup2(int filedes, int filedes2);
+		int mkdir(const char *pathname, mode_t mode);
+		int chown(const char *path, uid_t owner, gid_t group);
 		
 		int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
 		int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
@@ -155,6 +166,7 @@ namespace oxt {
 		int fclose(FILE *fp);
 		int unlink(const char *pathname);
 		int stat(const char *path, struct stat *buf);
+		int lstat(const char *path, struct stat *buf);
 		
 		time_t time(time_t *t);
 		unsigned int sleep(unsigned int seconds);
@@ -175,8 +187,12 @@ namespace this_thread {
 	/**
 	 * @intern
 	 */
-	extern thread_specific_ptr<bool> _syscalls_interruptable;
-	
+	#ifdef OXT_THREAD_LOCAL_KEYWORD_SUPPORTED
+		extern __thread int _syscalls_interruptable;
+	#else
+		extern thread_specific_ptr<bool> _syscalls_interruptable;
+	#endif
+
 	/**
 	 * Check whether system calls should be interruptable in
 	 * the calling thread.
@@ -194,17 +210,26 @@ namespace this_thread {
 		bool last_value;
 	public:
 		enable_syscall_interruption() {
-			if (_syscalls_interruptable.get() == NULL) {
-				last_value = true;
-				_syscalls_interruptable.reset(new bool(true));
-			} else {
-				last_value = *_syscalls_interruptable;
-				*_syscalls_interruptable = true;
-			}
+			#ifdef OXT_THREAD_LOCAL_KEYWORD_SUPPORTED
+				last_value = !!_syscalls_interruptable;
+				_syscalls_interruptable = 1;
+			#else
+				if (_syscalls_interruptable.get() == NULL) {
+					last_value = true;
+					_syscalls_interruptable.reset(new bool(true));
+				} else {
+					last_value = *_syscalls_interruptable;
+					*_syscalls_interruptable = true;
+				}
+			#endif
 		}
 		
 		~enable_syscall_interruption() {
-			*_syscalls_interruptable = last_value;
+			#ifdef OXT_THREAD_LOCAL_KEYWORD_SUPPORTED
+				_syscalls_interruptable = last_value;
+			#else
+				*_syscalls_interruptable = last_value;
+			#endif
 		}
 	};
 	
@@ -220,17 +245,26 @@ namespace this_thread {
 		bool last_value;
 	public:
 		disable_syscall_interruption() {
-			if (_syscalls_interruptable.get() == NULL) {
-				last_value = true;
-				_syscalls_interruptable.reset(new bool(false));
-			} else {
-				last_value = *_syscalls_interruptable;
-				*_syscalls_interruptable = false;
-			}
+			#ifdef OXT_THREAD_LOCAL_KEYWORD_SUPPORTED
+				last_value = !!_syscalls_interruptable;
+				_syscalls_interruptable = 0;
+			#else
+				if (_syscalls_interruptable.get() == NULL) {
+					last_value = true;
+					_syscalls_interruptable.reset(new bool(false));
+				} else {
+					last_value = *_syscalls_interruptable;
+					*_syscalls_interruptable = false;
+				}
+			#endif
 		}
 		
 		~disable_syscall_interruption() {
-			*_syscalls_interruptable = last_value;
+			#ifdef OXT_THREAD_LOCAL_KEYWORD_SUPPORTED
+				_syscalls_interruptable = last_value;
+			#else
+				*_syscalls_interruptable = last_value;
+			#endif
 		}
 	};
 	
@@ -240,16 +274,25 @@ namespace this_thread {
 	 */
 	class restore_syscall_interruption {
 	private:
-		int last_value;
+		bool last_value;
 	public:
 		restore_syscall_interruption(const disable_syscall_interruption &intr) {
-			assert(_syscalls_interruptable.get() != NULL);
-			last_value = *_syscalls_interruptable;
-			*_syscalls_interruptable = intr.last_value;
+			#ifdef OXT_THREAD_LOCAL_KEYWORD_SUPPORTED
+				last_value = !!_syscalls_interruptable;
+				_syscalls_interruptable = intr.last_value;
+			#else
+				assert(_syscalls_interruptable.get() != NULL);
+				last_value = *_syscalls_interruptable;
+				*_syscalls_interruptable = intr.last_value;
+			#endif
 		}
 		
 		~restore_syscall_interruption() {
-			*_syscalls_interruptable = last_value;
+			#ifdef OXT_THREAD_LOCAL_KEYWORD_SUPPORTED
+				_syscalls_interruptable = last_value;
+			#else
+				*_syscalls_interruptable = last_value;
+			#endif
 		}
 	};
 

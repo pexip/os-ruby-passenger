@@ -2,7 +2,7 @@
  * OXT - OS eXtensions for boosT
  * Provides important functionality necessary for writing robust server software.
  *
- * Copyright (c) 2010 Phusion
+ * Copyright (c) 2010-2013 Phusion
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,7 @@
  */
 #include <string>
 #include <exception>
-#include <list>
+#include <vector>
 
 namespace oxt {
 
@@ -35,10 +35,13 @@ struct trace_point;
  */
 class tracable_exception: public std::exception {
 private:
-	std::list<trace_point *> backtrace_copy;
+	std::vector<trace_point *> backtrace_copy;
 public:
+	struct no_backtrace { };
+
 	tracable_exception();
 	tracable_exception(const tracable_exception &other);
+	tracable_exception(const no_backtrace &tag);
 	virtual ~tracable_exception() throw();
 	virtual std::string backtrace() const throw();
 	virtual const char *what() const throw();

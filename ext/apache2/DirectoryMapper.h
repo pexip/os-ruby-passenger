@@ -1,6 +1,6 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
- *  Copyright (c) 2010 Phusion
+ *  Phusion Passenger - https://www.phusionpassenger.com/
+ *  Copyright (c) 2010-2013 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
  *
@@ -32,8 +32,9 @@
 #include <oxt/backtrace.hpp>
 
 #include "Configuration.hpp"
-#include "Utils.h"
-#include "Utils/CachedFileStat.hpp"
+#include <ApplicationPool2/AppTypes.h>
+#include <Utils.h>
+#include <Utils/CachedFileStat.hpp>
 
 // The Apache/APR headers *must* come after the Boost headers, otherwise
 // compilation will fail on OpenBSD.
@@ -44,6 +45,18 @@ namespace Passenger {
 
 using namespace std;
 using namespace oxt;
+using namespace Passenger::ApplicationPool2;
+
+
+class DocumentRootDeterminationError: public oxt::tracable_exception {
+private:
+	string msg;
+public:
+	DocumentRootDeterminationError(const string &message): msg(message) {}
+	virtual ~DocumentRootDeterminationError() throw() {}
+	virtual const char *what() const throw() { return msg.c_str(); }
+};
+
 
 /**
  * Utility class for determining URI-to-application directory mappings.
@@ -55,38 +68,107 @@ using namespace oxt;
  * @ingroup Core
  */
 class DirectoryMapper {
-public:
-	enum ApplicationType {
-		NONE,
-		RAILS,
-		RACK,
-		WSGI
-	};
-
 private:
 	DirConfig *config;
 	request_rec *r;
 	CachedFileStat *cstat;
-	unsigned int throttleRate;
-	bool baseURIKnown;
 	const char *baseURI;
-	ApplicationType appType;
+	string publicDir;
+	string appRoot;
+	unsigned int throttleRate;
+	PassengerAppType appType: 7;
+	bool autoDetectionDone: 1;
 	
-	inline bool shouldAutoDetectRails() {
-		return config->autoDetectRails == DirConfig::ENABLED ||
-			config->autoDetectRails == DirConfig::UNSET;
+	const char *findBaseURI() const {
+		set<string>::const_iterator it, end = config->baseURIs.end();
+		const char *uri = r->uri;
+		size_t uri_len = strlen(uri);
+
+		for (it = config->baseURIs.begin(); it != end; it++) {
+			const string &base = *it;
+
+			if (base == "/") {
+                /* Ignore 'PassengerBaseURI /' options. Users usually
+                 * specify this out of ignorance.
+                 */
+                continue;
+            }
+
+			if (  base == "/"
+			 || ( uri_len == base.size() && memcmp(uri, base.c_str(), uri_len) == 0 )
+			 || ( uri_len  > base.size() && memcmp(uri, base.c_str(), base.size()) == 0
+			                             && uri[base.size()] == '/' )
+			) {
+				return base.c_str();
+			}
+		}
+		return NULL;
 	}
-	
-	inline bool shouldAutoDetectRack() {
-		return config->autoDetectRack == DirConfig::ENABLED ||
-			config->autoDetectRack == DirConfig::UNSET;
+
+	/**
+	 * @throws FileSystemException An error occured while examening the filesystem.
+	 * @throws DocumentRootDeterminationError Unable to query the location of the document root.
+	 * @throws TimeRetrievalException
+	 * @throws boost::thread_interrupted
+	 */
+	void autoDetect() {
+		if (autoDetectionDone) {
+			return;
+		}
+
+		TRACE_POINT();
+
+		/* Determine the document root without trailing slashes. */
+		StaticString docRoot = ap_document_root(r);
+		if (docRoot.size() > 1 && docRoot[docRoot.size() - 1] == '/') {
+			docRoot = docRoot.substr(0, docRoot.size() - 1);
+		}
+		if (docRoot.empty()) {
+			throw DocumentRootDeterminationError("Cannot determine the document root");
+		}
+
+		/* Find the base URI for this web application, if any. */
+		const char *baseURI = findBaseURI();
+		if (baseURI != NULL) {
+			/* We infer that the 'public' directory of the web application
+			 * is document root + base URI.
+			 */
+			publicDir = docRoot + baseURI;
+		} else {
+			/* No base URI directives are applicable for this request. So assume that
+			 * the web application's public directory is the document root.
+			 */
+			publicDir = docRoot;
+		}
+
+		UPDATE_TRACE_POINT();
+		AppTypeDetector detector(cstat, throttleRate);
+		PassengerAppType appType;
+		string appRoot;
+		if (config->appType == NULL) {
+			if (config->appRoot == NULL) {
+				appType = detector.checkDocumentRoot(publicDir,
+					baseURI != NULL || config->resolveSymlinksInDocRoot == DirConfig::ENABLED,
+					&appRoot);
+			} else {
+				appRoot = config->appRoot;
+				appType = detector.checkAppRoot(appRoot);
+			}
+		} else {
+			if (config->appRoot == NULL) {
+				appType = PAT_NONE;
+			} else {
+				appRoot = config->appRoot;
+				appType = getAppType(config->appType);
+			}
+		}
+
+		this->appRoot = appRoot;
+		this->baseURI = baseURI;
+		this->appType = appType;
+		autoDetectionDone = true;
 	}
-	
-	inline bool shouldAutoDetectWSGI() {
-		return config->autoDetectWSGI == DirConfig::ENABLED ||
-			config->autoDetectWSGI == DirConfig::UNSET;
-	}
-	
+
 public:
 	/**
 	 * Create a new DirectoryMapper object.
@@ -102,152 +184,67 @@ public:
 		this->config = config;
 		this->cstat = cstat;
 		this->throttleRate = throttleRate;
-		appType = NONE;
-		baseURIKnown = false;
+		appType = PAT_NONE;
 		baseURI = NULL;
+		autoDetectionDone = false;
 	}
 	
 	/**
-	 * Determine whether the given HTTP request falls under one of the specified
-	 * RailsBaseURIs or RackBaseURIs. If yes, then the first matching base URI will
-	 * be returned.
-	 *
-	 * If Rails/Rack autodetection was enabled in the configuration, and the document
-	 * root seems to be a valid Rails/Rack 'public' folder, then this method will
-	 * return "/".
-	 *
+	 * Determines whether the given HTTP request falls under one of the specified
+	 * PassengerBaseURIs. If yes, then the first matching base URI will be returned.
 	 * Otherwise, NULL will be returned.
 	 *
-	 * @throws FileSystemException This method might also examine the filesystem in
-	 *            order to detect the application's type. During that process, a
-	 *            FileSystemException might be thrown.
+	 * @throws FileSystemException An error occured while examening the filesystem.
+	 * @throws DocumentRoot
+	 * @throws TimeRetrievalException
+	 * @throws boost::thread_interrupted
 	 * @warning The return value may only be used as long as <tt>config</tt>
 	 *          hasn't been destroyed.
 	 */
 	const char *getBaseURI() {
 		TRACE_POINT();
-		if (baseURIKnown) {
-			return baseURI;
-		}
-		
-		set<string>::const_iterator it;
-		const char *uri = r->uri;
-		size_t uri_len = strlen(uri);
-		
-		if (uri_len == 0 || uri[0] != '/') {
-			baseURIKnown = true;
-			return NULL;
-		}
-		
-		UPDATE_TRACE_POINT();
-		for (it = config->railsBaseURIs.begin(); it != config->railsBaseURIs.end(); it++) {
-			const string &base(*it);
-			if (  base == "/"
-			 || ( uri_len == base.size() && memcmp(uri, base.c_str(), uri_len) == 0 )
-			 || ( uri_len  > base.size() && memcmp(uri, base.c_str(), base.size()) == 0
-			                             && uri[base.size()] == '/' )
-			) {
-				baseURIKnown = true;
-				baseURI = base.c_str();
-				appType = RAILS;
-				return baseURI;
-			}
-		}
-		
-		UPDATE_TRACE_POINT();
-		for (it = config->rackBaseURIs.begin(); it != config->rackBaseURIs.end(); it++) {
-			const string &base(*it);
-			if (  base == "/"
-			 || ( uri_len == base.size() && memcmp(uri, base.c_str(), uri_len) == 0 )
-			 || ( uri_len  > base.size() && memcmp(uri, base.c_str(), base.size()) == 0
-			                             && uri[base.size()] == '/' )
-			) {
-				baseURIKnown = true;
-				baseURI = base.c_str();
-				appType = RACK;
-				return baseURI;
-			}
-		}
-		
-		UPDATE_TRACE_POINT();
-		if (shouldAutoDetectRack()
-		 && verifyRackDir(config->getAppRoot(ap_document_root(r)), cstat, throttleRate)) {
-			baseURIKnown = true;
-			baseURI = "/";
-			appType = RACK;
-			return baseURI;
-		}
-		
-		UPDATE_TRACE_POINT();
-		if (shouldAutoDetectRails()
-		 && verifyRailsDir(config->getAppRoot(ap_document_root(r)), cstat, throttleRate)) {
-			baseURIKnown = true;
-			baseURI = "/";
-			appType = RAILS;
-			return baseURI;
-		}
-		
-		UPDATE_TRACE_POINT();
-		if (shouldAutoDetectWSGI()
-		 && verifyWSGIDir(config->getAppRoot(ap_document_root(r)), cstat, throttleRate)) {
-			baseURIKnown = true;
-			baseURI = "/";
-			appType = WSGI;
-			return baseURI;
-		}
-		
-		baseURIKnown = true;
-		return NULL;
+		autoDetect();
+		return baseURI;
 	}
 	
 	/**
-	 * Returns the filename of the 'public' directory of the Rails/Rack application
+	 * Returns the filename of the 'public' directory of the application
 	 * that's associated with the HTTP request.
 	 *
-	 * Returns an empty string if the document root of the HTTP request
-	 * cannot be determined, or if it isn't a valid folder.
-	 *
 	 * @throws FileSystemException An error occured while examening the filesystem.
+	 * @throws DocumentRootDeterminationError Unable to query the location of the document root.
+	 * @throws TimeRetrievalException
+	 * @throws boost::thread_interrupted
 	 */
 	string getPublicDirectory() {
-		if (!baseURIKnown) {
-			getBaseURI();
-		}
-		if (baseURI == NULL) {
-			return "";
-		}
-		
-		const char *docRoot = ap_document_root(r);
-		size_t len = strlen(docRoot);
-		if (len > 0) {
-			string path;
-			if (docRoot[len - 1] == '/') {
-				path.assign(docRoot, len - 1);
-			} else {
-				path.assign(docRoot, len);
-			}
-			if (strcmp(baseURI, "/") != 0) {
-				/* Application is deployed in a sub-URI.
-				 * This is probably a symlink, so let's resolve it.
-				 */
-				path.append(baseURI);
-				path = resolveSymlink(path);
-			}
-			return path;
-		} else {
-			return "";
-		}
+		autoDetect();
+		return publicDir;
+	}
+
+	/**
+	 * Returns the application root, or the empty string if this request does not
+	 * belong to an application.
+	 *
+	 * @throws FileSystemException An error occured while examening the filesystem.
+	 * @throws DocumentRootDeterminationError Unable to query the location of the document root.
+	 * @throws TimeRetrievalException
+	 * @throws boost::thread_interrupted
+	 */
+	string getAppRoot() {
+		autoDetect();
+		return appRoot;
 	}
 	
 	/**
 	 * Returns the application type that's associated with the HTTP request.
 	 *
 	 * @throws FileSystemException An error occured while examening the filesystem.
+	 * @throws DocumentRootDeterminationError Unable to query the location of the document root.
+	 * @throws TimeRetrievalException
+	 * @throws boost::thread_interrupted
 	 */
-	ApplicationType getApplicationType() {
-		if (!baseURIKnown) {
-			getBaseURI();
-		}
+	PassengerAppType getApplicationType() {
+		autoDetect();
 		return appType;
 	}
 	
@@ -256,21 +253,13 @@ public:
 	 * with the HTTP request.
 	 *
 	 * @throws FileSystemException An error occured while examening the filesystem.
+	 * @throws DocumentRootDeterminationError Unable to query the location of the document root.
+	 * @throws TimeRetrievalException
+	 * @throws boost::thread_interrupted
 	 */
-	const char *getApplicationTypeString() {
-		if (!baseURIKnown) {
-			getBaseURI();
-		}
-		switch (appType) {
-		case RAILS:
-			return "rails";
-		case RACK:
-			return "rack";
-		case WSGI:
-			return "wsgi";
-		default:
-			return NULL;
-		};
+	const char *getApplicationTypeName() {
+		autoDetect();
+		return getAppTypeName(appType);
 	}
 };
 

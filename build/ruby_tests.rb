@@ -1,5 +1,5 @@
-#  Phusion Passenger - http://www.modrails.com/
-#  Copyright (c) 2010 Phusion
+#  Phusion Passenger - https://www.phusionpassenger.com/
+#  Copyright (c) 2010-2013 Phusion
 #
 #  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
 #
@@ -23,19 +23,24 @@
 
 ### Ruby components tests ###
 
+dependencies = [NATIVE_SUPPORT_TARGET, AGENT_OUTPUT_DIR + 'PassengerLoggingAgent'].compact
 desc "Run unit tests for the Ruby libraries"
-task 'test:ruby' => [:native_support, AGENT_OUTPUT_DIR + 'PassengerLoggingAgent'] do
+task 'test:ruby' => dependencies do
 	if PlatformInfo.rspec.nil?
 		abort "RSpec is not installed for Ruby interpreter '#{PlatformInfo.ruby_command}'. Please install it."
 	else
-		Dir.chdir("test") do
-			ruby "#{PlatformInfo.rspec} -c -f s ruby/*_spec.rb ruby/*/*_spec.rb"
+		if maybe_grep = string_option('E')
+			require 'shellwords'
+			maybe_grep = "-e #{Shellwords.escape(maybe_grep)}"
 		end
+		command = "#{PlatformInfo.rspec} -c -f s -P 'dont-autoload-anything' #{maybe_grep} ruby/*_spec.rb ruby/*/*_spec.rb"
+		sh "cd test && exec #{command}"
 	end
 end
 
+dependencies = [NATIVE_SUPPORT_TARGET].compact
 desc "Run coverage tests for the Ruby libraries"
-task 'test:rcov' => :native_support do
+task 'test:rcov' => dependencies do
 	if PlatformInfo.rspec.nil?
 		abort "RSpec is not installed for Ruby interpreter '#{PlatformInfo.ruby_command}'. Please install it."
 	else

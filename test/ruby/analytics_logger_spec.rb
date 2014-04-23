@@ -1,6 +1,6 @@
 require File.expand_path(File.dirname(__FILE__) + '/spec_helper')
 require 'stringio'
-require 'phusion_passenger/analytics_logger'
+PhusionPassenger.require_passenger_lib 'analytics_logger'
 
 module PhusionPassenger
 
@@ -8,16 +8,14 @@ describe AnalyticsLogger do
 	YESTERDAY = Time.utc(2010, 4, 11, 11, 56, 02)
 	TODAY     = Time.utc(2010, 4, 11, 12, 56, 02)
 	TOMORROW  = Time.utc(2010, 4, 11, 13, 56, 02)
-	FOOBAR_MD5 = Digest::MD5.hexdigest("foobar")
-	LOCALHOST_MD5 = Digest::MD5.hexdigest("localhost")
 	
 	before :each do
 		@username = "logging"
 		@password = "1234"
-		@log_dir  = Utils.passenger_tmpdir
+		@dump_file = Utils.passenger_tmpdir + "/log.txt"
 		start_agent
-		@logger = AnalyticsLogger.new(@socket_address, @username, @password, "localhost")
-		@logger2 = AnalyticsLogger.new(@socket_address, @username, @password, "localhost")
+		@logger    = AnalyticsLogger.new(@socket_address, @username, @password, "localhost")
+		@logger2   = AnalyticsLogger.new(@socket_address, @username, @password, "localhost")
 	end
 	
 	after :each do
@@ -30,11 +28,11 @@ describe AnalyticsLogger do
 	end
 	
 	def mock_time(time)
-		AnalyticsLogger.stub!(:current_time).and_return(time)
+		AnalyticsLogger.stub(:current_time).and_return(time)
 	end
 	
 	def start_agent
-		@agent_pid, @socket_filename, @socket_address = spawn_logging_agent(@log_dir, @password)
+		@agent_pid, @socket_filename, @socket_address = spawn_logging_agent(@dump_file, @password)
 	end
 	
 	def kill_agent
@@ -57,8 +55,7 @@ describe AnalyticsLogger do
 			log.close(true)
 		end
 		
-		log_file = "#{@log_dir}/1/#{FOOBAR_MD5}/#{LOCALHOST_MD5}/requests/2010/04/11/12/log.txt"
-		File.read(log_file).should =~ /hello/
+		File.read(@dump_file).should =~ /hello/
 		
 		log = @logger.new_transaction("foobar", :processes)
 		log.should_not be_null
@@ -68,8 +65,7 @@ describe AnalyticsLogger do
 			log.close(true)
 		end
 		
-		log_file = "#{@log_dir}/1/#{FOOBAR_MD5}/#{LOCALHOST_MD5}/processes/2010/04/11/12/log.txt"
-		File.read(log_file).should =~ /world/
+		File.read(@dump_file).should =~ /world/
 	end
 	
 	specify "#new_transaction reestablishes the connection if disconnected" do
@@ -89,8 +85,7 @@ describe AnalyticsLogger do
 			log.close(true)
 		end
 		
-		log_file = "#{@log_dir}/1/#{FOOBAR_MD5}/#{LOCALHOST_MD5}/requests/2010/04/11/12/log.txt"
-		File.read(log_file).should =~ /hello/
+		File.read(@dump_file).should =~ /hello/
 	end
 	
 	specify "#new_transaction does not reconnect to the server for a short period of time if connecting failed" do
@@ -127,9 +122,8 @@ describe AnalyticsLogger do
 			log.close(true)
 		end
 		
-		log_file = "#{@log_dir}/1/#{FOOBAR_MD5}/#{LOCALHOST_MD5}/processes/2010/04/11/12/log.txt"
-		File.read(log_file).should =~ /#{Regexp.escape log.txn_id} .* hello$/
-		File.read(log_file).should =~ /#{Regexp.escape log.txn_id} .* world$/
+		File.read(@dump_file).should =~ /#{Regexp.escape log.txn_id} .* hello$/
+		File.read(@dump_file).should =~ /#{Regexp.escape log.txn_id} .* world$/
 	end
 	
 	specify "#continue_transaction reestablishes the connection if disconnected" do
@@ -153,8 +147,7 @@ describe AnalyticsLogger do
 			log2.close(true)
 		end
 		
-		log_file = "#{@log_dir}/1/#{FOOBAR_MD5}/#{LOCALHOST_MD5}/requests/2010/04/11/12/log.txt"
-		File.read(log_file).should =~ /hello/
+		File.read(@dump_file).should =~ /hello/
 	end
 	
 	specify "#new_transaction and #continue_transaction eventually reestablish the connection to the logging server if the logging server crashed and was restarted" do
@@ -180,8 +173,7 @@ describe AnalyticsLogger do
 		end
 		log.close(true)
 		
-		log_file = "#{@log_dir}/1/#{FOOBAR_MD5}/#{LOCALHOST_MD5}/requests/2010/04/11/12/log.txt"
-		File.read(log_file).should =~ /hello/
+		File.read(@dump_file).should =~ /hello/
 	end
 	
 	specify "#continue_transaction does not reconnect to the server for a short period of time if connecting failed" do
@@ -213,31 +205,77 @@ describe AnalyticsLogger do
 		end
 	end
 	
-	specify "once a Log object is closed, be becomes null" do
-		log = @logger.new_transaction("foobar")
-		log.close
-		log.should be_null
-	end
-	
-	specify "null Log objects don't do anything" do
-		logger = AnalyticsLogger.new(nil, nil, nil, nil)
-		begin
-			log = logger.new_transaction("foobar")
-			log.message("hello")
-			log.close(true)
-		ensure
-			logger.close
-		end
-		
-		File.exist?("#{@log_dir}/1").should be_false
-	end
-	
 	specify "#clear_connection closes the connection" do
 		@logger.new_transaction("foobar").close
 		@logger.clear_connection
 		connection = @logger.instance_variable_get(:"@connection")
 		connection.synchronize do
 			connection.channel.should be_nil
+		end
+	end
+
+	describe "Log objects" do
+		it "becomes null once it is closed" do
+			log = @logger.new_transaction("foobar")
+			log.close
+			log.should be_null
+		end
+
+		it "does nothing if it's null" do
+			logger = AnalyticsLogger.new(nil, nil, nil, nil)
+			begin
+				log = logger.new_transaction("foobar")
+				log.message("hello")
+				log.close(true)
+			ensure
+				logger.close
+			end
+			
+			File.exist?("#{@log_dir}/1").should be_false
+		end
+
+		describe "#begin_measure" do
+			it "sends a BEGIN message" do
+				log = @logger.new_transaction("foobar")
+				begin
+					log.should_receive(:message).with(/^BEGIN: hello \(.+?,.+?,.+?\) $/)
+					log.begin_measure("hello")
+				ensure
+					log.close
+				end
+			end
+
+			it "adds extra information as base64" do
+				log = @logger.new_transaction("foobar")
+				begin
+					log.should_receive(:message).with(/^BEGIN: hello \(.+?,.+?,.+?\) YWJjZA==$/)
+					log.begin_measure("hello", "abcd")
+				ensure
+					log.close
+				end
+			end
+		end
+
+		describe "#end_measure" do
+			it "sends an END message if error_countered=false" do
+				log = @logger.new_transaction("foobar")
+				begin
+					log.should_receive(:message).with(/^END: hello \(.+?,.+?,.+?\)$/)
+					log.end_measure("hello")
+				ensure
+					log.close
+				end
+			end
+
+			it "sends a FAIL message if error_countered=true" do
+				log = @logger.new_transaction("foobar")
+				begin
+					log.should_receive(:message).with(/^FAIL: hello \(.+?,.+?,.+?\)$/)
+					log.end_measure("hello", true)
+				ensure
+					log.close
+				end
+			end
 		end
 	end
 end

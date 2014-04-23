@@ -1,7 +1,7 @@
 /*
  * Copyright (C) Igor Sysoev
  * Copyright (C) 2007 Manlio Perillo (manlio.perillo@gmail.com)
- * Copyright (C) 2010 Phusion
+ * Copyright (C) 2010-2013 Phusion
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,8 +30,9 @@
 
 #include <ngx_config.h>
 #include <ngx_core.h>
-#include "../common/AgentsStarter.h"
-#include "../common/Utils/CachedFileStat.h"
+#include "common/AgentsStarter.h"
+#include "common/ApplicationPool2/AppTypes.h"
+#include "common/Utils/CachedFileStat.h"
 
 /**
  * The Nginx version number as an integer.
@@ -47,18 +48,18 @@ extern ngx_module_t ngx_http_passenger_module;
 /**
  * A static schema string to be assigned to Nginx 'upstream' strctures.
  */
-extern ngx_str_t                passenger_schema_string;
+extern ngx_str_t                pp_schema_string;
 
-extern ngx_str_t                passenger_placeholder_upstream_address;
+extern ngx_str_t                pp_placeholder_upstream_address;
 
-/**
- * A CachedFileStat object used for caching stat() calls.
- */
-extern PassengerCachedFileStat *passenger_stat_cache;
+/** A CachedFileStat object used for caching stat() calls. */
+extern PP_CachedFileStat        *pp_stat_cache;
 
-extern AgentsStarter           *passenger_agents_starter;
+extern PP_AppTypeDetector       *pp_app_type_detector;
 
-extern ngx_cycle_t             *passenger_current_cycle;
+extern PP_AgentsStarter         *pp_agents_starter;
+
+extern ngx_cycle_t              *pp_current_cycle;
 
 #endif /* _PASSENGER_NGINX_MODULE_H_ */
 

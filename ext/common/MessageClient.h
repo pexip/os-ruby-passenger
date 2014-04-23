@@ -1,5 +1,5 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
+ *  Phusion Passenger - https://www.phusionpassenger.com/
  *  Copyright (c) 2010 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
@@ -293,7 +293,7 @@ public:
 	}
 };
 
-typedef shared_ptr<MessageClient> MessageClientPtr;
+typedef boost::shared_ptr<MessageClient> MessageClientPtr;
 
 } // namespace Passenger
 
