@@ -1,5 +1,10 @@
 ServerRoot "<%= @server_root %>"
 Listen 127.0.0.1:<%= @port %>
+<% if PhusionPassenger::PlatformInfo.os_name =~ /freebsd/ %>
+	Mutex default:/tmp
+	AcceptFilter http none
+	AcceptFilter https none
+<% end %>
 
 <% if @www_user %>
 	User <%= @www_user %>
@@ -31,12 +36,29 @@ Listen 127.0.0.1:<%= @port %>
 <% end %>
 <% if PlatformInfo.httpd_version >= '2.4.0' %>
 	LoadModule authz_core_module "<%= modules_dir %>/mod_authz_core.so"
-	LoadModule unixd_module "<%= modules_dir %>/mod_unixd.so"
+	<% if !has_builtin_module?('mod_unixd.c') %>
+		LoadModule unixd_module "<%= modules_dir %>/mod_unixd.so"
+	<% end %>
 <% end %>
+
+<% if !has_builtin_module?('prefork.c') &&
+      !has_builtin_module?('worker.c') &&
+      !has_builtin_module?('event.c') %>  
+	<% if has_module?('mod_mpm_event.so') %>
+		LoadModule mpm_event_module "<%= modules_dir %>/mod_mpm_event.so"
+	<% elsif has_module?('mod_mpm_worker.so') %>
+		LoadModule mpm_worker_module "<%= modules_dir %>/mod_mpm_worker.so"
+	<% elsif has_module?('mod_mpm_prefork.so') %>
+		LoadModule mpm_prefork_module "<%= modules_dir %>/mod_mpm_event.so"
+	<% else %>
+		<% raise "Could not find any mpm module in: #{Dir.entries(modules_dir).inspect}" %>
+	<% end %>
+<% end %>
+
 LoadModule passenger_module "<%= @mod_passenger %>"
 
 PassengerRoot "<%= @passenger_root %>"
-PassengerRuby "<%= PlatformInfo.ruby_command %>"
+PassengerDefaultRuby "<%= PlatformInfo.ruby_command %>"
 PassengerDefaultUser <%= CONFIG['default_user'] %>
 PassengerDefaultGroup <%= CONFIG['default_group'] %>
 PassengerTempDir "<%= @passenger_temp_dir %>"
@@ -79,7 +101,7 @@ DocumentRoot "<%= @server_root %>"
 	LockFile  <%= @server_root %>/httpd.lock
 <% end %>
 PidFile   <%= @server_root %>/httpd.pid
-ErrorLog  <%= @passenger_root %>/test/test.log
+ErrorLog  <%= @server_root %>/../test.log
 CustomLog <%= @server_root %>/access.log combined
 
 <% if !vhosts.empty? && PlatformInfo.httpd_version < '2.4.0' %>

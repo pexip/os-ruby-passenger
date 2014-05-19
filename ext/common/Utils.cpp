@@ -1,6 +1,6 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
- *  Copyright (c) 2010 Phusion
+ *  Phusion Passenger - https://www.phusionpassenger.com/
+ *  Copyright (c) 2010-2013 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
  *
@@ -40,7 +40,13 @@
 #include <dirent.h>
 #include <limits.h>
 #include <unistd.h>
+#include <string.h>
 #include <signal.h>
+#ifdef __linux__
+	#include <sys/syscall.h>
+	#include <features.h>
+#endif
+#include <vector>
 #include <FileDescriptor.h>
 #include <MessageServer.h>
 #include <ResourceLocator.h>
@@ -112,7 +118,7 @@ getFileType(const StaticString &filename, CachedFileStat *cstat, unsigned int th
 	int ret;
 	
 	if (cstat != NULL) {
-		ret = cstat->stat(filename.toString(), &buf, throttleRate);
+		ret = cstat->stat(filename, &buf, throttleRate);
 	} else {
 		ret = stat(filename.c_str(), &buf);
 	}
@@ -130,6 +136,35 @@ getFileType(const StaticString &filename, CachedFileStat *cstat, unsigned int th
 		} else {
 			int e = errno;
 			string message("Cannot stat '");
+			message.append(filename);
+			message.append("'");
+			throw FileSystemException(message, e, filename);
+		}
+	}
+}
+
+FileType
+getFileTypeNoFollowSymlinks(const StaticString &filename) {
+	struct stat buf;
+	int ret;
+	
+	ret = lstat(filename.c_str(), &buf);
+	if (ret == 0) {
+		if (S_ISREG(buf.st_mode)) {
+			return FT_REGULAR;
+		} else if (S_ISDIR(buf.st_mode)) {
+			return FT_DIRECTORY;
+		} else if (S_ISLNK(buf.st_mode)) {
+			return FT_SYMLINK;
+		} else {
+			return FT_OTHER;
+		}
+	} else {
+		if (errno == ENOENT) {
+			return FT_NONEXISTANT;
+		} else {
+			int e = errno;
+			string message("Cannot lstat '");
 			message.append(filename);
 			message.append("'");
 			throw FileSystemException(message, e, filename);
@@ -236,7 +271,7 @@ canonicalizePath(const string &path) {
 }
 
 string
-resolveSymlink(const string &path) {
+resolveSymlink(const StaticString &path) {
 	char buf[PATH_MAX];
 	ssize_t size;
 	
@@ -247,7 +282,7 @@ resolveSymlink(const string &path) {
 		} else {
 			int e = errno;
 			string message = "Cannot resolve possible symlink '";
-			message.append(path);
+			message.append(path.c_str(), path.size());
 			message.append("'");
 			throw FileSystemException(message, e, path);
 		}
@@ -255,7 +290,7 @@ resolveSymlink(const string &path) {
 		buf[size] = '\0';
 		if (buf[0] == '\0') {
 			string message = "The file '";
-			message.append(path);
+			message.append(path.c_str(), path.size());
 			message.append("' is a symlink, and it refers to an empty filename. This is not allowed.");
 			throw FileSystemException(message, ENOENT, path);
 		} else if (buf[0] == '/') {
@@ -274,6 +309,53 @@ extractDirName(const StaticString &path) {
 	string result_string(result);
 	free(path_copy);
 	return result_string;
+}
+
+StaticString
+extractDirNameStatic(const StaticString &path) {
+	if (path.empty()) {
+		return StaticString(".", 1);
+	}
+
+	const char *data = path.data();
+	const char *end = path.data() + path.size();
+
+	// Ignore trailing '/' characters.
+	while (end > data && end[-1] == '/') {
+		end--;
+	}
+	if (end == data) {
+		// Apparently the entire path consists of slashes.
+		return StaticString("/", 1);
+	}
+
+	// Find last '/'.
+	end--;
+	while (end > data && *end != '/') {
+		end--;
+	}
+	if (end == data) {
+		if (*data == '/') {
+			// '/' found, but it's the first character in the path.
+			return StaticString("/", 1);
+		} else {
+			// No '/' found in path.
+			return StaticString(".", 1);
+		}
+	} else {
+		// '/' found and it's not the first character in path.
+		// 'end' points to that '/' character.
+		// Skip to first non-'/' character.
+		while (end >= data && *end == '/') {
+			end--;
+		}
+		if (end < data) {
+			// The entire path consists of '/' characters.
+			return StaticString("/", 1);
+		} else {
+			return StaticString(data, end - data + 1);
+		}
+	}
 }
 
 string
@@ -338,12 +420,40 @@ getProcessUsername() {
 		result = (struct passwd *) NULL;
 	}
 	
-	if (result == (struct passwd *) NULL) {
+	if (result == (struct passwd *) NULL || result->pw_name == NULL || result->pw_name[0] == '\0') {
 		snprintf(strings, sizeof(strings), "UID %lld", (long long) getuid());
 		strings[sizeof(strings) - 1] = '\0';
 		return strings;
 	} else {
 		return result->pw_name;
+	}
+}
+
+string
+getGroupName(gid_t gid) {
+	struct group *groupEntry;
+
+	groupEntry = getgrgid(gid);
+	if (groupEntry == NULL) {
+		return toString(gid);
+	} else {
+		return groupEntry->gr_name;
+	}
+}
+
+gid_t
+lookupGid(const string &groupName) {
+	struct group *groupEntry;
+
+	groupEntry = getgrnam(groupName.c_str());
+	if (groupEntry == NULL) {
+		if (looksLikePositiveNumber(groupName)) {
+			return atoi(groupName);
+		} else {
+			return (gid_t) -1;
+		}
+	} else {
+		return groupEntry->gr_gid;
 	}
 }
 
@@ -359,7 +469,7 @@ parseModeString(const StaticString &mode) {
 		
 		if (clause.empty()) {
 			continue;
-		} else if (clause.size() < 2 || clause[1] != '=') {
+		} else if (clause.size() < 2 || (clause[0] != '+' && clause[1] != '=')) {
 			throw InvalidModeStringException("Invalid mode clause specification '" + clause + "'");
 		}
 		
@@ -430,6 +540,20 @@ parseModeString(const StaticString &mode) {
 				}
 			}
 			break;
+		case '+':
+			for (string::size_type i = 1; i < clause.size(); i++) {
+				switch (clause[i]) {
+				case 't':
+					modeBits |= S_ISVTX;
+					break;
+				default:
+					throw InvalidModeStringException("Invalid permission '" +
+						string(1, clause[i]) +
+						"' in mode clause specification '" +
+						clause + "'");
+				}
+			}
+			break;
 		default:
 			throw InvalidModeStringException("Invalid owner '" + string(1, clause[0]) +
 				"' in mode clause specification '" + clause + "'");
@@ -437,6 +561,66 @@ parseModeString(const StaticString &mode) {
 	}
 	
 	return modeBits;
+}
+
+string
+absolutizePath(const StaticString &path, const StaticString &workingDir) {
+	vector<string> components;
+	if (!startsWith(path, "/")) {
+		if (workingDir.empty()) {
+			char buffer[PATH_MAX];
+			if (getcwd(buffer, sizeof(buffer)) == NULL) {
+				int e = errno;
+				throw SystemException("Unable to query current working directory", e);
+			}
+			split(buffer + 1, '/', components);
+		} else {
+			string absoluteWorkingDir = absolutizePath(workingDir);
+			split(StaticString(absoluteWorkingDir.data() + 1, absoluteWorkingDir.size() - 1),
+				'/', components);
+		}
+	}
+
+	const char *begin = path.data();
+	const char *end = path.data() + path.size();
+
+	// Skip leading slashes.
+	while (begin < end && *begin == '/') {
+		begin++;
+	}
+
+	while (begin < end) {
+		const char *next = (const char *) memchr(begin, '/', end - begin);
+		if (next == NULL) {
+			next = end;
+		}
+
+		StaticString component(begin, next - begin);
+		if (component == "..") {
+			if (!components.empty()) {
+				components.pop_back();
+			}
+		} else if (component != ".") {
+			components.push_back(component);
+		}
+
+		// Skip slashes until beginning of next path component.
+		begin = next + 1;
+		while (begin < end && *begin == '/') {
+			begin++;
+		}
+	}
+
+	string result;
+	vector<string>::const_iterator c_it, c_end = components.end();
+	for (c_it = components.begin(); c_it != c_end; c_it++) {
+		result.append("/");
+		result.append(*c_it);
+	}
+	if (result.empty()) {
+		result = "/";
+	}
+	return result;
 }
 
 const char *
@@ -528,53 +712,61 @@ makeDirTree(const string &path, const StaticString &mode, uid_t owner, gid_t gro
 
 void
 removeDirTree(const string &path) {
-	char command[PATH_MAX + 30];
-	int result;
-	
-	snprintf(command, sizeof(command), "chmod -R u+rwx \"%s\" 2>/dev/null", path.c_str());
-	command[sizeof(command) - 1] = '\0';
-	do {
-		result = system(command);
-	} while (result == -1 && errno == EINTR);
-	
-	snprintf(command, sizeof(command), "rm -rf \"%s\"", path.c_str());
-	command[sizeof(command) - 1] = '\0';
-	do {
-		result = system(command);
-	} while (result == -1 && errno == EINTR);
-	if (result == -1) {
-		char message[1024];
+	this_thread::disable_interruption di;
+	this_thread::disable_syscall_interruption dsi;
+	const char *c_path = path.c_str();
+	pid_t pid;
+
+	pid = syscalls::fork();
+	if (pid == 0) {
+		resetSignalHandlersAndMask();
+		disableMallocDebugging();
+		int devnull = open("/dev/null", O_RDONLY);
+		if (devnull != -1) {
+			dup2(devnull, 2);
+		}
+		closeAllFileDescriptors(2);
+		execlp("chmod", "chmod", "-R", "u+rwx", c_path, (char * const) 0);
+		perror("Cannot execute chmod");
+		_exit(1);
+
+	} else if (pid == -1) {
 		int e = errno;
-		
-		snprintf(message, sizeof(message) - 1, "Cannot remove directory '%s'", path.c_str());
-		message[sizeof(message) - 1] = '\0';
-		throw FileSystemException(message, e, path);
+		throw SystemException("Cannot fork a new process", e);
+
+	} else {
+		this_thread::restore_interruption ri(di);
+		this_thread::restore_syscall_interruption rsi(dsi);
+		syscalls::waitpid(pid, NULL, 0);
+	}
+
+	pid = syscalls::fork();
+	if (pid == 0) {
+		resetSignalHandlersAndMask();
+		disableMallocDebugging();
+		closeAllFileDescriptors(2);
+		execlp("rm", "rm", "-rf", c_path, (char * const) 0);
+		perror("Cannot execute rm");
+		_exit(1);
+
+	} else if (pid == -1) {
+		int e = errno;
+		throw SystemException("Cannot fork a new process", e);
+
+	} else {
+		this_thread::restore_interruption ri(di);
+		this_thread::restore_syscall_interruption rsi(dsi);
+		int status;
+		if (syscalls::waitpid(pid, &status, 0) == -1 || status != 0) {
+			throw RuntimeException("Cannot remove directory '" + path + "'");
+		}
 	}
 }
 
-bool
-verifyRailsDir(const string &dir, CachedFileStat *cstat, unsigned int throttleRate) {
-	string temp(dir);
-	temp.append("/config/environment.rb");
-	return fileExists(temp, cstat, throttleRate);
-}
-
-bool
-verifyRackDir(const string &dir, CachedFileStat *cstat, unsigned int throttleRate) {
-	string temp(dir);
-	temp.append("/config.ru");
-	return fileExists(temp, cstat, throttleRate);
-}
-
-bool
-verifyWSGIDir(const string &dir, CachedFileStat *cstat, unsigned int throttleRate) {
-	string temp(dir);
-	temp.append("/passenger_wsgi.py");
-	return fileExists(temp, cstat, throttleRate);
-}
-
 void
-prestartWebApps(const ResourceLocator &locator, const string &serializedprestartURLs) {
+prestartWebApps(const ResourceLocator &locator, const string &ruby,
+	const vector<string> &prestartURLs)
+{
 	/* Apache calls the initialization routines twice during startup, and
 	 * as a result it starts two helper servers, where the first one exits
 	 * after a short idle period. We want any prespawning requests to reach
@@ -585,11 +777,9 @@ prestartWebApps(const ResourceLocator &locator, const string &serializedprestart
 	
 	this_thread::disable_interruption di;
 	this_thread::disable_syscall_interruption dsi;
-	vector<string> prestartURLs;
 	vector<string>::const_iterator it;
 	string prespawnScript = locator.getHelperScriptsDir() + "/prespawn";
 	
-	split(Base64::decode(serializedprestartURLs), '\0', prestartURLs);
 	it = prestartURLs.begin();
 	while (it != prestartURLs.end() && !this_thread::interruption_requested()) {
 		if (it->empty()) {
@@ -610,7 +800,8 @@ prestartWebApps(const ResourceLocator &locator, const string &serializedprestart
 				syscalls::close(i);
 			}
 			
-			execlp(prespawnScript.c_str(),
+			execlp(ruby.c_str(),
+				ruby.c_str(),
 				prespawnScript.c_str(),
 				it->c_str(),
 				(char *) 0);
@@ -642,7 +833,7 @@ prestartWebApps(const ResourceLocator &locator, const string &serializedprestart
 }
 
 void
-runAndPrintExceptions(const function<void ()> &func, bool toAbort) {
+runAndPrintExceptions(const boost::function<void ()> &func, bool toAbort) {
 	try {
 		func();
 	} catch (const boost::thread_interrupted &) {
@@ -656,7 +847,7 @@ runAndPrintExceptions(const function<void ()> &func, bool toAbort) {
 }
 
 void
-runAndPrintExceptions(const function<void ()> &func) {
+runAndPrintExceptions(const boost::function<void ()> &func) {
 	runAndPrintExceptions(func, true);
 }
 
@@ -667,10 +858,11 @@ getHostName() {
 		// https://bugzilla.redhat.com/show_bug.cgi?id=130733
 		hostNameMax = 255;
 	}
-	char hostname[hostNameMax + 1];
-	if (gethostname(hostname, hostNameMax) == 0) {
-		hostname[hostNameMax] = '\0';
-		return hostname;
+
+	string buf(hostNameMax + 1, '\0');
+	if (gethostname(&buf[0], hostNameMax + 1) == 0) {
+		buf[hostNameMax] = '\0';
+		return string(buf.c_str());
 	} else {
 		int e = errno;
 		throw SystemException("Unable to query the system's host name", e);
@@ -765,6 +957,88 @@ resetSignalHandlersAndMask() {
 	sigaction(SIGUSR2, &action, NULL);
 }
 
+void
+disableMallocDebugging() {
+	unsetenv("MALLOC_FILL_SPACE");
+	unsetenv("MALLOC_PROTECT_BEFORE");
+	unsetenv("MallocGuardEdges");
+	unsetenv("MallocScribble");
+	unsetenv("MallocPreScribble");
+	unsetenv("MallocCheckHeapStart");
+	unsetenv("MallocCheckHeapEach");
+	unsetenv("MallocCheckHeapAbort");
+	unsetenv("MallocBadFreeAbort");
+	unsetenv("MALLOC_CHECK_");
+
+	const char *libs = getenv("DYLD_INSERT_LIBRARIES");
+	if (libs != NULL && strstr(libs, "/usr/lib/libgmalloc.dylib")) {
+		string newLibs = libs;
+		string::size_type pos = newLibs.find("/usr/lib/libgmalloc.dylib");
+		size_t len = strlen("/usr/lib/libgmalloc.dylib");
+
+		// Erase all leading ':' too.
+		while (pos > 0 && newLibs[pos - 1] == ':') {
+			pos--;
+			len++;
+		}
+		// Erase all trailing ':' too.
+		while (pos + len < newLibs.size() && newLibs[pos + len] == ':') {
+			len++;
+		}
+
+		newLibs.erase(pos, len);
+		if (newLibs.empty()) {
+			unsetenv("DYLD_INSERT_LIBRARIES");
+		} else {
+			setenv("DYLD_INSERT_LIBRARIES", newLibs.c_str(), 1);
+		}
+	}
+}
+
+int
+runShellCommand(const StaticString &command) {
+	pid_t pid = fork();
+	if (pid == 0) {
+		resetSignalHandlersAndMask();
+		disableMallocDebugging();
+		closeAllFileDescriptors(2);
+		execlp("/bin/sh", "/bin/sh", "-c", command.data(), (char * const) 0);
+		_exit(1);
+	} else if (pid == -1) {
+		return -1;
+	} else {
+		int status;
+		if (waitpid(pid, &status, 0) == -1) {
+			return -1;
+		} else {
+			return status;
+		}
+	}
+}
+
+#ifdef __APPLE__
+	// http://www.opensource.apple.com/source/Libc/Libc-825.26/sys/fork.c
+	// This bypasses atfork handlers.
+	extern "C" {
+		extern pid_t __fork(void);
+	}
+#endif
+
+pid_t
+asyncFork() {
+	#if defined(__linux__)
+		#if defined(SYS_fork)
+			return (pid_t) syscall(SYS_fork);
+		#else
+			return syscall(SYS_clone, SIGCHLD, 0, 0, 0, 0);
+		#endif
+	#elif defined(__APPLE__)
+		return __fork();
+	#else
+		return fork();
+	#endif
+}
+
 // Async-signal safe way to get the current process's hard file descriptor limit.
 static int
 getFileDescriptorLimit() {
@@ -844,7 +1118,7 @@ getHighestFileDescriptor() {
 	}
 	
 	do {
-		pid = fork();
+		pid = asyncFork();
 	} while (pid == -1 && errno == EINTR);
 	
 	if (pid == 0) {
@@ -1012,6 +1286,11 @@ closeAllFileDescriptors(int lastToKeepOpen) {
 			ret = close(i);
 		} while (ret == -1 && errno == EINTR);
 	}
+}
+
+void
+breakpoint() {
+	// No-op.
 }
 
 } // namespace Passenger

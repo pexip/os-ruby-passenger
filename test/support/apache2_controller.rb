@@ -1,7 +1,7 @@
 require 'erb'
 require 'fileutils'
-require 'phusion_passenger/platform_info/apache'
-require 'phusion_passenger/platform_info/ruby'
+PhusionPassenger.require_passenger_lib 'platform_info/apache'
+PhusionPassenger.require_passenger_lib 'platform_info/ruby'
 
 # A class for starting, stopping and restarting Apache, and for manipulating
 # its configuration file. This is used by the integration tests.
@@ -70,8 +70,8 @@ class Apache2Controller
 		@vhosts = []
 		@extra = []
 		@server_root = File.expand_path('tmp.apache2')
-		@passenger_root = File.expand_path(File.dirname(__FILE__) + "/../..")
-		@mod_passenger = File.expand_path(File.dirname(__FILE__) + "/../../ext/apache2/mod_passenger.so")
+		@passenger_root = File.expand_path(PhusionPassenger.source_root)
+		@mod_passenger = PhusionPassenger.apache2_module_path
 	end
 	
 	def set(options)

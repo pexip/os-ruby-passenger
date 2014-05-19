@@ -1,5 +1,6 @@
-#  Phusion Passenger - http://www.modrails.com/
-#  Copyright (c) 2010 Phusion
+# encoding: utf-8
+#  Phusion Passenger - https://www.phusionpassenger.com/
+#  Copyright (c) 2010-2013 Phusion
 #
 #  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
 #
@@ -25,22 +26,16 @@ require 'rexml/document'
 require 'fileutils'
 require 'socket'
 require 'ostruct'
-require 'phusion_passenger/admin_tools'
-require 'phusion_passenger/message_channel'
-require 'phusion_passenger/message_client'
+PhusionPassenger.require_passenger_lib 'admin_tools'
+PhusionPassenger.require_passenger_lib 'constants'
+PhusionPassenger.require_passenger_lib 'utils'
+PhusionPassenger.require_passenger_lib 'message_channel'
+PhusionPassenger.require_passenger_lib 'message_client'
 
 module PhusionPassenger
 module AdminTools
 
 class ServerInstance
-	# If you change the structure version then don't forget to change
-	# ext/common/ServerInstanceDir.h too.
-	
-	DIR_STRUCTURE_MAJOR_VERSION = 1
-	DIR_STRUCTURE_MINOR_VERSION = 0
-	GENERATION_STRUCTURE_MAJOR_VERSION = 1
-	GENERATION_STRUCTURE_MINOR_VERSION = 0
-	
 	STALE_TIME_THRESHOLD = 60
 	
 	class StaleDirectoryError < StandardError
@@ -56,16 +51,19 @@ class ServerInstance
 	end
 	
 	class Stats
-		attr_accessor :max, :count, :active, :global_queue_size
+		attr_accessor :max, :usage, :get_wait_list_size
 	end
 	
 	class Group
-		attr_reader :app_root, :name, :environment, :processes
+		attr_reader :app_root, :name, :environment, :spawning, :processes
+
+		alias spawning? spawning
 		
-		def initialize(app_root, name, environment)
+		def initialize(app_root, name, environment, spawning)
 			@app_root = app_root
 			@name = name
 			@environment = environment
+			@spawning = spawning
 			@processes = []
 		end
 	end
@@ -89,6 +87,7 @@ class ServerInstance
 			if !socket_info
 				raise "This process has no server socket named '#{socket_name}'."
 			end
+			return Utils.connect_to_server(socket_info.address)
 			if socket_info.address_type == 'unix'
 				return UNIXSocket.new(socket_info.address)
 			else
@@ -113,9 +112,9 @@ class ServerInstance
 		instances = []
 		
 		Dir["#{AdminTools.tmpdir}/passenger.*"].each do |dir|
-			next if File.basename(dir) !~ /passenger\.#{DIR_STRUCTURE_MAJOR_VERSION}\.(\d+)\.(\d+)\Z/
+			next if File.basename(dir) !~ /passenger\.#{PhusionPassenger::SERVER_INSTANCE_DIR_STRUCTURE_MAJOR_VERSION}\.(\d+)\.(.+)\Z/
 			minor = $1
-			next if minor.to_i > DIR_STRUCTURE_MINOR_VERSION
+			next if minor.to_i > PhusionPassenger::SERVER_INSTANCE_DIR_STRUCTURE_MINOR_VERSION
 			
 			begin
 				instances << ServerInstance.new(dir)
@@ -173,7 +172,8 @@ class ServerInstance
 		end
 		major = major.to_i
 		minor = minor.to_i
-		if major != GENERATION_STRUCTURE_MAJOR_VERSION || minor > GENERATION_STRUCTURE_MINOR_VERSION
+		if major != PhusionPassenger::SERVER_INSTANCE_DIR_GENERATION_STRUCTURE_MAJOR_VERSION ||
+		   minor > PhusionPassenger::SERVER_INSTANCE_DIR_GENERATION_STRUCTURE_MINOR_VERSION
 			raise UnsupportedGenerationStructureVersionError, "Unsupported generation directory structure version."
 		end
 		
@@ -189,34 +189,30 @@ class ServerInstance
 	# - +RoleDeniedError+: The user that the current process is as is not authorized to utilize the given role.
 	# - +EOFError+: The server unexpectedly closed the connection during authentication.
 	# - +SecurityError+: The server denied our authentication credentials.
-	def connect(role_or_username, password = nil)
-		if role_or_username.is_a?(Symbol)
-			case role_or_username
-			when :passenger_status
-				username = "_passenger-status"
-				begin
-					filename = "#{@generation_path}/passenger-status-password.txt"
-					password = File.open(filename, "rb") do |f|
-						f.read
-					end
-				rescue Errno::EACCES
-					raise RoleDeniedError
-				end
-			else
-				raise ArgumentError, "Unsupported role #{role_or_username}"
-			end
+	def connect(options)
+		if options[:role]
+			username, password, default_socket_name = infer_connection_info_from_role(options[:role])
+			socket_name = options[:socket_name] || default_socket_name
 		else
-			username = role_or_username
+			username = options[:username]
+			password = options[:password]
+			socket_name = options[:socket_name] || "helper_admin"
+			raise ArgumentError, "Either the :role or :username must be set" if !username
+			raise ArgumentError, ":password must be set" if !password
 		end
 		
-		@client = MessageClient.new(username, password, "unix:#{@generation_path}/socket")
-		begin
-			yield self
-		ensure
-			@client.close
+		client = MessageClient.new(username, password, "unix:#{@generation_path}/#{socket_name}")
+		if block_given?
+			begin
+				yield client
+			ensure
+				client.close
+			end
+		else
+			return client
 		end
 	end
-	
+
 	def web_server_description
 		return File.read("#{@generation_path}/web_server.txt")
 	end
@@ -232,8 +228,8 @@ class ServerInstance
 		return config_files
 	end
 	
-	def helper_server_pid
-		return File.read("#{@generation_path}/helper_server.pid").strip.to_i
+	def helper_agent_pid
+		return File.read("#{@generation_path}/helper_agent.pid").strip.to_i
 	end
 	
 	def analytics_log_dir
@@ -242,51 +238,40 @@ class ServerInstance
 		return nil
 	end
 	
-	def status
-		return @client.status
-	end
-	
-	def backtraces
-		return @client.backtraces
-	end
-	
-	def xml
-		return @client.xml
-	end
-	
-	def stats
-		doc = REXML::Document.new(xml)
+	def stats(client)
+		doc = REXML::Document.new(client.pool_xml)
 		stats = Stats.new
 		stats.max = doc.elements["info/max"].text.to_i
-		stats.count = doc.elements["info/count"].text.to_i
-		stats.active = doc.elements["info/active"].text.to_i
-		stats.global_queue_size = doc.elements["info/global_queue_size"].text.to_i
+		stats.usage = doc.elements["info/usage"].text.to_i
+		stats.get_wait_list_size = doc.elements["info/get_wait_list_size"].text.to_i
 		return stats
 	end
 	
-	def global_queue_size
-		return stats.global_queue_size
+	def get_wait_list_size(client)
+		return stats(client).get_wait_list_size
 	end
 	
-	def groups
-		doc = REXML::Document.new(xml)
+	def groups(client)
+		doc = REXML::Document.new(client.pool_xml)
 		
 		groups = []
-		doc.elements.each("info/groups/group") do |group_xml|
+		doc.elements.each("info/supergroups/supergroup/group") do |group_xml|
 			group = Group.new(group_xml.elements["app_root"].text,
 				group_xml.elements["name"].text,
-				group_xml.elements["environment"].text)
+				group_xml.elements["environment"].text,
+				!!group_xml.elements["spawning"])
 			group_xml.elements.each("processes/process") do |process_xml|
 				process = Process.new(group)
 				process_xml.elements.each do |element|
-					if element.name == "server_sockets"
-						element.elements.each("server_socket") do |server_socket|
+					if element.name == "sockets"
+						element.elements.each("socket") do |server_socket|
 							name = server_socket.elements["name"].text.to_sym
 							address = server_socket.elements["address"].text
-							address_type = server_socket.elements["type"].text
+							protocol = server_socket.elements["protocol"].text
 							process.server_sockets[name] = OpenStruct.new(
-								:address => address,
-								:address_type => address_type
+								:name     => name,
+								:address  => address,
+								:protocol => protocol
 							)
 						end
 					else
@@ -309,8 +294,8 @@ class ServerInstance
 		return groups
 	end
 	
-	def processes
-		return groups.map do |group|
+	def processes(client)
+		return groups(client).map do |group|
 			group.processes
 		end.flatten
 	end
@@ -322,6 +307,26 @@ private
 	
 	def self.current_time
 		Time.now
+	end
+
+	def infer_connection_info_from_role(role)
+		case role
+		when :passenger_status
+			username = "_passenger-status"
+			begin
+				filename = "#{@generation_path}/passenger-status-password.txt"
+				password = File.open(filename, "rb") do |f|
+					f.read
+				end
+			rescue Errno::EACCES
+				raise RoleDeniedError
+			rescue Errno::ENOENT
+				raise CorruptedDirectoryError
+			end
+			return [username, password, "helper_admin"]
+		else
+			raise ArgumentError, "Unsupported role #{role}"
+		end
 	end
 	
 	class << self;

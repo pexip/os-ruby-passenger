@@ -1,6 +1,6 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
- *  Copyright (c) 2010 Phusion
+ *  Phusion Passenger - https://www.phusionpassenger.com/
+ *  Copyright (c) 2010-2013 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
  *
@@ -43,20 +43,31 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <limits.h>
+#include <limits.h> // Also for __GLIBC__ macro.
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cerrno>
 #include <cmath>
 
 #ifdef __linux__
+	// For accept4 macros
 	#include <sys/syscall.h>
+	#include <linux/net.h>
 #endif
 
-#include "Timer.h"
-#include "IOUtils.h"
-#include "StrIntUtils.h"
-#include "../Exceptions.h"
+#if defined(__APPLE__)
+	#define HAVE_FPURGE
+#elif defined(__GLIBC__)
+	#include <stdio_ext.h>
+	#define HAVE___FPURGE
+#endif
+
+#include <Exceptions.h>
+#include <Utils/Timer.h>
+#include <Utils/IOUtils.h>
+#include <Utils/StrIntUtils.h>
+#include <Utils/ScopeGuard.h>
 
 namespace Passenger {
 
@@ -73,6 +84,19 @@ using namespace oxt;
 
 static WritevFunction writevFunction = syscalls::writev;
 
+
+bool
+purgeStdio(FILE *f) {
+	#if defined(HAVE_FPURGE)
+		fpurge(f);
+		return true;
+	#elif defined(HAVE___FPURGE)
+		__fpurge(f);
+		return true;
+	#else
+		return false;
+	#endif
+}
 
 ServerAddressType
 getSocketAddressType(const StaticString &address) {
@@ -155,24 +179,17 @@ setNonBlocking(int fd) {
 }
 
 int
-tryAccept4(int sock, struct sockaddr *addr, socklen_t *addr_len, int options) {
-	#if defined(__linux__) && defined(__x86_64__)
-		int ret;
-		do {
-			ret = syscall(288, sock, addr, addr_len, options);
-		} while (ret == -1 && errno == EINTR);
-		return ret;
-	#elif defined(__linux__) && defined(__i386__)
-		int ret;
-		do {
-			ret = syscall(__NR_socketcall, 18,
-				sock, addr, addr_len, options);
-		} while (ret == -1 && errno == EINTR);
-		return ret;
-	#elif defined(SYS_ACCEPT4)
+callAccept4(int sock, struct sockaddr *addr, socklen_t *addr_len, int options) {
+	#if defined(HAVE_ACCEPT4)
 		int ret;
 		do {
 			ret = ::accept4(sock, addr, addr_len, options);
+		} while (ret == -1 && errno == EINTR);
+		return ret;
+	#elif defined(__linux__) && defined(__x86_64__)
+		int ret;
+		do {
+			ret = syscall(288, sock, addr, addr_len, options);
 		} while (ret == -1 && errno == EINTR);
 		return ret;
 	#else
@@ -252,6 +269,7 @@ createUnixServer(const StaticString &filename, unsigned int backlogSize, bool au
 		throw SystemException("Cannot create a Unix socket file descriptor", e);
 	}
 	
+	FdGuard guard(fd, true);
 	addr.sun_family = AF_LOCAL;
 	strncpy(addr.sun_path, filename.c_str(), filename.size());
 	addr.sun_path[filename.size()] = '\0';
@@ -262,30 +280,19 @@ createUnixServer(const StaticString &filename, unsigned int backlogSize, bool au
 		} while (ret == -1 && errno == EINTR);
 	}
 	
-	try {
-		ret = syscalls::bind(fd, (const struct sockaddr *) &addr, sizeof(addr));
-	} catch (...) {
-		safelyClose(fd, true);
-		throw;
-	}
+	ret = syscalls::bind(fd, (const struct sockaddr *) &addr, sizeof(addr));
 	if (ret == -1) {
 		int e = errno;
 		string message = "Cannot bind Unix socket '";
 		message.append(filename.toString());
 		message.append("'");
-		safelyClose(fd, true);
 		throw SystemException(message, e);
 	}
 	
 	if (backlogSize == 0) {
 		backlogSize = 1024;
 	}
-	try {
-		ret = syscalls::listen(fd, backlogSize);
-	} catch (...) {
-		safelyClose(fd, true);
-		throw;
-	}
+	ret = syscalls::listen(fd, backlogSize);
 	if (ret == -1) {
 		int e = errno;
 		string message = "Cannot listen on Unix socket '";
@@ -295,6 +302,7 @@ createUnixServer(const StaticString &filename, unsigned int backlogSize, bool au
 		throw SystemException(message, e);
 	}
 	
+	guard.clear();
 	return fd;
 }
 
@@ -326,53 +334,40 @@ createTcpServer(const char *address, unsigned short port, unsigned int backlogSi
 		throw SystemException("Cannot create a TCP socket file descriptor", e);
 	}
 	
-	try {
-		ret = syscalls::bind(fd, (const struct sockaddr *) &addr, sizeof(addr));
-	} catch (...) {
-		safelyClose(fd, true);
-		throw;
-	}
+	FdGuard guard(fd, true);
+	ret = syscalls::bind(fd, (const struct sockaddr *) &addr, sizeof(addr));
 	if (ret == -1) {
 		int e = errno;
 		string message = "Cannot bind a TCP socket on address '";
 		message.append(address);
 		message.append("' port ");
 		message.append(toString(port));
-		safelyClose(fd, true);
 		throw SystemException(message, e);
 	}
 	
 	optval = 1;
-	try {
-		if (syscalls::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
-			&optval, sizeof(optval)) == -1) {
-				printf("so_reuseaddr failed: %s\n", strerror(errno));
-			}
-	} catch (...) {
-		safelyClose(fd, true);
-		throw;
+	if (syscalls::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+		&optval, sizeof(optval)) == -1)
+	{
+		int e = errno;
+		fprintf(stderr, "so_reuseaddr failed: %s\n", strerror(e));
 	}
-	// Ignore SO_REUSEPORT error, it's not fatal.
+	// Ignore SO_REUSEADDR error, it's not fatal.
 	
 	if (backlogSize == 0) {
 		backlogSize = 1024;
 	}
-	try {
-		ret = syscalls::listen(fd, backlogSize);
-	} catch (...) {
-		safelyClose(fd, true);
-		throw;
-	}
+	ret = syscalls::listen(fd, backlogSize);
 	if (ret == -1) {
 		int e = errno;
 		string message = "Cannot listen on TCP socket '";
 		message.append(address);
 		message.append("' port ");
 		message.append(toString(port));
-		safelyClose(fd, true);
 		throw SystemException(message, e);
 	}
 	
+	guard.clear();
 	return fd;
 }
 
@@ -396,20 +391,21 @@ connectToServer(const StaticString &address) {
 
 int
 connectToUnixServer(const StaticString &filename) {
-	int fd, ret;
+	int fd = syscalls::socket(PF_UNIX, SOCK_STREAM, 0);
+	if (fd == -1) {
+		int e = errno;
+		throw SystemException("Cannot create a Unix socket file descriptor", e);
+	}
+
+	FdGuard guard(fd, true);
+	int ret;
 	struct sockaddr_un addr;
 	
 	if (filename.size() > sizeof(addr.sun_path) - 1) {
 		string message = "Cannot connect to Unix socket '";
-		message.append(filename.toString());
+		message.append(filename.data(), filename.size());
 		message.append("': filename is too long.");
 		throw RuntimeException(message);
-	}
-	
-	fd = syscalls::socket(PF_UNIX, SOCK_STREAM, 0);
-	if (fd == -1) {
-		int e = errno;
-		throw SystemException("Cannot create a Unix socket file descriptor", e);
 	}
 	
 	addr.sun_family = AF_UNIX;
@@ -419,12 +415,7 @@ connectToUnixServer(const StaticString &filename) {
 	bool retry = true;
 	int counter = 0;
 	while (retry) {
-		try {
-			ret = syscalls::connect(fd, (const sockaddr *) &addr, sizeof(addr));
-		} catch (...) {
-			safelyClose(fd, true);
-			throw;
-		}
+		ret = syscalls::connect(fd, (const sockaddr *) &addr, sizeof(addr));
 		if (ret == -1) {
 			#if defined(sun) || defined(__sun)
 				/* Solaris has this nice kernel bug where connecting to
@@ -446,15 +437,60 @@ connectToUnixServer(const StaticString &filename) {
 				string message("Cannot connect to Unix socket '");
 				message.append(filename.toString());
 				message.append("'");
-				safelyClose(fd, true);
 				throw SystemException(message, e);
 			}
 		} else {
+			guard.clear();
 			return fd;
 		}
 	}
 	abort();   // Never reached.
 	return -1; // Shut up compiler warning.
+}
+
+void
+setupNonBlockingUnixSocket(NUnix_State &state, const StaticString &filename) {
+	state.fd = syscalls::socket(PF_UNIX, SOCK_STREAM, 0);
+	if (state.fd == -1) {
+		int e = errno;
+		throw SystemException("Cannot create a Unix socket file descriptor", e);
+	}
+
+	state.filename = filename;
+	setNonBlocking(state.fd);
+}
+
+bool
+connectToUnixServer(NUnix_State &state) {
+	struct sockaddr_un addr;
+	int ret;
+	
+	if (state.filename.size() > sizeof(addr.sun_path) - 1) {
+		string message = "Cannot connect to Unix socket '";
+		message.append(state.filename.data(), state.filename.size());
+		message.append("': filename is too long.");
+		throw RuntimeException(message);
+	}
+
+	addr.sun_family = AF_UNIX;
+	memcpy(addr.sun_path, state.filename.data(), state.filename.size());
+	addr.sun_path[state.filename.size()] = '\0';
+
+	ret = syscalls::connect(state.fd, (const sockaddr *) &addr, sizeof(addr));
+	if (ret == -1) {
+		if (errno == EINPROGRESS || errno == EWOULDBLOCK) {
+			return false;
+		} else if (errno == EISCONN) {
+			return true;
+		} else {
+			int e = errno;
+			string message = "Cannot connect to Unix socket '";
+			message.append(state.filename.data(), state.filename.size());
+			throw SystemException(message, e);
+		}
+	} else {
+		return true;
+	}
 }
 
 int
@@ -508,6 +544,97 @@ connectToTcpServer(const StaticString &hostname, unsigned int port) {
 	}
 	
 	return fd;
+}
+
+void
+setupNonBlockingTcpSocket(NTCP_State &state, const StaticString &hostname, int port) {
+	int ret;
+
+	memset(&state.hints, 0, sizeof(state.hints));
+	state.hints.ai_family   = PF_UNSPEC;
+	state.hints.ai_socktype = SOCK_STREAM;
+	ret = getaddrinfo(hostname.toString().c_str(), toString(port).c_str(),
+		&state.hints, &state.res);
+	if (ret != 0) {
+		string message = "Cannot resolve IP address '";
+		message.append(hostname.data(), hostname.size());
+		message.append(":");
+		message.append(toString(port));
+		message.append("': ");
+		message.append(gai_strerror(ret));
+		throw IOException(message);
+	}
+
+	state.fd = syscalls::socket(PF_INET, SOCK_STREAM, 0);
+	if (state.fd == -1) {
+		int e = errno;
+		throw SystemException("Cannot create a TCP socket file descriptor", e);
+	}
+
+	state.hostname = hostname;
+	state.port = port;
+	setNonBlocking(state.fd);
+}
+
+bool
+connectToTcpServer(NTCP_State &state) {
+	int ret;
+
+	ret = syscalls::connect(state.fd, state.res->ai_addr, state.res->ai_addrlen);
+	if (ret == -1) {
+		if (errno == EINPROGRESS || errno == EWOULDBLOCK) {
+			return false;
+		} else if (errno == EISCONN) {
+			freeaddrinfo(state.res);
+			state.res = NULL;
+			return true;
+		} else {
+			int e = errno;
+			string message = "Cannot connect to TCP socket '";
+			message.append(state.hostname);
+			message.append(":");
+			message.append(toString(state.port));
+			message.append("'");
+			throw SystemException(message, e);
+		}
+	} else {
+		freeaddrinfo(state.res);
+		state.res = NULL;
+		return true;
+	}
+}
+
+void
+setupNonBlockingSocket(NConnect_State &state, const StaticString &address) {
+	TRACE_POINT();
+	state.type = getSocketAddressType(address);
+	switch (state.type) {
+	case SAT_UNIX:
+		setupNonBlockingUnixSocket(state.s_unix, parseUnixSocketAddress(address));
+		break;
+	case SAT_TCP: {
+		string host;
+		unsigned short port;
+		
+		parseTcpSocketAddress(address, host, port);
+		setupNonBlockingTcpSocket(state.s_tcp, host, port);
+		break;
+	}
+	default:
+		throw ArgumentException(string("Unknown address type for '") + address + "'");
+	}
+}
+
+bool
+connectToServer(NConnect_State &state) {
+	switch (state.type) {
+	case SAT_UNIX:
+		return connectToUnixServer(state.s_unix);
+	case SAT_TCP:
+		return connectToTcpServer(state.s_tcp);
+	default:
+		throw RuntimeException("Unknown address type");
+	}
 }
 
 SocketPair
@@ -617,7 +744,8 @@ writeExact(int fd, const void *data, unsigned int size, unsigned long long *time
 
 void
 writeExact(int fd, const StaticString &data, unsigned long long *timeout) {
-	writeExact(fd, data.c_str(), data.size(), timeout);
+	const char * restrict data_ptr = data.data();
+	writeExact(fd, data_ptr, data.size(), timeout);
 }
 
 /**
@@ -665,7 +793,7 @@ staticStringArrayToIoVec(const StaticString ary[], size_t count, struct iovec *v
  */
 static void
 findDataPositionIndexAndOffset(struct iovec data[], size_t count,
-	size_t position, size_t *index, size_t *offset)
+	size_t position, size_t * restrict index, size_t * restrict offset)
 {
 	size_t i;
 	size_t begin = 0;
@@ -689,14 +817,14 @@ findDataPositionIndexAndOffset(struct iovec data[], size_t count,
 	*offset = 0;
 }
 
-ssize_t
-gatheredWrite(int fd, const StaticString data[], unsigned int dataCount, string &restBuffer) {
+static ssize_t
+realGatheredWrite(int fd, const StaticString *data, unsigned int dataCount, string &restBuffer,
+	struct iovec *iov)
+{
 	size_t totalSize, iovCount, i;
 	ssize_t ret;
 	
 	if (restBuffer.empty()) {
-		struct iovec iov[dataCount];
-		
 		totalSize = staticStringArrayToIoVec(data, dataCount, iov, iovCount);
 		if (totalSize == 0) {
 			errno = 0;
@@ -748,8 +876,6 @@ gatheredWrite(int fd, const StaticString data[], unsigned int dataCount, string 
 			return totalSize;
 		}
 	} else {
-		struct iovec iov[dataCount + 1];
-		
 		iov[0].iov_base = (char *) restBuffer.data();
 		iov[0].iov_len  = restBuffer.size();
 		totalSize = staticStringArrayToIoVec(data, dataCount, iov + 1, iovCount);
@@ -818,6 +944,18 @@ gatheredWrite(int fd, const StaticString data[], unsigned int dataCount, string 
 	}
 }
 
+ssize_t
+gatheredWrite(int fd, const StaticString *data, unsigned int dataCount, string &restBuffer) {
+	if (dataCount < 8) {
+		struct iovec iov[8];
+		return realGatheredWrite(fd, data, dataCount, restBuffer, iov);
+	} else {
+		vector<struct iovec> iov;
+		iov.reserve(dataCount + 1);
+		return realGatheredWrite(fd, data, dataCount, restBuffer, &iov[0]);
+	}
+}
+
 static size_t
 eraseBeginningOfIoVec(struct iovec *iov, size_t count, size_t index, size_t offset) {
 	size_t i, newCount;
@@ -833,9 +971,10 @@ eraseBeginningOfIoVec(struct iovec *iov, size_t count, size_t index, size_t offs
 	return newCount;
 }
 
-void
-gatheredWrite(int fd, const StaticString data[], unsigned int count, unsigned long long *timeout) {
-	struct iovec iov[count];
+static void
+realGatheredWrite(int fd, const StaticString *data, unsigned int count, unsigned long long *timeout,
+	struct iovec *iov)
+{
 	size_t total, iovCount;
 	size_t written = 0;
 	
@@ -858,6 +997,18 @@ gatheredWrite(int fd, const StaticString data[], unsigned int count, unsigned lo
 		}
 	}
 	assert(written == total);
+}
+
+void
+gatheredWrite(int fd, const StaticString *data, unsigned int count, unsigned long long *timeout) {
+	if (count <= 8) {
+		struct iovec iov[8];
+		realGatheredWrite(fd, data, count, timeout, iov);
+	} else {
+		vector<struct iovec> iov;
+		iov.reserve(count);
+		realGatheredWrite(fd, data, count, timeout, &iov[0]);
+	}
 }
 
 void
@@ -994,6 +1145,44 @@ safelyClose(int fd, bool ignoreErrors) {
 			throw SystemException("Cannot close file descriptor", e);
 		}
 	}
+}
+
+string
+readAll(const string &filename) {
+	FILE *f = fopen(filename.c_str(), "rb");
+	if (f != NULL) {
+		StdioGuard guard(f);
+		return readAll(fileno(f));
+	} else {
+		int e = errno;
+		throw FileSystemException("Cannot open '" + filename + "' for reading",
+			e, filename);
+	}
+}
+
+string
+readAll(int fd) {
+	string result;
+	char buf[1024 * 32];
+	ssize_t ret;
+	while (true) {
+		do {
+			ret = read(fd, buf, sizeof(buf));
+		} while (ret == -1 && errno == EINTR);
+		if (ret == 0) {
+			break;
+		} else if (ret == -1) {
+			if (errno == ECONNRESET) {
+				break;
+			} else {
+				int e = errno;
+				throw SystemException("Cannot read from file descriptor", e);
+			}
+		} else {
+			result.append(buf, ret);
+		}
+	}
+	return result;
 }
 
 

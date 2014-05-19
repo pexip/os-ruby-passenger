@@ -1,6 +1,6 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
- *  Copyright (c) 2010 Phusion
+ *  Phusion Passenger - https://www.phusionpassenger.com/
+ *  Copyright (c) 2010-2013 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
  *
@@ -39,6 +39,13 @@
 	#include <mach/mach_vm.h>
 	#include <mach/mach_port.h>
 #endif
+#if !defined(__NetBSD__) && !defined(__OpenBSD__)
+	// NetBSD does not support -p with multiple PIDs.
+	// https://code.google.com/p/phusion-passenger/issues/detail?id=736
+	// OpenBSD 5.2 doesn't support it either
+	#define PS_SUPPORTS_MULTIPLE_PIDS
+	#include <set>
+#endif
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -54,6 +61,7 @@
 #include <Exceptions.h>
 #include <Utils.h>
 #include <Utils/ScopeGuard.h>
+#include <Utils/IOUtils.h>
 
 namespace Passenger {
 
@@ -67,9 +75,9 @@ struct ProcessMetrics {
 	pid_t   ppid;
 	uint8_t cpu;
 	/** Resident Set Size, amount of memory in RAM. Does not include swap.
-	 * 0 if completely swapped out.
+	 * -1 if not yet known, 0 if completely swapped out.
 	 */
-	size_t  rss;
+	ssize_t  rss;
 	/** Proportional Set Size, see measureRealMemory(). Does not include swap.
 	 * -1 if unknown, 0 if completely swapped out.
 	 */
@@ -85,13 +93,16 @@ struct ProcessMetrics {
 	/** OS X Snow Leopard does not report the VM size correctly, so don't use this. */
 	size_t  vmsize;
 	pid_t   processGroupId;
+	uid_t   uid;
 	string  command;
 	
 	ProcessMetrics() {
 		pid = (pid_t) -1;
+		rss = -1;
 		pss = -1;
 		privateDirty = -1;
 		swap = -1;
+		vmsize = -1;
 	}
 	
 	bool isValid() const {
@@ -113,8 +124,10 @@ struct ProcessMetrics {
 		}
 		if (privateDirty != -1) {
 			return privateDirty + swap;
-		} else {
+		} else if (rss != -1) {
 			return rss + swap;
+		} else {
+			return 0;
 		}
 	}
 };
@@ -159,7 +172,6 @@ public:
 			for (it = begin(); it != end; it++) {
 				const ProcessMetrics &metric = it->second;
 				total += metric.realMemory();
-			
 			}
 			
 			shared = -1;
@@ -208,10 +220,8 @@ private:
 		*data = endOfWord;
 		return result;
 	}
-	
-	static long long readNextWordAsLongLong(const char **data) {
-		StaticString word = readNextWord(data);
-		char nullTerminatedWord[word.size() + 1];
+
+	static long long processNextWordAsLongLong(const StaticString &word, char *nullTerminatedWord) {
 		memcpy(nullTerminatedWord, word.c_str(), word.size());
 		nullTerminatedWord[word.size()] = '\0';
 		if (*nullTerminatedWord == '\0') {
@@ -221,9 +231,18 @@ private:
 		}
 	}
 	
-	static int readNextWordAsInt(const char **data) {
+	static long long readNextWordAsLongLong(const char **data) {
 		StaticString word = readNextWord(data);
-		char nullTerminatedWord[word.size() + 1];
+		if (word.size() < 50) {
+			char nullTerminatedWord[50];
+			return processNextWordAsLongLong(word, nullTerminatedWord);
+		} else {
+			string nullTerminatedWord(word.size() + 1, '\0');
+			return processNextWordAsLongLong(word, &nullTerminatedWord[0]);
+		}
+	}
+
+	static int processNextWordAsInt(const StaticString &word, char *nullTerminatedWord) {
 		memcpy(nullTerminatedWord, word.c_str(), word.size());
 		nullTerminatedWord[word.size()] = '\0';
 		if (*nullTerminatedWord == '\0') {
@@ -233,11 +252,23 @@ private:
 		}
 	}
 	
+	static int readNextWordAsInt(const char **data) {
+		StaticString word = readNextWord(data);
+		if (word.size() < 50) {
+			char nullTerminatedWord[50];
+			return processNextWordAsInt(word, nullTerminatedWord);
+		} else {
+			string nullTerminatedWord(word.size() + 1, '\0');
+			return processNextWordAsInt(word, &nullTerminatedWord[0]);
+		}
+	}
+	
 	string runCommandAndCaptureOutput(const char **command) const {
 		pid_t pid;
-		int e, p[2];
+		int e;
+		Pipe p;
 		
-		syscalls::pipe(p);
+		p = createPipe();
 		
 		this_thread::disable_syscall_interruption dsi;
 		pid = syscalls::fork();
@@ -254,18 +285,17 @@ private:
 			dup2(p[1], 1);
 			close(p[0]);
 			close(p[1]);
+			closeAllFileDescriptors(2);
 			execvp(command[0], (char * const *) command);
 			_exit(1);
 		} else if (pid == -1) {
 			e = errno;
-			syscalls::close(p[0]);
-			syscalls::close(p[1]);
 			throw SystemException("Cannot fork() a new process", e);
 		} else {
 			bool done = false;
 			string result;
 			
-			syscalls::close(p[1]);
+			p[1].close();
 			while (!done) {
 				char buf[1024 * 4];
 				ssize_t ret;
@@ -274,14 +304,12 @@ private:
 					this_thread::restore_syscall_interruption rsi(dsi);
 					ret = syscalls::read(p[0], buf, sizeof(buf));
 				} catch (const thread_interrupted &) {
-					syscalls::close(p[0]);
 					syscalls::kill(SIGKILL, pid);
 					syscalls::waitpid(pid, NULL, 0);
 					throw;
 				}
 				if (ret == -1) {
 					e = errno;
-					syscalls::close(p[0]);
 					syscalls::kill(SIGKILL, pid);
 					syscalls::waitpid(pid, NULL, 0);
 					throw SystemException("Cannot read output from the 'ps' command", e);
@@ -289,7 +317,7 @@ private:
 				done = ret == 0;
 				result.append(buf, ret);
 			}
-			syscalls::close(p[0]);
+			p[0].close();
 			syscalls::waitpid(pid, NULL, 0);
 			
 			if (result.empty()) {
@@ -323,7 +351,8 @@ private:
 		return string(data, endOfLine - data);
 	}
 	
-	ProcessMetricMap parsePsOutput(const string &output) const {
+	template<typename Collection, typename ConstIterator>
+	ProcessMetricMap parsePsOutput(const string &output, const Collection &allowedPids) const {
 		ProcessMetricMap result;
 		// Ignore first line, it contains the column names.
 		const char *start = strchr(output.c_str(), '\n');
@@ -334,6 +363,14 @@ private:
 				start = NULL;
 			}
 		}
+
+		#ifndef PS_SUPPORTS_MULTIPLE_PIDS
+			set<pid_t> pids;
+			ConstIterator it, end = allowedPids.end();
+			for (it = allowedPids.begin(); it != allowedPids.end(); it++) {
+				pids.insert(*it);
+			}
+		#endif
 		
 		// Parse each line.
 		while (start != NULL) {
@@ -345,15 +382,26 @@ private:
 			metrics.rss  = (size_t) readNextWordAsLongLong(&start);
 			metrics.vmsize  = (size_t) readNextWordAsLongLong(&start);
 			metrics.processGroupId = (pid_t) readNextWordAsLongLong(&start);
+			metrics.uid  = (uid_t) readNextWordAsLongLong(&start);
 			metrics.command = readRestOfLine(start);
-			result[metrics.pid] = metrics;
-			
-			start = strchr(start, '\n');
-			if (start != NULL) {
-				// Skip to beginning of next line.
-				start++;
-				if (*start == '\0') {
-					start = NULL;
+
+			bool pidAllowed;
+			#ifdef PS_SUPPORTS_MULTIPLE_PIDS
+				pidAllowed = true;
+			#else
+				pidAllowed = pids.find(metrics.pid) != pids.end();
+			#endif
+
+			if (pidAllowed) {
+				result[metrics.pid] = metrics;
+				
+				start = strchr(start, '\n');
+				if (start != NULL) {
+					// Skip to beginning of next line.
+					start++;
+					if (*start == '\0') {
+						start = NULL;
+					}
 				}
 			}
 		}
@@ -391,24 +439,29 @@ public:
 		}
 		
 		ConstIterator it;
-		string pidsArg;
+		// The list of PIDs must follow -p without a space.
+		// https://groups.google.com/forum/#!topic/phusion-passenger/WKXy61nJBMA
+		string pidsArg = "-p";
 		
 		for (it = pids.begin(); it != pids.end(); it++) {
 			pidsArg.append(toString(*it));
 			pidsArg.append(",");
 		}
-		if (!pidsArg.empty() && pidsArg[pidsArg.size() - 1] == ',') {
+		if (pidsArg[pidsArg.size() - 1] == ',') {
 			pidsArg.resize(pidsArg.size() - 1);
 		}
 		
 		const char *command[] = {
 			"ps", "-o",
 			#if defined(sun) || defined(__sun)
-				"pid,ppid,pcpu,rss,vsz,pgid,args",
+				"pid,ppid,pcpu,rss,vsz,pgid,uid,args",
 			#else
-				"pid,ppid,%cpu,rss,vsize,pgid,command",
+				"pid,ppid,%cpu,rss,vsize,pgid,uid,command",
 			#endif
-			"-p", pidsArg.c_str(), NULL
+			#ifdef PS_SUPPORTS_MULTIPLE_PIDS
+				pidsArg.c_str(),
+			#endif
+			NULL
 		};
 		
 		string psOutput = this->psOutput;
@@ -416,7 +469,7 @@ public:
 			psOutput = runCommandAndCaptureOutput(command);
 		}
 		pidsArg.resize(0);
-		ProcessMetricMap result = parsePsOutput(psOutput);
+		ProcessMetricMap result = parsePsOutput<Collection, ConstIterator>(psOutput, pids);
 		psOutput.resize(0);
 		if (canMeasureRealMemory) {
 			ProcessMetricMap::iterator it;
@@ -519,7 +572,7 @@ public:
 				return;
 			}
 			
-			ScopeGuard fileGuard(boost::bind(syscalls::fclose, f));
+			StdioGuard guard(f);
 			bool hasPss = false;
 			bool hasPrivateDirty = false;
 			bool hasSwap = false;

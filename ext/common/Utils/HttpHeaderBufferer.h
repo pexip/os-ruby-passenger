@@ -1,5 +1,5 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
+ *  Phusion Passenger - https://www.phusionpassenger.com/
  *  Copyright (c) 2011 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
@@ -80,7 +80,7 @@ private:
 public:
 	HttpHeaderBufferer() {
 		sbmh_init(&u.terminatorFinder,
-			&staticData.occ,
+			NULL,
 			(const unsigned char *) "\r\n\r\n",
 			4);
 		max = 1024 * 128;

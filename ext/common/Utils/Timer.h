@@ -1,5 +1,5 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
+ *  Phusion Passenger - https://www.phusionpassenger.com/
  *  Copyright (c) 2010 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
@@ -74,7 +74,7 @@ public:
 		// TODO: We really use should clock_gettime() and the monotonic
 		// clock whenever possible, instead of gettimeofday()...
 		// On OS X we can use mach_absolute_time()
-		lock_guard<boost::mutex> l(lock);
+		boost::lock_guard<boost::mutex> l(lock);
 		int ret;
 		do {
 			ret = gettimeofday(&startTime, NULL);
@@ -87,17 +87,31 @@ public:
 	 * and sufficient amount of time has elapsed.
 	 */
 	void stop() {
-		lock_guard<boost::mutex> l(lock);
+		boost::lock_guard<boost::mutex> l(lock);
 		startTime.tv_sec = 0;
 		startTime.tv_usec = 0;
 	}
-	
+
+	/**
+	 * Resets the timer. If the timer was already started then it is still started;
+	 * if it was stopped then it is still stopped.
+	 */
+	void reset() {
+		boost::lock_guard<boost::mutex> l(lock);
+		if (startTime.tv_sec != 0 || startTime.tv_usec != 0) {
+			int ret;
+			do {
+				ret = gettimeofday(&startTime, NULL);
+			} while (ret == -1 && errno == EINTR);
+		}
+	}
+
 	/**
 	 * Returns the amount of time that has elapsed since the timer was last started,
 	 * in miliseconds. If the timer is currently stopped, then 0 is returned.
 	 */
 	unsigned long long elapsed() const {
-		lock_guard<boost::mutex> l(lock);
+		boost::lock_guard<boost::mutex> l(lock);
 		if (startTime.tv_sec == 0 && startTime.tv_usec == 0) {
 			return 0;
 		} else {
@@ -119,7 +133,7 @@ public:
 	 * in microseconds. If the timer is currently stopped, then 0 is returned.
 	 */
 	unsigned long long usecElapsed() const {
-		lock_guard<boost::mutex> l(lock);
+		boost::lock_guard<boost::mutex> l(lock);
 		if (startTime.tv_sec == 0 && startTime.tv_usec == 0) {
 			return 0;
 		} else {

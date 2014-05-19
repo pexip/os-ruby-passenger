@@ -1,6 +1,6 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
- *  Copyright (c) 2011 Phusion
+ *  Phusion Passenger - https://www.phusionpassenger.com/
+ *  Copyright (c) 2011-2013 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
  *
@@ -30,6 +30,7 @@
 #include <utility>
 
 #include <StaticString.h>
+#include <Utils/HashMap.h>
 
 namespace Passenger {
 
@@ -50,27 +51,132 @@ class StringMap {
 private:
 	struct Entry {
 		string key;
-		T value;
+		pair<StaticString, T> thePair;
 	};
 	
-	typedef map<StaticString, Entry> InternalMap;
-	typedef typename InternalMap::iterator Iterator;
-	typedef typename InternalMap::const_iterator ConstIterator;
+	typedef HashMap<StaticString, Entry, StaticString::Hash> InternalMap;
+	typedef typename InternalMap::iterator InternalIterator;
+	typedef typename InternalMap::const_iterator InternalConstIterator;
 	typedef typename InternalMap::value_type ValueType;
 	InternalMap store;
 	
 public:
+	class const_iterator {
+	private:
+		InternalConstIterator it;
+		
+	public:
+		const_iterator() { }
+		
+		const_iterator(const InternalConstIterator &_it)
+			: it(_it)
+			{ }
+		
+		const_iterator &operator=(const const_iterator &value) {
+			it = value.it;
+			return *this;
+		}
+		
+		const_iterator &operator++() {
+			it++;
+			return *this;
+		}
+		
+		const_iterator operator++(int) {
+			const_iterator copy(*this);
+			operator++();
+			return copy;
+		}
+		
+		bool operator==(const const_iterator &other) {
+			return it == other.it;
+		}
+		
+		bool operator!=(const const_iterator &other) {
+			return it != other.it;
+		}
+		
+		const pair<const StaticString, const T> &operator*() {
+			return (pair<const StaticString, const T> &) it->second.thePair;
+		}
+		
+		const pair<const StaticString, const T> *operator->() {
+			return &(**this);
+		}
+	};
+	
+	class iterator {
+	private:
+		InternalIterator it;
+		
+	public:
+		iterator() { }
+		
+		iterator(const InternalIterator &_it)
+			: it(_it)
+			{ }
+		
+		iterator &operator=(const iterator &value) {
+			it = value.it;
+			return *this;
+		}
+		
+		iterator &operator++() {
+			it++;
+			return *this;
+		}
+		
+		iterator operator++(int) {
+			iterator copy(*this);
+			operator++();
+			return copy;
+		}
+		
+		bool operator==(const iterator &other) {
+			return it == other.it;
+		}
+		
+		bool operator!=(const iterator &other) {
+			return it != other.it;
+		}
+		
+		pair<StaticString, T> &operator*() {
+			return it->second.thePair;
+		}
+		
+		pair<StaticString, T> *operator->() {
+			return &(**this);
+		}
+		
+		operator const_iterator() const {
+			return const_iterator(it);
+		}
+	};
+	
 	T get(const StaticString &key) const {
-		ConstIterator it = store.find(key);
+		InternalConstIterator it = store.find(key);
 		if (it == store.end()) {
 			return T();
 		} else {
-			return it->second.value;
+			return it->second.thePair.second;
 		}
+	}
+
+	T get(const StaticString &key, const T &defaultValue) const {
+		InternalConstIterator it = store.find(key);
+		if (it == store.end()) {
+			return defaultValue;
+		} else {
+			return it->second.thePair.second;
+		}
+	}
+
+	bool has(const StaticString &key) const {
+		return store.find(key) != store.end();
 	}
 	
 	bool set(const StaticString &key, const T &value) {
-		pair<Iterator, bool> result = store.insert(make_pair(key, Entry()));
+		pair<InternalIterator, bool> result = store.insert(make_pair(key, Entry()));
 		if (result.second) {
 			// Key has been inserted. Copy it internally and point key
 			// to the copy.
@@ -78,19 +184,44 @@ public:
 			StaticString &originalKey = const_cast<StaticString &>(node.first);
 			Entry &entry = node.second;
 			entry.key = key;
-			entry.value = value;
+			entry.thePair.first = entry.key;
+			entry.thePair.second = value;
 			originalKey = entry.key;
 			return true;
 		} else {
 			// Key already exists. Update value.
 			Entry &entry = result.first->second;
-			entry.value = value;
+			entry.thePair.second = value;
 			return false;
 		}
 	}
 	
 	bool remove(const StaticString &key) {
 		return store.erase(key) > 0;
+	}
+	
+	unsigned int size() const {
+		return store.size();
+	}
+	
+	bool empty() const {
+		return store.empty();
+	}
+	
+	iterator begin() {
+		return iterator(store.begin());
+	}
+	
+	const_iterator begin() const {
+		return const_iterator(store.begin());
+	}
+	
+	iterator end() {
+		return iterator(store.end());
+	}
+	
+	const_iterator end() const {
+		return const_iterator(store.end());
 	}
 };
 

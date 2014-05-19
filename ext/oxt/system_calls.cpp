@@ -2,7 +2,7 @@
  * OXT - OS eXtensions for boosT
  * Provides important functionality necessary for writing robust server software.
  *
- * Copyright (c) 2010 Phusion
+ * Copyright (c) 2010-2013 Phusion
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 #include "system_calls.hpp"
+#include "detail/context.hpp"
 #include <boost/thread.hpp>
 #include <cerrno>
 
@@ -33,6 +34,9 @@ using namespace oxt;
 /*************************************
  * oxt
  *************************************/
+
+static const ErrorChance *errorChances = NULL;
+static unsigned int nErrorChances = 0;
 
 static void
 interruption_signal_handler(int sig) {
@@ -66,20 +70,78 @@ oxt::setup_syscall_interruption_support() {
 	} while (ret == -1 && errno == EINTR);
 }
 
+void
+oxt::setup_random_failure_simulation(const ErrorChance *_errorChances, unsigned int n) {
+	if (n > OXT_MAX_ERROR_CHANCES) {
+		throw std::runtime_error("Number of error chances may not exceed OXT_MAX_ERROR_CHANCES");
+	}
+
+	ErrorChance *storage = new ErrorChance[n];
+	for (unsigned int i = 0; i < n; i++) {
+		storage[i] = _errorChances[i];
+	}
+	errorChances = storage;
+	nErrorChances = n;
+}
+
+static bool
+shouldSimulateFailure() {
+	if (nErrorChances > 0) {
+		double number = random() / (double) RAND_MAX;
+		const ErrorChance *candidates[OXT_MAX_ERROR_CHANCES];
+		unsigned int i, n = 0;
+
+		for (i = 0; i < nErrorChances; i++) {
+			if (number <= errorChances[i].chance) {
+				candidates[n] = &errorChances[i];
+				n++;
+			}
+		}
+
+		if (n > 0) {
+			int choice = random() % n;
+			errno = candidates[choice]->errorCode;
+			return true;
+		} else {
+			return false;
+		}
+	} else {
+		return false;
+	}
+}
+
 
 /*************************************
  * Passenger::syscalls
  *************************************/
 
-#define CHECK_INTERRUPTION(error_expression, code) \
+#define CHECK_INTERRUPTION(error_expression, allowSimulatingFailure, error_assignment, code) \
 	do { \
+		if (allowSimulatingFailure && shouldSimulateFailure()) { \
+			error_assignment; \
+			break; \
+		} \
+		thread_local_context *ctx = get_thread_local_context(); \
+		if (OXT_UNLIKELY(ctx != NULL)) { \
+			ctx->syscall_interruption_lock.unlock(); \
+		} \
 		int _my_errno; \
+		bool _intr_requested = false; \
 		do { \
 			code; \
 			_my_errno = errno; \
-		} while ((error_expression) && _my_errno == EINTR \
-			&& !this_thread::syscalls_interruptable()); \
-		if ((error_expression) && _my_errno == EINTR && this_thread::syscalls_interruptable()) { \
+		} while ((error_expression) \
+			&& _my_errno == EINTR \
+			&& (!this_thread::syscalls_interruptable() \
+			    || !(_intr_requested = this_thread::interruption_requested())) \
+		); \
+		if (OXT_UNLIKELY(ctx != NULL)) { \
+			ctx->syscall_interruption_lock.lock(); \
+		} \
+		if ((error_expression) \
+		 && _my_errno == EINTR \
+		 && this_thread::syscalls_interruptable() \
+		 && _intr_requested) { \
 			throw thread_interrupted(); \
 		} \
 		errno = _my_errno; \
@@ -90,6 +152,8 @@ syscalls::open(const char *path, int oflag) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::open(path, oflag)
 	);
 	return ret;
@@ -100,6 +164,8 @@ syscalls::open(const char *path, int oflag, mode_t mode) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::open(path, oflag, mode)
 	);
 	return ret;
@@ -110,6 +176,8 @@ syscalls::read(int fd, void *buf, size_t count) {
 	ssize_t ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::read(fd, buf, count)
 	);
 	return ret;
@@ -120,6 +188,8 @@ syscalls::write(int fd, const void *buf, size_t count) {
 	ssize_t ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::write(fd, buf, count)
 	);
 	return ret;
@@ -130,6 +200,8 @@ syscalls::writev(int fd, const struct iovec *iov, int iovcnt) {
 	ssize_t ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::writev(fd, iov, iovcnt)
 	);
 	return ret;
@@ -158,10 +230,21 @@ syscalls::close(int fd) {
 		int ret;
 		CHECK_INTERRUPTION(
 			ret == -1,
+			true,
+			ret = -1,
 			ret = ::close(fd)
 		);
 		return ret;
 	#else
+		if (shouldSimulateFailure()) {
+			return -1;
+		}
+		
+		thread_local_context *ctx = get_thread_local_context();
+		if (OXT_UNLIKELY(ctx != NULL)) {
+			ctx->syscall_interruption_lock.unlock();
+		}
+
 		/* TODO: If it's not known whether the OS releases the file
 		 * descriptor on EINTR-on-close(), we should print some kind of
 		 * warning here. This would actually explain why some people get
@@ -170,7 +253,15 @@ syscalls::close(int fd) {
 		 * behaviors.
 		 */
 		int ret = ::close(fd);
-		if (ret == -1 && errno == EINTR && this_thread::syscalls_interruptable()) {
+		if (OXT_UNLIKELY(ctx != NULL)) {
+			int e = errno;
+			ctx->syscall_interruption_lock.lock();
+			errno = e;
+		}
+		if (ret == -1
+		 && errno == EINTR
+		 && this_thread::syscalls_interruptable()
+		 && this_thread::interruption_requested()) {
 			throw thread_interrupted();
 		} else {
 			return ret;
@@ -183,6 +274,8 @@ syscalls::pipe(int filedes[2]) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::pipe(filedes)
 	);
 	return ret;
@@ -193,7 +286,33 @@ syscalls::dup2(int filedes, int filedes2) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::dup2(filedes, filedes2)
+	);
+	return ret;
+}
+
+int
+syscalls::mkdir(const char *pathname, mode_t mode) {
+	int ret;
+	CHECK_INTERRUPTION(
+		ret == -1,
+		true,
+		ret = -1,
+		ret = ::mkdir(pathname, mode)
+	);
+	return ret;
+}
+
+int
+syscalls::chown(const char *path, uid_t owner, gid_t group) {
+	int ret;
+	CHECK_INTERRUPTION(
+		ret == -1,
+		true,
+		ret = -1,
+		ret = ::chown(path, owner, group)
 	);
 	return ret;
 }
@@ -203,6 +322,8 @@ syscalls::accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::accept(sockfd, addr, addrlen)
 	);
 	return ret;
@@ -213,6 +334,8 @@ syscalls::bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::bind(sockfd, addr, addrlen)
 	);
 	return ret;
@@ -225,6 +348,8 @@ syscalls::connect(int sockfd, const struct sockaddr *serv_addr, socklen_t addrle
 	// http://www.madore.org/~david/computers/connect-intr.html
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::connect(sockfd, serv_addr, addrlen);
 	);
 	return ret;
@@ -235,6 +360,8 @@ syscalls::listen(int sockfd, int backlog) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::listen(sockfd, backlog)
 	);
 	return ret;
@@ -245,6 +372,8 @@ syscalls::socket(int domain, int type, int protocol) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::socket(domain, type, protocol)
 	);
 	return ret;
@@ -255,6 +384,8 @@ syscalls::socketpair(int d, int type, int protocol, int sv[2]) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::socketpair(d, type, protocol, sv)
 	);
 	return ret;
@@ -266,11 +397,15 @@ syscalls::recvmsg(int s, struct msghdr *msg, int flags) {
 	#ifdef _AIX53
 		CHECK_INTERRUPTION(
 			ret == -1,
+			true,
+			ret = -1,
 			ret = ::nrecvmsg(s, msg, flags)
 		);
 	#else
 		CHECK_INTERRUPTION(
 			ret == -1,
+			true,
+			ret = -1,
 			ret = ::recvmsg(s, msg, flags)
 		);
 	#endif
@@ -283,11 +418,15 @@ syscalls::sendmsg(int s, const struct msghdr *msg, int flags) {
 	#ifdef _AIX53
 		CHECK_INTERRUPTION(
 			ret == -1,
+			true,
+			ret = -1,
 			ret = ::nsendmsg(s, msg, flags)
 		);
 	#else
 		CHECK_INTERRUPTION(
 			ret == -1,
+			true,
+			ret = -1,
 			ret = ::sendmsg(s, msg, flags)
 		);
 	#endif
@@ -299,6 +438,8 @@ syscalls::setsockopt(int s, int level, int optname, const void *optval, socklen_
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::setsockopt(s, level, optname, optval, optlen)
 	);
 	return ret;
@@ -309,6 +450,8 @@ syscalls::shutdown(int s, int how) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::shutdown(s, how)
 	);
 	return ret;
@@ -319,6 +462,8 @@ syscalls::select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, 
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::select(nfds, readfds, writefds, errorfds, timeout)
 	);
 	return ret;
@@ -329,6 +474,8 @@ syscalls::poll(struct pollfd fds[], nfds_t nfds, int timeout) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::poll(fds, nfds, timeout)
 	);
 	return ret;
@@ -339,6 +486,8 @@ syscalls::fopen(const char *path, const char *mode) {
 	FILE *ret;
 	CHECK_INTERRUPTION(
 		ret == NULL,
+		true,
+		ret = NULL,
 		ret = ::fopen(path, mode)
 	);
 	return ret;
@@ -349,6 +498,8 @@ syscalls::fread(void *ptr, size_t size, size_t nitems, FILE *stream) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == 0 && ferror(stream),
+		true,
+		ret = 0,
 		ret = ::fread(ptr, size, nitems, stream)
 	);
 	return ret;
@@ -359,6 +510,8 @@ syscalls::fclose(FILE *fp) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == EOF,
+		true,
+		ret = EOF,
 		ret = ::fclose(fp)
 	);
 	return ret;
@@ -369,6 +522,8 @@ syscalls::unlink(const char *pathname) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::unlink(pathname)
 	);
 	return ret;
@@ -379,7 +534,21 @@ syscalls::stat(const char *path, struct stat *buf) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::stat(path, buf)
+	);
+	return ret;
+}
+
+int
+syscalls::lstat(const char *path, struct stat *buf) {
+	int ret;
+	CHECK_INTERRUPTION(
+		ret == -1,
+		true,
+		ret = -1,
+		ret = ::lstat(path, buf)
 	);
 	return ret;
 }
@@ -389,6 +558,8 @@ syscalls::time(time_t *t) {
 	time_t ret;
 	CHECK_INTERRUPTION(
 		ret == (time_t) -1,
+		false,
+		(void) 0,
 		ret = ::time(t)
 	);
 	return ret;
@@ -440,21 +611,45 @@ syscalls::nanosleep(const struct timespec *req, struct timespec *rem) {
 	struct timespec req2 = *req;
 	struct timespec rem2;
 	int ret, e;
+	bool intr_requested;
+
+	/* We never simulate failure in this function. */
+
+	thread_local_context *ctx = get_thread_local_context();
+	if (OXT_UNLIKELY(ctx != NULL)) {
+		ctx->syscall_interruption_lock.unlock();
+	}
+	
 	do {
 		ret = ::nanosleep(&req2, &rem2);
 		e = errno;
-		// nanosleep() on some systems is sometimes buggy. rem2
-		// could end up containing a tv_sec with a value near 2^32-1,
-		// probably because of integer wrapping bugs in the kernel.
-		// So we check for those.
-		if (rem2.tv_sec < req->tv_sec) {
-			req2 = rem2;
-		} else {
-			req2.tv_sec = 0;
-			req2.tv_nsec = 0;
+		if (ret == -1) {
+			/* nanosleep() on some systems is sometimes buggy. rem2
+			 * could end up containing a tv_sec with a value near 2^32-1,
+			 * probably because of integer wrapping bugs in the kernel.
+			 * So we check for those.
+			 */
+			if (rem2.tv_sec < req->tv_sec) {
+				req2 = rem2;
+			} else {
+				req2.tv_sec = 0;
+				req2.tv_nsec = 0;
+			}
 		}
-	} while (ret == -1 && e == EINTR && !this_thread::syscalls_interruptable());
-	if (ret == -1 && e == EINTR && this_thread::syscalls_interruptable()) {
+	} while (ret == -1
+		&& e == EINTR
+		&& (!this_thread::syscalls_interruptable()
+		    || !(intr_requested = this_thread::interruption_requested()))
+	);
+	
+	if (OXT_UNLIKELY(ctx != NULL)) {
+		ctx->syscall_interruption_lock.lock();
+	}
+	
+	if (ret == -1
+	 && e == EINTR
+	 && this_thread::syscalls_interruptable()
+	 && intr_requested) {
 		throw thread_interrupted();
 	}
 	errno = e;
@@ -466,11 +661,18 @@ syscalls::nanosleep(const struct timespec *req, struct timespec *rem) {
 
 pid_t
 syscalls::fork() {
-	int ret;
-	CHECK_INTERRUPTION(
-		ret == -1,
-		ret = ::fork()
-	);
+	/* We don't do anything with the syscall_interruption_lock here
+	 * because that can cause an infinite loop. Suppose that we unlock
+	 * syscall_interruption_lock, then another thread calls interrupt()
+	 * on this thread (which in turn locks syscall_interruption_lock),
+	 * and then we context switch back to this thread anf the fork()
+	 * proceeds. In the subprocess, syscall_interruption_lock will never
+	 * be unlocked and so we're stuck forever trying to obtain the lock.
+	 */
+	pid_t ret;
+	do {
+		ret = ::fork();
+	} while (ret == -1 && errno == EINTR);
 	return ret;
 }
 
@@ -479,6 +681,8 @@ syscalls::kill(pid_t pid, int sig) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::kill(pid, sig)
 	);
 	return ret;
@@ -489,6 +693,8 @@ syscalls::killpg(pid_t pgrp, int sig) {
 	int ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::killpg(pgrp, sig)
 	);
 	return ret;
@@ -499,6 +705,8 @@ syscalls::waitpid(pid_t pid, int *status, int options) {
 	pid_t ret;
 	CHECK_INTERRUPTION(
 		ret == -1,
+		true,
+		ret = -1,
 		ret = ::waitpid(pid, status, options)
 	);
 	return ret;
@@ -509,11 +717,24 @@ syscalls::waitpid(pid_t pid, int *status, int options) {
  * boost::this_thread
  *************************************/
 
-thread_specific_ptr<bool> this_thread::_syscalls_interruptable;
+#ifdef OXT_THREAD_LOCAL_KEYWORD_SUPPORTED
+	/* This variable is an int instead of a bool, because a bug in GCC 4.6
+	 * can cause segmentation faults for bool TLS variables.
+	 * https://code.google.com/p/phusion-passenger/issues/detail?id=902
+	 * http://stackoverflow.com/questions/20410943/segmentation-fault-when-accessing-statically-initialized-thread-variable?noredirect=1#comment30483943_20410943
+	 * https://bugzilla.redhat.com/show_bug.cgi?id=731228
+	 */
+	__thread int this_thread::_syscalls_interruptable = 1;
 
+	bool
+	this_thread::syscalls_interruptable() {
+		return _syscalls_interruptable;
+	}
+#else
+	thread_specific_ptr<bool> this_thread::_syscalls_interruptable;
 
-bool
-this_thread::syscalls_interruptable() {
-	return _syscalls_interruptable.get() == NULL || *_syscalls_interruptable;
-}
-
+	bool
+	this_thread::syscalls_interruptable() {
+		return _syscalls_interruptable.get() == NULL || *_syscalls_interruptable;
+	}
+#endif

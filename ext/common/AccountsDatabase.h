@@ -1,5 +1,5 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
+ *  Phusion Passenger - https://www.phusionpassenger.com/
  *  Copyright (c) 2010 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
@@ -41,7 +41,7 @@ using namespace std;
 using namespace boost;
 
 class AccountsDatabase;
-typedef shared_ptr<AccountsDatabase> AccountsDatabasePtr;
+typedef boost::shared_ptr<AccountsDatabase> AccountsDatabasePtr;
 
 
 class AccountsDatabase {
@@ -51,16 +51,12 @@ private:
 	unsigned int uniqueNumber;
 	
 public:
-	static AccountsDatabasePtr createDefault(const ServerInstanceDir::GenerationPtr &generation,
-	                                         bool userSwitching, const string &defaultUser,
-	                                         const string &defaultGroup);
-	
 	AccountsDatabase() {
 		uniqueNumber = 0;
 	}
 	
 	unsigned int size() const {
-		lock_guard<boost::mutex> l(lock);
+		boost::lock_guard<boost::mutex> l(lock);
 		return (unsigned int) accounts.size();
 	}
 	
@@ -76,13 +72,13 @@ public:
 	
 	AccountPtr add(const string &username, const string &passwordOrHash, bool hashGiven, int rights = Account::ALL) {
 		AccountPtr account(new Account(username, passwordOrHash, hashGiven, rights));
-		lock_guard<boost::mutex> l(lock);
+		boost::lock_guard<boost::mutex> l(lock);
 		accounts[username] = account;
 		return account;
 	}
 	
 	const AccountPtr get(const string &username) const {
-		lock_guard<boost::mutex> l(lock);
+		boost::lock_guard<boost::mutex> l(lock);
 		map<string, AccountPtr>::const_iterator it = accounts.find(username);
 		if (it == accounts.end()) {
 			return AccountPtr();
@@ -92,7 +88,7 @@ public:
 	}
 	
 	AccountPtr authenticate(const string &username, const StaticString &userSuppliedPassword) const {
-		lock_guard<boost::mutex> l(lock);
+		boost::lock_guard<boost::mutex> l(lock);
 		map<string, AccountPtr>::const_iterator it = accounts.find(username);
 		if (it == accounts.end()) {
 			return AccountPtr();
@@ -107,7 +103,7 @@ public:
 	}
 	
 	bool remove(const string &username) {
-		lock_guard<boost::mutex> l(lock);
+		boost::lock_guard<boost::mutex> l(lock);
 		map<string, AccountPtr>::iterator it = accounts.find(username);
 		if (it == accounts.end()) {
 			return false;
@@ -118,7 +114,7 @@ public:
 	}
 	
 	unsigned int getUniqueNumber() {
-		lock_guard<boost::mutex> l(lock);
+		boost::lock_guard<boost::mutex> l(lock);
 		unsigned int result = uniqueNumber;
 		uniqueNumber++;
 		return result;

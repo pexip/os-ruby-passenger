@@ -1,7 +1,7 @@
-#include "TestSupport.h"
-#include "Utils.h"
-#include "Utils/StrIntUtils.h"
-#include "Utils/MemZeroGuard.h"
+#include <TestSupport.h>
+#include <Utils.h>
+#include <Utils/StrIntUtils.h>
+#include <Utils/MemZeroGuard.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>
@@ -15,10 +15,13 @@ using namespace std;
 namespace tut {
 	struct UtilsTest {
 		vector<string> output;
+		string cwd;
 		string oldPath;
 		TempDir tempDir;
 		
 		UtilsTest(): tempDir("tmp.dir") {
+			char buffer[PATH_MAX];
+			cwd = getcwd(buffer, sizeof(buffer));
 			oldPath = getenv("PATH");
 			unsetenv("PASSENGER_TEMP_DIR");
 		}
@@ -26,6 +29,7 @@ namespace tut {
 		~UtilsTest() {
 			setenv("PATH", oldPath.c_str(), 1);
 			unsetenv("PASSENGER_TEMP_DIR");
+			chdir(cwd.c_str());
 		}
 		
 		void testMakeDirTreeMode(const char *name, const char *mode, mode_t expected) {
@@ -45,12 +49,18 @@ namespace tut {
 
 	TEST_METHOD(1) {
 		split("", ':', output);
-		ensure_equals(output.size(), 1u);
-		ensure_equals(output[0], "");
+		ensure_equals(output.size(), 0u);
+
+		splitIncludeSep("", ':', output);
+		ensure_equals(output.size(), 0u);
 	}
 	
 	TEST_METHOD(2) {
 		split("hello world", ':', output);
+		ensure_equals(output.size(), 1u);
+		ensure_equals(output[0], "hello world");
+
+		splitIncludeSep("hello world", ':', output);
 		ensure_equals(output.size(), 1u);
 		ensure_equals(output[0], "hello world");
 	}
@@ -60,19 +70,33 @@ namespace tut {
 		ensure_equals(output.size(), 2u);
 		ensure_equals(output[0], "hello world");
 		ensure_equals(output[1], "foo bar");
+
+		splitIncludeSep("hello world:foo bar", ':', output);
+		ensure_equals(output.size(), 2u);
+		ensure_equals(output[0], "hello world:");
+		ensure_equals(output[1], "foo bar");
 	}
 	
 	TEST_METHOD(4) {
 		split("hello world:", ':', output);
-		ensure_equals(output.size(), 2u);
-		ensure_equals(output[0], "hello world");
-		ensure_equals(output[1], "");
+		ensure_equals("(1)", output.size(), 2u);
+		ensure_equals("(2)", output[0], "hello world");
+		ensure_equals("(3)", output[1], "");
+
+		splitIncludeSep("hello world:", ':', output);
+		ensure_equals("(4)", output.size(), 1u);
+		ensure_equals("(5)", output[0], "hello world:");
 	}
 	
 	TEST_METHOD(5) {
 		split(":hello world", ':', output);
 		ensure_equals(output.size(), 2u);
 		ensure_equals(output[0], "");
+		ensure_equals(output[1], "hello world");
+
+		splitIncludeSep(":hello world", ':', output);
+		ensure_equals(output.size(), 2u);
+		ensure_equals(output[0], ":");
 		ensure_equals(output[1], "hello world");
 	}
 	
@@ -83,6 +107,13 @@ namespace tut {
 		ensure_equals(output[1], "def");
 		ensure_equals(output[2], "");
 		ensure_equals(output[3], "ghi");
+
+		splitIncludeSep("abc:def::ghi", ':', output);
+		ensure_equals(output.size(), 4u);
+		ensure_equals(output[0], "abc:");
+		ensure_equals(output[1], "def:");
+		ensure_equals(output[2], ":");
+		ensure_equals(output[3], "ghi");
 	}
 	
 	TEST_METHOD(7) {
@@ -91,6 +122,13 @@ namespace tut {
 		ensure_equals(output[0], "abc");
 		ensure_equals(output[1], "");
 		ensure_equals(output[2], "");
+		ensure_equals(output[3], "def");
+
+		splitIncludeSep("abc:::def", ':', output);
+		ensure_equals(output.size(), 4u);
+		ensure_equals(output[0], "abc:");
+		ensure_equals(output[1], ":");
+		ensure_equals(output[2], ":");
 		ensure_equals(output[3], "def");
 	}
 	
@@ -163,17 +201,36 @@ namespace tut {
 		ensure_equals("Test 8", extractDirName(".."), ".");
 		ensure_equals("Test 9", extractDirName("./foo"), ".");
 		ensure_equals("Test 10", extractDirName("../foo"), "..");
+		ensure_equals("Test 11", extractDirName(""), ".");
+		ensure_equals("Test 12", extractDirName(".///"), ".");
+		ensure_equals("Test 13", extractDirName("foo//bar"), "foo");
+	}
+
+	TEST_METHOD(27) {
+		ensure_equals("Test 1", extractDirNameStatic("/usr/lib"), "/usr");
+		ensure_equals("Test 2", extractDirNameStatic("/usr/lib/"), "/usr");
+		ensure_equals("Test 3", extractDirNameStatic("/usr/"), "/");
+		ensure_equals("Test 4", extractDirNameStatic("usr"), ".");
+		ensure_equals("Test 5", extractDirNameStatic("/"), "/");
+		ensure_equals("Test 6", extractDirNameStatic("///"), "/");
+		ensure_equals("Test 7", extractDirNameStatic("."), ".");
+		ensure_equals("Test 8", extractDirNameStatic(".."), ".");
+		ensure_equals("Test 9", extractDirNameStatic("./foo"), ".");
+		ensure_equals("Test 10", extractDirNameStatic("../foo"), "..");
+		ensure_equals("Test 11", extractDirNameStatic(""), ".");
+		ensure_equals("Test 12", extractDirNameStatic(".///"), ".");
+		ensure_equals("Test 13", extractDirNameStatic("foo//bar"), "foo");
 	}
 	
 	/***** Test resolveSymlink() *****/
 	
-	TEST_METHOD(27) {
+	TEST_METHOD(28) {
 		TempDir d("tmp.symlinks");
-		system("touch tmp.symlinks/foo.txt");
-		system("ln -s /usr/bin tmp.symlinks/absolute_symlink");
-		system("ln -s foo.txt tmp.symlinks/file");
-		system("ln -s file tmp.symlinks/file2");
-		system("ln -s file2 tmp.symlinks/file3");
+		runShellCommand("touch tmp.symlinks/foo.txt");
+		runShellCommand("ln -s /usr/bin tmp.symlinks/absolute_symlink");
+		runShellCommand("ln -s foo.txt tmp.symlinks/file");
+		runShellCommand("ln -s file tmp.symlinks/file2");
+		runShellCommand("ln -s file2 tmp.symlinks/file3");
 		ensure_equals(resolveSymlink("tmp.symlinks/file"), "tmp.symlinks/foo.txt");
 		ensure_equals(resolveSymlink("tmp.symlinks/file2"), "tmp.symlinks/file");
 		ensure_equals(resolveSymlink("tmp.symlinks/file3"), "tmp.symlinks/file2");
@@ -276,6 +333,8 @@ namespace tut {
 			(mode_t) (S_IRUSR | S_IXUSR | S_IWGRP | S_IXOTH));
 		ensure_equals("(7)", parseModeString("u=rs,g=ws"),
 			(mode_t) (S_IRUSR | S_ISUID | S_IWGRP | S_ISGID));
+		ensure_equals("(7)", parseModeString("u=rwx,g=rwx,+t"),
+			(mode_t) (S_IRWXU | S_IRWXG | S_ISVTX));
 	}
 	
 	TEST_METHOD(38) {
@@ -530,5 +589,106 @@ namespace tut {
 		ensure_equals(escapeHTML(StaticString(weird, sizeof(weird) - 1)),
 			"Weird &#1;&#0; characters?");
 		ensure_equals(escapeHTML("UTF-8: ☃ ☀; ☁ ☂\x01"), "UTF-8: ☃ ☀; ☁ ☂&#1;");
+	}
+
+	/***** Test absolutizePath() *****/
+
+	TEST_METHOD(53) {
+		ensure_equals(absolutizePath(""), cwd);
+		ensure_equals(absolutizePath("."), cwd);
+		ensure_equals(absolutizePath("foo"), cwd + "/foo");
+		ensure_equals(absolutizePath("foo/bar"), cwd + "/foo/bar");
+		ensure_equals(absolutizePath("foo//bar"), cwd + "/foo/bar");
+		ensure_equals(absolutizePath("foo/bar///baz"), cwd + "/foo/bar/baz");
+		ensure_equals(absolutizePath("foo/./bar"), cwd + "/foo/bar");
+		ensure_equals(absolutizePath("foo/bar/../baz"), cwd + "/foo/baz");
+		ensure_equals(absolutizePath("foo/bar/../.."), cwd);
+		ensure_equals(absolutizePath("foo/.././bar"), cwd + "/bar");
+		ensure_equals(absolutizePath("foo/../bar/./baz"), cwd + "/bar/baz");
+		ensure_equals(absolutizePath("foo/"), cwd + "/foo");
+		ensure_equals(absolutizePath("foo//"), cwd + "/foo");
+
+		ensure_equals(absolutizePath("/"), "/");
+		ensure_equals(absolutizePath("////"), "/");
+		ensure_equals(absolutizePath("/."), "/");
+		ensure_equals(absolutizePath("/foo"), "/foo");
+		ensure_equals(absolutizePath("/foo/bar"), "/foo/bar");
+		ensure_equals(absolutizePath("/foo//bar"), "/foo/bar");
+		ensure_equals(absolutizePath("/foo/bar///baz"), "/foo/bar/baz");
+		ensure_equals(absolutizePath("/foo/./bar"), "/foo/bar");
+		ensure_equals(absolutizePath("/foo/bar/../baz"), "/foo/baz");
+		ensure_equals(absolutizePath("/foo/bar/../.."), "/");
+		ensure_equals(absolutizePath("/foo/.././bar"), "/bar");
+		ensure_equals(absolutizePath("/foo/../bar/./baz"), "/bar/baz");
+		ensure_equals(absolutizePath("/foo/"), "/foo");
+		ensure_equals(absolutizePath("/foo//"), "/foo");
+		ensure_equals(absolutizePath("//foo/bar"), "/foo/bar");
+		ensure_equals(absolutizePath("///foo//bar"), "/foo/bar");
+		ensure_equals(absolutizePath("/../.."), "/");
+		ensure_equals(absolutizePath("/../.././foo"), "/foo");
+
+		chdir("/usr/lib");
+		ensure_equals(absolutizePath(".."), "/usr");
+		ensure_equals(absolutizePath("."), "/usr/lib");
+		ensure_equals(absolutizePath("../.."), "/");
+		ensure_equals(absolutizePath("../../foo"), "/foo");
+		ensure_equals(absolutizePath("../.././foo/bar"), "/foo/bar");
+
+		ensure_equals(absolutizePath("..", "/usr/local/bin"), "/usr/local");
+		ensure_equals(absolutizePath(".", "/usr/local/bin"), "/usr/local/bin");
+		ensure_equals(absolutizePath("../..", "/usr/local/bin"), "/usr");
+		ensure_equals(absolutizePath("../../foo", "/usr/local/bin"), "/usr/foo");
+		ensure_equals(absolutizePath("../.././foo/bar", "/usr/local/bin"), "/usr/foo/bar");
+	}
+
+	/***** Test constantTimeCompare() *****/
+
+	TEST_METHOD(54) {
+		ensure("(1)", constantTimeCompare("", ""));
+		ensure("(2)", constantTimeCompare("a", "a"));
+		ensure("(3)", constantTimeCompare("aa", "aa"));
+		ensure("(4)", constantTimeCompare("abc", "abc"));
+
+		ensure("(5)", !constantTimeCompare("", "a"));
+		ensure("(6)", !constantTimeCompare("", "abcd"));
+		ensure("(7)", !constantTimeCompare("ab", "cd"));
+		ensure("(8)", !constantTimeCompare("ab", "abc"));
+		ensure("(9)", !constantTimeCompare("ab", "abcd"));
+		
+		ensure("(10)", !constantTimeCompare("a", ""));
+		ensure("(11)", !constantTimeCompare("abcd", ""));
+		ensure("(12)", !constantTimeCompare("cd", "ab"));
+		ensure("(13)", !constantTimeCompare("abc", "ab"));
+		ensure("(14)", !constantTimeCompare("abcd", "ab"));
+	}
+
+	/***** Test integerToOtherBase() *****/
+
+	TEST_METHOD(56) {
+		char buf[20], smallbuf[4];
+
+		ensure_equals("(1)", integerToOtherBase<int, 10>(0, buf, sizeof(buf)), 1u);
+		ensure_equals("(1.1)", buf[0], '0');
+		ensure_equals("(1.2)", buf[1], '\0');
+
+		ensure_equals("(2)", integerToOtherBase<int, 10>(1234, buf, sizeof(buf)), 4u);
+		ensure_equals("(2.1)", buf[0], '1');
+		ensure_equals("(2.2)", buf[1], '2');
+		ensure_equals("(2.3)", buf[2], '3');
+		ensure_equals("(2.4)", buf[3], '4');
+		ensure_equals("(2.5)", buf[4], '\0');
+
+		ensure_equals("(3)", integerToOtherBase<int, 10>(123, smallbuf, sizeof(smallbuf)), 3u);
+		ensure_equals("(3.1)", smallbuf[0], '1');
+		ensure_equals("(3.2)", smallbuf[1], '2');
+		ensure_equals("(3.3)", smallbuf[2], '3');
+		ensure_equals("(3.4)", smallbuf[3], '\0');
+
+		try {
+			integerToOtherBase<int, 10>(1234, smallbuf, sizeof(smallbuf));
+			fail("Exception expected");
+		} catch (const std::length_error &) {
+			// Pass.
+		}
 	}
 }

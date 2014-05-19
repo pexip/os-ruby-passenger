@@ -1,5 +1,5 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
+ *  Phusion Passenger - https://www.phusionpassenger.com/
  *  Copyright (c) 2010 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
@@ -26,10 +26,15 @@
 #define _PASSENGER_IO_UTILS_H_
 
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/uio.h>
+#include <cstdio>
+#include <cstddef>
 #include <unistd.h>
+#include <netdb.h>
 #include <string>
 #include <vector>
+#include <oxt/macros.hpp>
 #include <StaticString.h>
 #include <FileDescriptor.h>
 
@@ -44,6 +49,8 @@ enum ServerAddressType {
 };
 
 typedef ssize_t (*WritevFunction)(int fildes, const struct iovec *iov, int iovcnt);
+
+bool purgeStdio(FILE *f);
 
 /**
  * Accepts a server address in one of the following formats, and returns which one it is:
@@ -75,7 +82,9 @@ string parseUnixSocketAddress(const StaticString &address);
  *
  * @throw ArgumentException <tt>address</tt> is not a valid TCP socket address.
  */
-void parseTcpSocketAddress(const StaticString &address, string &host, unsigned short &port);
+void parseTcpSocketAddress(const StaticString & restrict_ref address,
+	string & restrict_ref host,
+	unsigned short & restrict_ref port);
 
 /**
  * Returns whether the given socket address (as accepted by getSocketAddressType())
@@ -97,7 +106,10 @@ void setNonBlocking(int fd);
  * Try to call the Linux accept4() system call. If the system call is
  * not available, then -1 is returned and errno is set to ENOSYS.
  */
-int callAccept4(int sock, struct sockaddr *addr, socklen_t *addr_len, int options);
+int callAccept4(int sock,
+	struct sockaddr * restrict addr,
+	socklen_t * restrict addr_len,
+	int options);
 
 /**
  * Resolves the given host name and returns a list of IP addresses.
@@ -110,7 +122,9 @@ int callAccept4(int sock, struct sockaddr *addr, socklen_t *addr_len, int option
  * IP addresses, then these addresses will be shuffled before they are
  * returned in order to improve load balancing.
  */
-vector<string> resolveHostname(const string &hostname, unsigned int port = 0, bool shuffle = true);
+vector<string> resolveHostname(const string &hostname,
+	unsigned int port = 0,
+	bool shuffle = true);
 
 /**
  * Create a new Unix or TCP server socket, depending on the address type.
@@ -128,7 +142,9 @@ vector<string> resolveHostname(const string &hostname, unsigned int port = 0, bo
  * @throws boost::thread_interrupted A system call has been interrupted.
  * @ingroup Support
  */
-int createServer(const StaticString &address, unsigned int backlogSize = 0, bool autoDelete = true);
+int createServer(const StaticString &address,
+	unsigned int backlogSize = 0,
+	bool autoDelete = true);
 
 /**
  * Create a new Unix server socket which is bounded to <tt>filename</tt>.
@@ -143,7 +159,9 @@ int createServer(const StaticString &address, unsigned int backlogSize = 0, bool
  * @throws boost::thread_interrupted A system call has been interrupted.
  * @ingroup Support
  */
-int createUnixServer(const StaticString &filename, unsigned int backlogSize = 0, bool autoDelete = true);
+int createUnixServer(const StaticString &filename,
+	unsigned int backlogSize = 0,
+	bool autoDelete = true);
 
 /**
  * Create a new TCP server socket which is bounded to the given address and port.
@@ -160,13 +178,16 @@ int createUnixServer(const StaticString &filename, unsigned int backlogSize = 0,
  * @throws boost::thread_interrupted A system call has been interrupted.
  * @ingroup Support
  */
-int createTcpServer(const char *address = "0.0.0.0", unsigned short port = 0, unsigned int backlogSize = 0);
+int createTcpServer(const char *address = "0.0.0.0",
+	unsigned short port = 0,
+	unsigned int backlogSize = 0);
 
 /**
- * Connect to a server at the given address.
+ * Connect to a server at the given address in a blocking manner.
  *
  * @param address An address as accepted by getSocketAddressType().
  * @return The file descriptor of the connected client socket.
+ * @throws ArgumentException Unknown address type.
  * @throws RuntimeException Something went wrong.
  * @throws SystemException Something went wrong while connecting to the server.
  * @throws IOException Something went wrong while connecting to the server.
@@ -176,7 +197,7 @@ int createTcpServer(const char *address = "0.0.0.0", unsigned short port = 0, un
 int connectToServer(const StaticString &address);
 
 /**
- * Connect to a Unix server socket at <tt>filename</tt>.
+ * Connect to a Unix server socket at <tt>filename</tt> in a blocking manner.
  *
  * @param filename The filename of the socket to connect to.
  * @return The file descriptor of the connected client socket.
@@ -188,7 +209,7 @@ int connectToServer(const StaticString &address);
 int connectToUnixServer(const StaticString &filename);
 
 /**
- * Connect to a TCP server socket at the given host name and port.
+ * Connect to a TCP server socket at the given host name and port in a blocking manner.
  *
  * @param hostname The host name of the TCP server.
  * @param port The port number of the TCP server.
@@ -199,6 +220,120 @@ int connectToUnixServer(const StaticString &filename);
  * @ingroup Support
  */
 int connectToTcpServer(const StaticString &hostname, unsigned int port);
+
+/** State structure for non-blocking connectToUnixServer(). */
+struct NUnix_State {
+	FileDescriptor fd;
+	string filename;
+};
+
+/**
+ * Setup a Unix domain socket for non-blocking connecting. When done,
+ * the file descriptor can be accessed through <tt>state.fd</tt>.
+ *
+ * @param state A state structure.
+ * @param filename The filename of the socket to connect to.
+ * @throws SystemException Something went wrong.
+ * @throws boost::thread_interrupted A system call has been interrupted.
+ * @ingroup Support
+ */
+void setupNonBlockingUnixSocket(NUnix_State & restrict_ref state,
+	const StaticString & restrict_ref filename);
+
+/**
+ * Connect a Unix domain socket in non-blocking mode.
+ *
+ * @param state A state structure.
+ * @return True if the socket was successfully connected, false if the socket isn't
+ *         ready yet, in which case the caller should select() on the socket until it's writable.
+ * @throws RuntimeException Something went wrong.
+ * @throws SystemException Something went wrong while connecting to the Unix server.
+ * @throws boost::thread_interrupted A system call has been interrupted.
+ * @ingroup Support
+ */
+bool connectToUnixServer(NUnix_State &state);
+
+/** State structure for non-blocking connectToTcpServer(). */
+struct NTCP_State {
+	FileDescriptor fd;
+	struct addrinfo hints, *res;
+	string hostname;
+	int port;
+
+	NTCP_State() {
+		memset(&hints, 0, sizeof(hints));
+		res = NULL;
+		port = 0;
+	}
+
+	~NTCP_State() {
+		if (res != NULL) {
+			freeaddrinfo(res);
+		}
+	}
+};
+
+/**
+ * Setup a TCP socket for non-blocking connecting. When done,
+ * the file descriptor can be accessed through <tt>state.fd</tt>.
+ *
+ * @param state A state structure.
+ * @param hostname The host name of the TCP server.
+ * @param port The port number of the TCP server.
+ * @throws IOException Something went wrong.
+ * @throws SystemException Something went wrong.
+ * @throws boost::thread_interrupted A system call has been interrupted.
+ * @ingroup Support
+ */
+void setupNonBlockingTcpSocket(NTCP_State & restrict_ref state,
+	const StaticString & restrict_ref hostname,
+	int port);
+
+/**
+ * Connect a TCP socket in non-blocking mode.
+ *
+ * @param state A state structure.
+ * @return True if the socket was successfully connected, false if the socket isn't
+ *         ready yet, in which case the caller should select() on the socket until it's writable.
+ * @throws SystemException Something went wrong while connecting to the server.
+ * @throws boost::thread_interrupted A system call has been interrupted.
+ * @ingroup Support
+ */
+bool connectToTcpServer(NTCP_State &state);
+
+struct NConnect_State {
+	ServerAddressType type;
+	NUnix_State s_unix;
+	NTCP_State s_tcp;
+};
+
+/**
+ * Setup a socket for non-blocking connecting to the given address.
+ *
+ * @param A state structure.
+ * @param address An address as accepted by getSocketAddressType().
+ * @throws ArgumentException Unknown address type.
+ * @throws RuntimeException Something went wrong.
+ * @throws SystemException Something went wrong.
+ * @throws IOException Something went wrong.
+ * @throws boost::thread_interrupted A system call has been interrupted.
+ * @ingroup Support
+ */
+void setupNonBlockingSocket(NConnect_State & restrict_ref state,
+	const StaticString & restrict_ref address);
+
+/**
+ * Connect a socket in non-blocking mode.
+ *
+ * @param state A state structure.
+ * @return True if the socket was successfully connected, false if the socket isn't
+ *         ready yet, in which case the caller should select() on the socket until it's writable.
+ * @throws RuntimeException Something went wrong.
+ * @throws SystemException Something went wrong.
+ * @throws boost::thread_interrupted A system call has been interrupted.
+ * @ingroup Support
+ */
+bool connectToServer(NConnect_State &state);
 
 /**
  * Creates a Unix domain socket pair.
@@ -270,7 +405,7 @@ bool waitUntilWritable(int fd, unsigned long long *timeout);
  *                          <tt>timeout</tt> microseconds.
  * @throws boost::thread_interrupted
  */
-unsigned int readExact(int fd, void *buf, unsigned int size, unsigned long long *timeout = NULL);
+unsigned int readExact(int fd, void * restrict buf, unsigned int size, unsigned long long * restrict timeout = NULL);
 
 /**
  * Writes a block of data to the given file descriptor and blocks until everything
@@ -298,8 +433,8 @@ unsigned int readExact(int fd, void *buf, unsigned int size, unsigned long long 
  *                          <tt>timeout</tt> microseconds.
  * @throws boost::thread_interrupted
  */
-void writeExact(int fd, const void *data, unsigned int size, unsigned long long *timeout = NULL);
-void writeExact(int fd, const StaticString &data, unsigned long long *timeout = NULL);
+void writeExact(int fd, const void * restrict data, unsigned int size, unsigned long long * restrict timeout = NULL);
+void writeExact(int fd, const StaticString & restrict_ref data, unsigned long long * restrict timeout = NULL);
 
 /**
  * Writes a bunch of data to the given file descriptor using a gathering I/O interface.
@@ -329,7 +464,7 @@ void writeExact(int fd, const StaticString &data, unsigned long long *timeout = 
  *         isn't related to non-blocking writes.
  * @throws boost::thread_interrupted
  */
-ssize_t gatheredWrite(int fd, const StaticString data[], unsigned int dataCount, string &restBuffer);
+ssize_t gatheredWrite(int fd, const StaticString * restrict data, unsigned int dataCount, string & restrict_ref restBuffer);
 
 /**
  * Writes a bunch of data to the given file descriptor using a gathering I/O interface.
@@ -357,7 +492,7 @@ ssize_t gatheredWrite(int fd, const StaticString data[], unsigned int dataCount,
  *                          <tt>timeout</tt> microseconds.
  * @throws boost::thread_interrupted
  */
-void    gatheredWrite(int fd, const StaticString data[], unsigned int dataCount, unsigned long long *timeout = NULL);
+void    gatheredWrite(int fd, const StaticString * restrict data, unsigned int dataCount, unsigned long long * restrict timeout = NULL);
 
 /**
  * Sets a writev-emulating function that gatheredWrite() should call instead of the real writev().
@@ -426,6 +561,20 @@ void writeFileDescriptor(int fd, int fdToSend, unsigned long long *timeout = NUL
 	#define _PASSENGER_SAFELY_CLOSE_DEFINED_
 	void safelyClose(int fd, bool ignoreErrors = false);
 #endif
+
+/**
+ * Read all data from the given file until EOF.
+ *
+ * @throws SystemException
+ */
+string readAll(const string &filename);
+
+/**
+ * Read all data from the given file descriptor until EOF.
+ *
+ * @throws SystemException
+ */
+string readAll(int fd);
 
 } // namespace Passenger
 
