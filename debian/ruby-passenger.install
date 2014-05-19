@@ -4,5 +4,4 @@ usr/share/passenger/mime.types
 usr/share/passenger/helper-scripts/
 usr/share/passenger/templates/
 usr/lib/ruby/vendor_ruby/
-usr/lib/*/ruby/vendor_ruby/
 usr/sbin/

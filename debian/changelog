@@ -1,6 +1,10 @@
 ruby-passenger (4.0.37-3pexip1) pexip; urgency=medium
 
   * Prepare Pexip packaging
+  * debian/rules:
+    Revert to hard-coded ruby versions
+  * debian/ruby-passenger.install:
+    Do not expect multiarch paths
 
  -- John-Mark Bell <jmb@pexip.com>  Mon, 19 May 2014 20:28:53 +0100
 
