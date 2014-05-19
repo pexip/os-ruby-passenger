@@ -3,25 +3,26 @@ Section: ruby
 Priority: optional
 Maintainer: Pexip AS <packaging@pexip.com>
 XBCS-Original-Maintainer: Debian Ruby Extras Maintainers <pkg-ruby-extras-maintainers@lists.alioth.debian.org>
-XBCS-Original-Uploaders: Filipe Lautert <filipe@debian.org>, Micah Anderson <micah@debian.org>, David Moreno <damog@debian.org>
+XBCS-Original-Uploaders: Filipe Lautert <filipe@debian.org>, Micah Anderson <micah@debian.org>, David Moreno <damog@debian.org>,
+ Felix Geyer <fgeyer@debian.org>
 Build-Depends: debhelper (>= 7.0.50~), gem2deb (>= 0.2.12~), apache2 (>= 2.4),
  apache2-dev (>= 2.4), libapr1-dev, doxygen, asciidoc (>= 8.2), graphviz, rake,
- source-highlight, libjs-scriptaculous, libcurl4-openssl-dev, libev-dev
-Standards-Version: 3.9.3
-Homepage: http://www.modrails.com/
+ source-highlight, libcurl4-openssl-dev, libev-dev, dh-autoreconf, ruby-mizuho
+Standards-Version: 3.9.5
+Homepage: https://www.phusionpassenger.com/
 Vcs-Git: git://anonscm.debian.org/pkg-ruby-extras/ruby-passenger.git
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-ruby-extras/ruby-passenger.git;a=summary
 XS-Ruby-Versions: all
-XS-Pexip-Upstream: http://archive.ubuntu.com/ubuntu/ saucy
+XS-Pexip-Upstream: http://ftp.debian.org/debian/ jessie
 
 Package: ruby-passenger
 Architecture: any
 XB-Ruby-Versions: ${ruby:Versions}
-Depends: ${shlibs:Depends}, ${misc:Depends}, ruby | ruby-interpreter, rubygems (>= 1.2), ruby-rack
+Depends: ${shlibs:Depends}, ${misc:Depends}, ruby | ruby-interpreter, ruby-rack
 Suggests: python, rails, ruby-passenger-doc
 Breaks: libapache2-mod-passenger (<< 3.0.11debian)
 Replaces: libapache2-mod-passenger (<< 3.0.11debian)
-Description: Rails and Rack support for Apache2 and Nginx
+Description: Rails and Rack support
  Phusion Passenger — a.k.a. mod_rails or mod_rack — makes
  deployment of Ruby web applications, such as those built on the
  revolutionary Ruby on Rails web framework, a breeze.

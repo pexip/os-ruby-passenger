@@ -1,5 +1,6 @@
-#  Phusion Passenger - http://www.modrails.com/
-#  Copyright (c) 2010, 2011, 2012 Phusion
+# encoding: binary
+#  Phusion Passenger - https://www.phusionpassenger.com/
+#  Copyright (c) 2010-2013 Phusion
 #
 #  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
 #
@@ -21,8 +22,10 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #  THE SOFTWARE.
 
-require 'phusion_passenger/platform_info'
-require 'phusion_passenger/platform_info/compiler'
+PhusionPassenger.require_passenger_lib 'platform_info'
+PhusionPassenger.require_passenger_lib 'platform_info/compiler'
+PhusionPassenger.require_passenger_lib 'platform_info/operating_system'
+PhusionPassenger.require_passenger_lib 'platform_info/linux'
 
 module PhusionPassenger
 
@@ -57,14 +60,15 @@ module PlatformInfo
 	
 	# The absolute path to the 'apachectl' or 'apache2ctl' binary, or nil if
 	# not found.
-	def self.apache2ctl
-		return find_apache2_executable('apache2ctl', 'apachectl2', 'apachectl')
+	def self.apache2ctl(options = {})
+		return find_apache2_executable('apache2ctl', 'apachectl2', 'apachectl', options)
 	end
 	memoize :apache2ctl
 	
 	# The absolute path to the Apache binary (that is, 'httpd', 'httpd2', 'apache'
 	# or 'apache2'), or nil if not found.
-	def self.httpd
+	def self.httpd(options = {})
+		apxs2 = options[:apxs2] || self.apxs2
 		if env_defined?('HTTPD')
 			return ENV['HTTPD']
 		elsif apxs2.nil?
@@ -76,13 +80,18 @@ module PlatformInfo
 			end
 			return nil
 		else
-			return find_apache2_executable(`#{apxs2} -q TARGET`.strip)
+			return find_apache2_executable(`#{apxs2} -q TARGET`.strip, options)
 		end
 	end
 	memoize :httpd
 
 	# The Apache version, or nil if Apache is not found.
-	def self.httpd_version
+	def self.httpd_version(options = nil)
+		if options
+			httpd = options[:httpd] || self.httpd(options)
+		else
+			httpd = self.httpd
+		end
 		if httpd
 			`#{httpd} -v` =~ %r{Apache/([\d\.]+)}
 			return $1
@@ -91,6 +100,300 @@ module PlatformInfo
 		end
 	end
 	memoize :httpd_version
+
+	# Run `httpd -V` and return its output. On some systems, such as Ubuntu 13.10,
+	# `httpd -V` fails without the environment variables defined in various scripts.
+	# Here we take care of evaluating those scripts before running `httpd -V`.
+	def self.httpd_V(options = nil)
+		if options
+			httpd = options[:httpd] || self.httpd(options)
+		else
+			httpd = self.httpd
+		end
+		if httpd
+			command = "#{httpd} -V"
+			if envvars_file = httpd_envvars_file(options)
+				command = ". '#{envvars_file}' && #{command}"
+			end
+			return `#{command}`
+		else
+			return nil
+		end
+	end
+	memoize :httpd_V
+
+	# The Apache executable's architectural bits. Returns 32 or 64,
+	# or nil if unable to detect.
+	def self.httpd_architecture_bits(options = nil)
+		if options
+			httpd = options[:httpd] || self.httpd(options)
+		else
+			httpd = self.httpd
+		end
+		if httpd
+			`#{httpd} -V` =~ %r{Architecture:(.*)}
+			text = $1
+			if text =~ /32/
+				return 32
+			elsif text =~ /64/
+				return 64
+			else
+				return nil
+			end
+		else
+			return nil
+		end
+	end
+	memoize :httpd_architecture_bits
+
+	# The default Apache root directory, as specified by its compilation parameters.
+	# This may be different from the value of the ServerRoot directive.
+	def self.httpd_default_root(options = nil)
+		if options
+			info = httpd_V(options)
+		else
+			info = httpd_V
+		end
+		if info
+			info =~ / -D HTTPD_ROOT="(.+)"$/
+			return $1
+		else
+			return nil
+		end
+	end
+	memoize :httpd_default_root
+
+	# The default Apache configuration file, or nil if Apache is not found.
+	def self.httpd_default_config_file(options = nil)
+		if options
+			info = httpd_V(options)
+		else
+			info = httpd_V
+		end
+		if info
+			info =~ /-D SERVER_CONFIG_FILE="(.+)"$/
+			filename = $1
+			if filename =~ /\A\//
+				return filename
+			else
+				# Not an absolute path. Infer from default root.
+				if root = httpd_default_root(options)
+					return "#{root}/#{filename}"
+				else
+					return nil
+				end
+			end
+		else
+			return nil
+		end
+	end
+	memoize :httpd_default_config_file
+
+	# Given an Apache config file, returns the a hash with the following elements:
+	# 
+	#  * `:files` - An array containing `config_file`, as well as all config files
+	#               included from that config file, including recursively included
+	#               ones. Only filenames that actually exist are put here.
+	#  * `:unreadable_files` - All config files that this function was unable
+	#                          to read.
+	def self.httpd_included_config_files(config_file, options = nil)
+		state = {
+			:files => { config_file => true },
+			:unreadable_files => [],
+			:root => httpd_default_root(options)
+		}
+		scan_for_included_apache2_config_files(config_file, state, options)
+		return {
+			:files => state[:files].keys,
+			:unreadable_files => state[:unreadable_files]
+		}
+	end
+
+	# The default Apache error log's filename, as it is compiled into the Apache
+	# main executable. This may not be the actual error log that is used. The actual
+	# error log depends on the configuration file.
+	# 
+	# Returns nil if Apache is not detected, or if the default error log filename
+	# cannot be detected.
+	def self.httpd_default_error_log(options = nil)
+		if info = httpd_V(options)
+			info =~ /-D DEFAULT_ERRORLOG="(.+)"$/
+			filename = $1
+			if filename =~ /\A\//
+				return filename
+			else
+				# Not an absolute path. Infer from default root.
+				if root = httpd_default_root(options)
+					return "#{root}/#{filename}"
+				else
+					return nil
+				end
+			end
+		else
+			return nil
+		end
+	end
+	memoize :httpd_default_error_log
+
+	def self.httpd_actual_error_log(options = nil)
+		if config_file = httpd_default_config_file(options)
+			begin
+				contents = File.open(config_file, "rb") { |f| f.read }
+			rescue Errno::EACCES
+				log "Unable to open #{config_file} for reading"
+				return nil
+			end
+			# We don't want to match comments
+			contents.gsub!(/^[ \t]*#.*/, '')
+			if contents =~ /^[ \t]*ErrorLog[ \t]+(.+)[ \t]*$/i
+				filename = unescape_apache_config_value($1, options)
+				if filename && filename !~ /\A\//
+					# Not an absolute path. Infer from root.
+					if root = httpd_default_root(options)
+						return "#{root}/#{filename}"
+					else
+						return nil
+					end
+				else
+					return filename
+				end
+			elsif contents =~ /ErrorLog/i
+				# The user apparently has ErrorLog set somewhere but
+				# we can't parse it. The default error log location,
+				# as reported by `httpd -V`, may be wrong (it is on OS X).
+				# So to be safe, let's assume that we don't know.
+				log "Unable to parse ErrorLog directive in Apache configuration file"
+				return nil
+			else
+				log "No ErrorLog directive in Apache configuration file"
+				return httpd_default_error_log(options)
+			end
+		else
+			return nil
+		end
+	end
+	memoize :httpd_actual_error_log
+
+	# The location of the Apache envvars file, which exists on some systems such as Ubuntu.
+	# Returns nil if Apache is not found or if the envvars file is not found.
+	def self.httpd_envvars_file(options = nil)
+		if options
+			httpd = options[:httpd] || self.httpd(options)
+		else
+			httpd = self.httpd
+		end
+		
+		httpd_dir = File.dirname(httpd)
+		if httpd_dir == "/usr/bin" || httpd_dir == "/usr/sbin"
+			if File.exist?("/etc/apache2/envvars")
+				return "/etc/apache2/envvars"
+			elsif File.exist?("/etc/httpd/envvars")
+				return "/etc/httpd/envvars"
+			end
+		end
+		
+		conf_dir = File.expand_path(File.dirname(httpd) + "/../conf")
+		if File.exist?("#{conf_dir}/envvars")
+			return "#{conf_dir}/envvars"
+		end
+
+		return nil
+	end
+
+	def self.httpd_infer_envvar(varname, options = nil)
+		if envfile = httpd_envvars_file(options)
+			result = `. '#{envfile}' && echo $#{varname}`.strip
+			if $? && $?.exitstatus == 0
+				return result
+			else
+				return nil
+			end
+		else
+			return nil
+		end
+	end
+
+	# Returns the path to the Apache `mods-available` subdirectory,
+	# or nil if it's not supported by this Apache.
+	def self.httpd_mods_available_directory(options = nil)
+		config_file = httpd_default_config_file(options)
+		return nil if !config_file
+
+		# mods-available is supposed to be a Debian extension that only works
+		# on the APT-installed Apache, so only return non-nil if we're
+		# working against the APT-installed Apache.
+		config_dir = File.dirname(config_file)
+		if config_dir == "/etc/httpd" || config_dir == "/etc/apache2"
+			if File.exist?("#{config_dir}/mods-available") &&
+			   File.exist?("#{config_dir}/mods-enabled")
+				return "#{config_dir}/mods-available"
+			else
+				return nil
+			end
+		else
+			return nil
+		end
+	end
+	memoize :httpd_mods_available_directory
+
+	# Returns the path to the Apache `mods-enabled` subdirectory,
+	# or nil if it's not supported by this Apache.
+	def self.httpd_mods_enabled_directory(options = nil)
+		config_file = httpd_default_config_file(options)
+		return nil if !config_file
+
+		# mods-enabled is supposed to be a Debian extension that only works
+		# on the APT-installed Apache, so only return non-nil if we're
+		# working against the APT-installed Apache.
+		config_dir = File.dirname(config_file)
+		if config_dir == "/etc/httpd" || config_dir == "/etc/apache2"
+			if File.exist?("#{config_dir}/mods-available") &&
+			   File.exist?("#{config_dir}/mods-enabled")
+				return "#{config_dir}/mods-enabled"
+			else
+				return nil
+			end
+		else
+			return nil
+		end
+	end
+	memoize :httpd_mods_enabled_directory
+
+	# The absolute path to the 'a2enmod' executable.
+	def self.a2enmod(options = {})
+		apxs2 = options[:apxs2] || self.apxs2
+		dir = File.dirname(apxs2)
+		# a2enmod is supposed to be a Debian extension that only works
+		# on the APT-installed Apache, so only return non-nil if we're
+		# working against the APT-installed Apache.
+		if dir == "/usr/bin" || dir == "/usr/sbin"
+			if env_defined?('A2ENMOD')
+				return ENV['A2ENMOD']
+			else
+				return find_apache2_executable("a2enmod", options)
+			end
+		else
+			return nil
+		end
+	end
+	memoize :a2enmod
+
+	# The absolute path to the 'a2enmod' executable.
+	def self.a2dismod(options = {})
+		apxs2 = options[:apxs2] || self.apxs2
+		dir = File.dirname(apxs2)
+		# a2dismod is supposed to be a Debian extension that only works
+		# on the APT-installed Apache, so only return non-nil if we're
+		# working against the APT-installed Apache.
+		if dir == "/usr/bin" || dir == "/usr/sbin"
+			if env_defined?('A2DISMOD')
+				return ENV['A2DISMOD']
+			else
+				return find_apache2_executable("a2dismod", options)
+			end
+		end
+	end
+	memoize :a2dismod
 	
 	# The absolute path to the 'apr-config' or 'apr-1-config' executable,
 	# or nil if not found.
@@ -143,12 +446,48 @@ module PlatformInfo
 		end
 	end
 	memoize :apu_config
+
+	# Find an executable in the Apache 'bin' and 'sbin' directories.
+	# Returns nil if not found.
+	def self.find_apache2_executable(*possible_names)
+		if possible_names.last.is_a?(Hash)
+			options = possible_names.pop
+			options = nil if options.empty?
+		end
+
+		if options
+			dirs = options[:dirs] || [apache2_bindir(options), apache2_sbindir(options)]
+		else
+			dirs = [apache2_bindir, apache2_sbindir]
+		end
+
+		dirs.each do |bindir|
+			if bindir.nil?
+				next
+			end
+			possible_names.each do |name|
+				filename = "#{bindir}/#{name}"
+				if !File.exist?(filename)
+					log "Looking for #{filename}: not found"
+				elsif !File.file?(filename)
+					log "Looking for #{filename}: found, but is not a file"
+				elsif !File.executable?(filename)
+					log "Looking for #{filename}: found, but is not executable"
+				else
+					log "Looking for #{filename}: found"
+					return filename
+				end
+			end
+		end
+		return nil
+	end
 	
 	
 	################ Directories ################
 	
 	# The absolute path to the Apache 2 'bin' directory, or nil if unknown.
-	def self.apache2_bindir
+	def self.apache2_bindir(options = {})
+		apxs2 = options[:apxs2] || self.apxs2
 		if apxs2.nil?
 			return nil
 		else
@@ -158,7 +497,8 @@ module PlatformInfo
 	memoize :apache2_bindir
 	
 	# The absolute path to the Apache 2 'sbin' directory, or nil if unknown.
-	def self.apache2_sbindir
+	def self.apache2_sbindir(options = {})
+		apxs2 = options[:apxs2] || self.apxs2
 		if apxs2.nil?
 			return nil
 		else
@@ -173,12 +513,11 @@ module PlatformInfo
 	# The C compiler flags that are necessary to compile an Apache module.
 	# Also includes APR and APU compiler flags if with_apr_flags is true.
 	def self.apache2_module_cflags(with_apr_flags = true)
-		flags = ["-fPIC"]
-		if compiler_supports_visibility_flag?
-			flags << "-fvisibility=hidden -DVISIBILITY_ATTRIBUTE_SUPPORTED"
-			if compiler_visibility_flag_generates_warnings? && compiler_supports_wno_attributes_flag?
-				flags << "-Wno-attributes"
-			end
+		flags = [""]
+		if cc_is_sun_studio?
+			flags << "-KPIC"
+		else
+			flags << "-fPIC"
 		end
 		if with_apr_flags
 			flags << apr_flags
@@ -189,7 +528,7 @@ module PlatformInfo
 			apxs2_flags.gsub!(/-O\d? /, '')
 
 			# Remove flags not supported by GCC
-			if RUBY_PLATFORM =~ /solaris/ # TODO: Add support for people using SunStudio
+			if os_name =~ /solaris/ # TODO: Add support for people using SunStudio
 				# The big problem is Coolstack apxs includes a bunch of solaris -x directives.
 				options = apxs2_flags.split
 				options.reject! { |f| f =~ /^\-x/ }
@@ -198,11 +537,22 @@ module PlatformInfo
 				options.reject! { |f| f =~ /^\-mt/ }
 				apxs2_flags = options.join(' ')
 			end
+
+			if os_name == "linux" &&
+			   linux_distro_tags.include?(:redhat) &&
+			   apxs2 == "/usr/sbin/apxs" &&
+			   httpd_architecture_bits == 64
+				# The Apache package in CentOS 5 x86_64 is broken.
+				# 'apxs -q CFLAGS' contains directives for compiling
+				# the module as 32-bit, even though httpd itself
+				# is 64-bit. Fix this.
+				apxs2_flags.gsub!('-m32 -march=i386 -mtune=generic', '')
+			end
 			
 			apxs2_flags.strip!
 			flags << apxs2_flags
 		end
-		if !httpd.nil? && RUBY_PLATFORM =~ /darwin/
+		if !httpd.nil? && os_name == "macosx"
 			# The default Apache install on OS X is a universal binary.
 			# Figure out which architectures it's compiled for and do the same
 			# thing for mod_passenger. We use the 'file' utility to do this.
@@ -285,38 +635,12 @@ module PlatformInfo
 	# headers are placed into the same directory as the Apache headers,
 	# and so 'apr-config' and 'apu-config' won't be necessary in that case.
 	def self.apr_config_needed_for_building_apache_modules?
-		filename = File.join("#{tmpexedir}/passenger-platform-check-#{Process.pid}.c")
-		File.open(filename, "w") do |f|
-			f.puts("#include <apr.h>")
-		end
-		begin
-			return !system("(gcc #{apache2_module_cflags(false)} -c '#{filename}' -o '#{filename}.o') >/dev/null 2>/dev/null")
-		ensure
-			File.unlink(filename) rescue nil
-			File.unlink("#{filename}.o") rescue nil
-		end
+		return !try_compile("whether APR is needed for building Apache modules",
+			:c, "#include <apr.h>\n", apache2_module_cflags(false))
 	end
-	memoize :apr_config_needed_for_building_apache_modules?
+	memoize :apr_config_needed_for_building_apache_modules?, true
 
 private
-	# Find an executable in the Apache 'bin' and 'sbin' directories.
-	# Returns nil if not found.
-	def self.find_apache2_executable(*possible_names)
-		[apache2_bindir, apache2_sbindir].each do |bindir|
-			if bindir.nil?
-				next
-			end
-			possible_names.each do |name|
-				filename = "#{bindir}/#{name}"
-				if File.file?(filename) && File.executable?(filename)
-					return filename
-				end
-			end
-		end
-		return nil
-	end
-	private_class_method :find_apache2_executable
-	
 	def self.determine_apr_info
 		if apr_config.nil?
 			return [nil, nil]
@@ -324,10 +648,10 @@ private
 			flags = `#{apr_config} --cppflags --includes`.strip
 			libs = `#{apr_config} --link-ld`.strip
 			flags.gsub!(/-O\d? /, '')
-			if RUBY_PLATFORM =~ /solaris/
+			if os_name =~ /solaris/
 				# Remove flags not supported by GCC
 				flags = flags.split(/ +/).reject{ |f| f =~ /^\-mt/ }.join(' ')
-			elsif RUBY_PLATFORM =~ /aix/
+			elsif os_name =~ /aix/
 				libs << " -Wl,-G -Wl,-brtl"
 			end
 			return [flags, libs]
@@ -346,8 +670,114 @@ private
 			return [flags, libs]
 		end
 	end
-	memoize :determine_apu_info
+	memoize :determine_apu_info, true
 	private_class_method :determine_apu_info
+
+	def self.scan_for_included_apache2_config_files(config_file, state, options = nil)
+		begin
+			config = File.open(config_file, "rb") do |f|
+				f.read
+			end
+		rescue Errno::EACCES
+			state[:unreadable_files] << config_file
+			return
+		end
+
+		found_filenames = []
+
+		config.scan(/^[ \t]*(Include(Optional)?|ServerRoot)[ \t]+(.+?)[ \t]*$/i) do |match|
+			if match[0].downcase == "serverroot"
+				new_root = unescape_apache_config_value(match[2], options)
+				state[:root] = new_root if new_root
+			else
+				filename = unescape_apache_config_value(match[2], options)
+				next if filename.nil? || filename.empty?
+				if filename !~ /\A\//
+					# Not an absolute path. Infer from root.
+					filename = "#{state[:root]}/#{filename}"
+				end
+				expand_apache2_glob(filename).each do |filename2|
+					if !state[:files].has_key?(filename2)
+						state[:files][filename2] = true
+						scan_for_included_apache2_config_files(filename2, state, options)
+					end
+				end
+			end
+		end
+	end
+	private_class_method :scan_for_included_apache2_config_files
+
+	def self.expand_apache2_glob(glob)
+		if File.directory?(glob)
+			glob = glob.sub(/\/*$/, '')
+			result = Dir["#{glob}/**/*"]
+		else
+			result = []
+			Dir[glob].each do |filename|
+				if File.directory?(filename)
+					result.concat(Dir["#{filename}/**/*"])
+				else
+					result << filename
+				end
+			end
+		end
+		result.reject! do |filename|
+			File.directory?(filename)
+		end
+		return result
+	end
+	private_class_method :expand_apache2_glob
+
+	def self.unescape_apache_config_value(value, options = nil)
+		if value =~ /^"(.*)"$/
+			value = unescape_c_string($1)
+		end
+		if value.include?("${")
+			log "Attempting to substitute environment variables in Apache config value #{value.inspect}..."
+		end
+		# The Apache config file supports environment variable
+		# substitution. Ubuntu uses this extensively.
+		value.gsub!(/\$\{(.+?)\}/) do |varname|
+			if substitution = httpd_infer_envvar($1, options)
+				log "Substituted \"#{varname}\" -> \"#{substitution}\""
+				substitution
+			else
+				log "Cannot substitute \"#{varname}\""
+				varname
+			end
+		end
+		if value.include?("${")
+			# We couldn't substitute everything.
+			return nil
+		else
+			return value
+		end
+	end
+	private_class_method :unescape_apache_config_value
+
+	def self.unescape_c_string(s)
+		state = 0
+		res = ''
+		backslash = "\\"
+		s.each_char do |c|
+			case state
+			when 0
+				case c
+				when backslash then state = 1
+				else res << c
+				end
+			when 1
+				case c
+				when 'n' then res << "\n"; state = 0
+				when 't' then res << "\t"; state = 0
+				when backslash then res << backslash; state = 0
+				else res << backslash; res << c; state = 0
+				end
+			end
+		end
+		return res
+	end
+	private_class_method :unescape_c_string
 end
 
 end

@@ -1,17 +1,19 @@
 Description: Install in vendor_ruby directory and install common files in non-versioned path
 Author: Laurent Bigonville <bigon@debian.org>
-Date: Thu, 22 Mar 2012 13:55:53 +0100
+Last-Update: 2014-01-16
 
 --- a/build/packaging.rb
 +++ b/build/packaging.rb
-@@ -103,8 +103,8 @@
+@@ -406,10 +406,10 @@
  	# We don't use CONFIG['archdir'] and the like because we want
  	# the files to be installed to /usr, and the Ruby interpreter
  	# on the packaging machine might be in /usr/local.
--	fake_libdir = "#{fakeroot}/usr/lib/ruby/#{CONFIG['ruby_version']}"
--	fake_native_support_dir = "#{fakeroot}/usr/lib/ruby/#{CONFIG['ruby_version']}/#{CONFIG['arch']}"
-+	fake_libdir = "#{fakeroot}/usr/lib/ruby/vendor_ruby"
-+	fake_native_support_dir = "#{fakeroot}/usr/lib/ruby/vendor_ruby/#{CONFIG['ruby_version']}/#{CONFIG['arch']}"
- 	fake_agents_dir = "#{fakeroot}#{NATIVELY_PACKAGED_AGENTS_DIR}"
- 	fake_helper_scripts_dir = "#{fakeroot}#{NATIVELY_PACKAGED_HELPER_SCRIPTS_DIR}"
- 	fake_resources_dir = "#{fakeroot}/usr/share/phusion-passenger"
+-	psg_rubylibdir = ENV['RUBYLIBDIR'] || "#{fs_libdir}/ruby/vendor_ruby"
++	psg_rubylibdir = ENV['RUBYLIBDIR'] || CONFIG['vendordir'].sub(/^\/usr/,fs_prefix)
+ 	psg_nodelibdir = "#{fs_datadir}/#{GLOBAL_NAMESPACE_DIRNAME}/node"
+ 	psg_libdir     = "#{fs_libdir}/#{GLOBAL_NAMESPACE_DIRNAME}"
+-	psg_native_support_dir = ENV["RUBYARCHDIR"] || "#{fs_libdir}/ruby/#{CONFIG['ruby_version']}/#{CONFIG['arch']}"
++	psg_native_support_dir = ENV["RUBYARCHDIR"] || CONFIG['vendorarchdir'].sub(/^\/usr/,fs_prefix)
+ 	psg_agents_dir = "#{fs_libdir}/#{GLOBAL_NAMESPACE_DIRNAME}/agents"
+ 	psg_helper_scripts_dir = "#{fs_datadir}/#{GLOBAL_NAMESPACE_DIRNAME}/helper-scripts"
+ 	psg_resources_dir      = "#{fs_datadir}/#{GLOBAL_NAMESPACE_DIRNAME}"

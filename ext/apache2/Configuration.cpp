@@ -1,6 +1,6 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
- *  Copyright (c) 2010 Phusion
+ *  Phusion Passenger - https://www.phusionpassenger.com/
+ *  Copyright (c) 2010-2013 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
  *
@@ -24,6 +24,7 @@
  */
 #include <algorithm>
 #include <cstdlib>
+#include <climits>
 
 /* ap_config.h checks whether the compiler has support for C99's designated
  * initializers, and defines AP_HAVE_DESIGNATED_INITIALIZER if it does. However,
@@ -36,7 +37,8 @@
 
 #include "Configuration.hpp"
 #include "Utils.h"
-#include <LoggingAgent/FilterSupport.h>
+#include "Constants.h"
+#include <agents/LoggingAgent/FilterSupport.h>
 
 /* The APR headers must come after the Passenger headers. See Hooks.cpp
  * to learn why.
@@ -184,23 +186,12 @@ create_dir_config_struct(apr_pool_t *pool) {
 void *
 passenger_config_create_dir(apr_pool_t *p, char *dirspec) {
 	DirConfig *config = create_dir_config_struct(p);
-	config->enabled = DirConfig::UNSET;
-	config->autoDetectRails = DirConfig::UNSET;
-	config->autoDetectRack = DirConfig::UNSET;
-	config->autoDetectWSGI = DirConfig::UNSET;
-	config->environment = NULL;
+	
+	#include "CreateDirConfig.cpp"
+
 	config->appRoot = NULL;
-	config->user = NULL;
-	config->group = NULL;
 	config->spawnMethod = DirConfig::SM_UNSET;
-	config->frameworkSpawnerTimeout = -1;
-	config->appSpawnerTimeout = -1;
-	config->maxRequests = 0;
-	config->maxRequestsSpecified = false;
-	config->minInstances = 1;
-	config->minInstancesSpecified = false;
-	config->highPerformance = DirConfig::UNSET;
-	config->useGlobalQueue = DirConfig::UNSET;
+	config->maxPreloaderIdleTime = -1;
 	config->resolveSymlinksInDocRoot = DirConfig::UNSET;
 	config->allowEncodedSlashes = DirConfig::UNSET;
 	config->statThrottleRate = 0;
@@ -220,32 +211,17 @@ passenger_config_merge_dir(apr_pool_t *p, void *basev, void *addv) {
 	DirConfig *base = (DirConfig *) basev;
 	DirConfig *add = (DirConfig *) addv;
 	
-	config->enabled = (add->enabled == DirConfig::UNSET) ? base->enabled : add->enabled;
+	#include "MergeDirConfig.cpp"
 	
-	config->railsBaseURIs = base->railsBaseURIs;
-	for (set<string>::const_iterator it(add->railsBaseURIs.begin()); it != add->railsBaseURIs.end(); it++) {
-		config->railsBaseURIs.insert(*it);
-	}
-	config->rackBaseURIs = base->rackBaseURIs;
-	for (set<string>::const_iterator it(add->rackBaseURIs.begin()); it != add->rackBaseURIs.end(); it++) {
-		config->rackBaseURIs.insert(*it);
+	config->baseURIs = base->baseURIs;
+	for (set<string>::const_iterator it(add->baseURIs.begin()); it != add->baseURIs.end(); it++) {
+		config->baseURIs.insert(*it);
 	}
 	
-	MERGE_THREEWAY_CONFIG(autoDetectRails);
-	MERGE_THREEWAY_CONFIG(autoDetectRack);
-	MERGE_THREEWAY_CONFIG(autoDetectWSGI);
-	MERGE_STR_CONFIG(environment);
 	MERGE_STR_CONFIG(appRoot);
 	MERGE_STRING_CONFIG(appGroupName);
-	MERGE_STR_CONFIG(user);
-	MERGE_STR_CONFIG(group);
 	config->spawnMethod = (add->spawnMethod == DirConfig::SM_UNSET) ? base->spawnMethod : add->spawnMethod;
-	config->frameworkSpawnerTimeout = (add->frameworkSpawnerTimeout == -1) ? base->frameworkSpawnerTimeout : add->frameworkSpawnerTimeout;
-	config->appSpawnerTimeout = (add->appSpawnerTimeout == -1) ? base->appSpawnerTimeout : add->appSpawnerTimeout;
-	MERGE_INT_CONFIG(maxRequests);
-	MERGE_INT_CONFIG(minInstances);
-	MERGE_THREEWAY_CONFIG(highPerformance);
-	MERGE_THREEWAY_CONFIG(useGlobalQueue);
+	config->maxPreloaderIdleTime = (add->maxPreloaderIdleTime == -1) ? base->maxPreloaderIdleTime : add->maxPreloaderIdleTime;
 	MERGE_INT_CONFIG(statThrottleRate);
 	MERGE_STR_CONFIG(restartDir);
 	MERGE_STR_CONFIG(uploadBufferDir);
@@ -271,11 +247,10 @@ passenger_config_merge_dir(apr_pool_t *p, void *basev, void *addv) {
  *************************************************/
 
 DEFINE_SERVER_STR_CONFIG_SETTER(cmd_passenger_root, root)
-DEFINE_SERVER_STR_CONFIG_SETTER(cmd_passenger_ruby, ruby)
+DEFINE_SERVER_STR_CONFIG_SETTER(cmd_passenger_default_ruby, defaultRuby)
 DEFINE_SERVER_INT_CONFIG_SETTER(cmd_passenger_log_level, logLevel, unsigned int, 0)
 DEFINE_SERVER_STR_CONFIG_SETTER(cmd_passenger_debug_log_file, debugLogFile)
 DEFINE_SERVER_INT_CONFIG_SETTER(cmd_passenger_max_pool_size, maxPoolSize, unsigned int, 1)
-DEFINE_SERVER_INT_CONFIG_SETTER(cmd_passenger_max_instances_per_app, maxInstancesPerApp, unsigned int, 0)
 DEFINE_SERVER_INT_CONFIG_SETTER(cmd_passenger_pool_idle_time, poolIdleTime, unsigned int, 0)
 DEFINE_SERVER_BOOLEAN_CONFIG_SETTER(cmd_passenger_user_switching, userSwitching)
 DEFINE_SERVER_STR_CONFIG_SETTER(cmd_passenger_default_user, defaultUser)
@@ -285,11 +260,14 @@ DEFINE_SERVER_STR_CONFIG_SETTER(cmd_union_station_gateway_address, unionStationG
 DEFINE_SERVER_INT_CONFIG_SETTER(cmd_union_station_gateway_port, unionStationGatewayPort, int, 1)
 DEFINE_SERVER_STR_CONFIG_SETTER(cmd_union_station_gateway_cert, unionStationGatewayCert)
 DEFINE_SERVER_STR_CONFIG_SETTER(cmd_union_station_proxy_address, unionStationProxyAddress)
-DEFINE_SERVER_STR_CONFIG_SETTER(cmd_union_station_proxy_type, unionStationProxyType)
-DEFINE_SERVER_STR_CONFIG_SETTER(cmd_passenger_analytics_log_dir, analyticsLogDir)
 DEFINE_SERVER_STR_CONFIG_SETTER(cmd_passenger_analytics_log_user, analyticsLogUser)
 DEFINE_SERVER_STR_CONFIG_SETTER(cmd_passenger_analytics_log_group, analyticsLogGroup)
-DEFINE_SERVER_STR_CONFIG_SETTER(cmd_passenger_analytics_log_permissions, analyticsLogPermissions)
+
+static const char *
+cmd_passenger_ctl(cmd_parms *cmd, void *dummy, const char *name, const char *value) {
+	serverConfig.ctl.set(name, value);
+	return NULL;
+}
 
 static const char *
 cmd_passenger_pre_start(cmd_parms *cmd, void *pcfg, const char *arg) {
@@ -297,17 +275,11 @@ cmd_passenger_pre_start(cmd_parms *cmd, void *pcfg, const char *arg) {
 	return NULL;
 }
 
-DEFINE_DIR_INT_CONFIG_SETTER(cmd_passenger_min_instances, minInstances, unsigned long, 0)
-DEFINE_DIR_THREEWAY_CONFIG_SETTER(cmd_passenger_use_global_queue, useGlobalQueue)
-DEFINE_DIR_INT_CONFIG_SETTER(cmd_passenger_max_requests, maxRequests, unsigned long, 0)
-DEFINE_DIR_THREEWAY_CONFIG_SETTER(cmd_passenger_high_performance, highPerformance)
-DEFINE_DIR_THREEWAY_CONFIG_SETTER(cmd_passenger_enabled, enabled)
-DEFINE_DIR_STR_CONFIG_SETTER(cmd_environment, environment)
+#include "ConfigurationSetters.cpp"
+
 DEFINE_DIR_INT_CONFIG_SETTER(cmd_passenger_stat_throttle_rate, statThrottleRate, unsigned long, 0)
 DEFINE_DIR_STR_CONFIG_SETTER(cmd_passenger_app_root, appRoot)
 DEFINE_DIR_STR_CONFIG_SETTER(cmd_passenger_app_group_name, appGroupName)
-DEFINE_DIR_STR_CONFIG_SETTER(cmd_passenger_user, user)
-DEFINE_DIR_STR_CONFIG_SETTER(cmd_passenger_group, group)
 DEFINE_DIR_STR_CONFIG_SETTER(cmd_passenger_restart_dir, restartDir)
 DEFINE_DIR_STR_CONFIG_SETTER(cmd_passenger_upload_buffer_dir, uploadBufferDir)
 DEFINE_DIR_STR_CONFIG_SETTER(cmd_union_station_key, unionStationKey)
@@ -317,19 +289,41 @@ DEFINE_DIR_THREEWAY_CONFIG_SETTER(cmd_passenger_friendly_error_pages, friendlyEr
 DEFINE_DIR_THREEWAY_CONFIG_SETTER(cmd_union_station_support, unionStationSupport)
 DEFINE_DIR_THREEWAY_CONFIG_SETTER(cmd_passenger_buffer_response, bufferResponse)
 
+#ifndef PASSENGER_IS_ENTERPRISE
+static const char *
+cmd_passenger_enterprise_only(cmd_parms *cmd, void *pcfg, const char *arg) {
+	return "this feature is only available in Phusion Passenger Enterprise. "
+		"You are currently running the open source Phusion Passenger Enterprise. "
+		"Please learn more about and/or buy Phusion Passenger Enterprise at https://www.phusionpassenger.com/enterprise";
+}
+#endif
+
 static const char *
 cmd_passenger_spawn_method(cmd_parms *cmd, void *pcfg, const char *arg) {
 	DirConfig *config = (DirConfig *) pcfg;
-	if (strcmp(arg, "smart") == 0) {
+	if (strcmp(arg, "smart") == 0 || strcmp(arg, "smart-lv2") == 0) {
 		config->spawnMethod = DirConfig::SM_SMART;
-	} else if (strcmp(arg, "smart-lv2") == 0) {
-		config->spawnMethod = DirConfig::SM_SMART_LV2;
-	} else if (strcmp(arg, "conservative") == 0) {
-		config->spawnMethod = DirConfig::SM_CONSERVATIVE;
+	} else if (strcmp(arg, "conservative") == 0 || strcmp(arg, "direct") == 0) {
+		config->spawnMethod = DirConfig::SM_DIRECT;
 	} else {
-		return "PassengerSpawnMethod may only be 'smart', 'smart-lv2' or 'conservative'.";
+		return "PassengerSpawnMethod may only be 'smart', 'direct'.";
 	}
 	return NULL;
+}
+
+static const char *
+cmd_passenger_base_uri(cmd_parms *cmd, void *pcfg, const char *arg) {
+	DirConfig *config = (DirConfig *) pcfg;
+	if (strlen(arg) == 0) {
+		return "PassengerBaseURI may not be set to the empty string";
+	} else if (arg[0] != '/') {
+		return "PassengerBaseURI must start with a slash (/)";
+	} else if (strlen(arg) > 1 && arg[strlen(arg) - 1] == '/') {
+		return "PassengerBaseURI must not end with a slash (/)";
+	} else {
+		config->baseURIs.insert(arg);
+		return NULL;
+	}
 }
 
 static const char *
@@ -352,88 +346,25 @@ cmd_union_station_filter(cmd_parms *cmd, void *pcfg, const char *arg) {
 
 
 /*************************************************
- * Rails-specific settings
- *************************************************/
-
-static const char *
-cmd_rails_base_uri(cmd_parms *cmd, void *pcfg, const char *arg) {
-	DirConfig *config = (DirConfig *) pcfg;
-	if (strlen(arg) == 0) {
-		return "RailsBaseURI may not be set to the empty string";
-	} else if (arg[0] != '/') {
-		return "RailsBaseURI must start with a slash (/)";
-	} else if (strlen(arg) > 1 && arg[strlen(arg) - 1] == '/') {
-		return "RailsBaseURI must not end with a slash (/)";
-	} else {
-		config->railsBaseURIs.insert(arg);
-		return NULL;
-	}
-}
-
-DEFINE_DIR_THREEWAY_CONFIG_SETTER(cmd_rails_auto_detect, autoDetectRails)
-
-static const char *
-cmd_rails_framework_spawner_idle_time(cmd_parms *cmd, void *pcfg, const char *arg) {
-	DirConfig *config = (DirConfig *) pcfg;
-	char *end;
-	long int result;
-	
-	result = strtol(arg, &end, 10);
-	if (*end != '\0') {
-		return "Invalid number specified for RailsFrameworkSpawnerIdleTime.";
-	} else if (result < 0) {
-		return "Value for RailsFrameworkSpawnerIdleTime must be at least 0.";
-	} else {
-		config->frameworkSpawnerTimeout = result;
-		return NULL;
-	}
-}
-
-static const char *
-cmd_rails_app_spawner_idle_time(cmd_parms *cmd, void *pcfg, const char *arg) {
-	DirConfig *config = (DirConfig *) pcfg;
-	char *end;
-	long int result;
-	
-	result = strtol(arg, &end, 10);
-	if (*end != '\0') {
-		return "Invalid number specified for RailsAppSpawnerIdleTime.";
-	} else if (result < 0) {
-		return "Value for RailsAppSpawnerIdleTime must be at least 0.";
-	} else {
-		config->appSpawnerTimeout = result;
-		return NULL;
-	}
-}
-
-
-/*************************************************
  * Rack-specific settings
  *************************************************/
 
 static const char *
-cmd_rack_base_uri(cmd_parms *cmd, void *pcfg, const char *arg) {
+cmd_passenger_max_preloader_idle_time(cmd_parms *cmd, void *pcfg, const char *arg) {
 	DirConfig *config = (DirConfig *) pcfg;
-	if (strlen(arg) == 0) {
-		return "RackBaseURI may not be set to the empty string";
-	} else if (arg[0] != '/') {
-		return "RackBaseURI must start with a slash (/)";
-	} else if (strlen(arg) > 1 && arg[strlen(arg) - 1] == '/') {
-		return "RackBaseURI must not end with a slash (/)";
+	char *end;
+	long int result;
+	
+	result = strtol(arg, &end, 10);
+	if (*end != '\0') {
+		return "Invalid number specified for PassengerMaxPreloaderIdleTime.";
+	} else if (result < 0) {
+		return "Value for PassengerMaxPreloaderIdleTime must be at least 0.";
 	} else {
-		config->rackBaseURIs.insert(arg);
+		config->maxPreloaderIdleTime = result;
 		return NULL;
 	}
 }
-
-DEFINE_DIR_THREEWAY_CONFIG_SETTER(cmd_rack_auto_detect, autoDetectRack)
-
-
-/*************************************************
- * WSGI-specific settings
- *************************************************/
-
-DEFINE_DIR_THREEWAY_CONFIG_SETTER(cmd_wsgi_auto_detect, autoDetectWSGI)
 
 
 /*************************************************
@@ -444,7 +375,7 @@ static const char *
 cmd_rails_spawn_server(cmd_parms *cmd, void *pcfg, const char *arg) {
 	fprintf(stderr, "WARNING: The 'RailsSpawnServer' option is obsolete. "
 		"Please specify 'PassengerRoot' instead. The correct value was "
-		"given to you by 'passenger-install-apache2-module'.");
+		"given to you by 'passenger-install-apache2-module'.\n");
 	fflush(stderr);
 	return NULL;
 }
@@ -453,13 +384,31 @@ static const char *
 cmd_rails_allow_mod_rewrite(cmd_parms *cmd, void *pcfg, int arg) {
 	fprintf(stderr, "WARNING: The 'RailsAllowModRewrite' option is obsolete: "
 		"Phusion Passenger now fully supports mod_rewrite. "
-		"Please remove this option from your configuration file.");
+		"Please remove this option from your configuration file.\n");
+	fflush(stderr);
+	return NULL;
+}
+
+static const char *
+cmd_rails_framework_spawner_idle_time(cmd_parms *cmd, void *pcfg, const char *arg) {
+	fprintf(stderr, "WARNING: The 'RailsFrameworkSpawnerIdleTime' option is obsolete. "
+		"Please use 'PassengerMaxPreloaderIdleTime' instead.\n");
+	fflush(stderr);
+	return NULL;
+}
+
+static const char *
+cmd_passenger_use_global_queue(cmd_parms *cmd, void *pcfg, int arg) {
+	fprintf(stderr, "WARNING: The 'PassengerUseGlobalQueue' option is obsolete: "
+		"global queueing is now always turned on. "
+		"Please remove this option from your configuration file.\n");
 	fflush(stderr);
 	return NULL;
 }
 
 
 typedef const char * (*Take1Func)();
+typedef const char * (*Take2Func)();
 typedef const char * (*FlagFunc)();
 
 const command_rec passenger_commands[] = {
@@ -469,11 +418,16 @@ const command_rec passenger_commands[] = {
 		NULL,
 		RSRC_CONF,
 		"The Passenger root folder."),
-	AP_INIT_TAKE1("PassengerRuby",
-		(Take1Func) cmd_passenger_ruby,
+	AP_INIT_TAKE2("PassengerCtl",
+		(Take2Func) cmd_passenger_ctl,
 		NULL,
 		RSRC_CONF,
-		"The Ruby interpreter to use."),
+		"Set advanced options."),
+	AP_INIT_TAKE1("PassengerDefaultRuby",
+		(Take1Func) cmd_passenger_default_ruby,
+		NULL,
+		RSRC_CONF,
+		"The default Ruby interpreter to use."),
 	AP_INIT_TAKE1("PassengerLogLevel",
 		(Take1Func) cmd_passenger_log_level,
 		NULL,
@@ -489,41 +443,16 @@ const command_rec passenger_commands[] = {
 		NULL,
 		RSRC_CONF,
 		"The maximum number of simultaneously alive application instances."),
-	AP_INIT_TAKE1("PassengerMinInstances",
-		(Take1Func) cmd_passenger_min_instances,
-		NULL,
-		OR_LIMIT | ACCESS_CONF | RSRC_CONF,
-		"The minimum number of application instances to keep when cleaning idle instances."),
-	AP_INIT_TAKE1("PassengerMaxInstancesPerApp",
-		(Take1Func) cmd_passenger_max_instances_per_app,
-		NULL,
-		RSRC_CONF,
-		"The maximum number of simultaneously alive application instances a single application may occupy."),
 	AP_INIT_TAKE1("PassengerPoolIdleTime",
 		(Take1Func) cmd_passenger_pool_idle_time,
 		NULL,
 		RSRC_CONF,
 		"The maximum number of seconds that an application may be idle before it gets terminated."),
-	AP_INIT_FLAG("PassengerUseGlobalQueue",
-		(FlagFunc) cmd_passenger_use_global_queue,
-		NULL,
-		OR_OPTIONS | ACCESS_CONF | RSRC_CONF,
-		"Enable or disable Passenger's global queuing mode mode."),
 	AP_INIT_FLAG("PassengerUserSwitching",
 		(FlagFunc) cmd_passenger_user_switching,
 		NULL,
 		RSRC_CONF,
 		"Whether to enable user switching support."),
-	AP_INIT_TAKE1("PassengerUser",
-		(Take1Func) cmd_passenger_user,
-		NULL,
-		ACCESS_CONF | RSRC_CONF,
-		"The user that Ruby applications must run as."),
-	AP_INIT_TAKE1("PassengerGroup",
-		(Take1Func) cmd_passenger_group,
-		NULL,
-		ACCESS_CONF | RSRC_CONF,
-		"The group that Ruby applications must run as."),
 	AP_INIT_TAKE1("PassengerDefaultUser",
 		(Take1Func) cmd_passenger_default_user,
 		NULL,
@@ -539,21 +468,54 @@ const command_rec passenger_commands[] = {
 		NULL,
 		RSRC_CONF,
 		"The temp directory that Passenger should use."),
-	AP_INIT_TAKE1("PassengerMaxRequests",
-		(Take1Func) cmd_passenger_max_requests,
+	AP_INIT_TAKE1("PassengerMaxPreloaderIdleTime",
+		(Take1Func) cmd_passenger_max_preloader_idle_time,
 		NULL,
-		OR_LIMIT | ACCESS_CONF | RSRC_CONF,
-		"The maximum number of requests that an application instance may process."),
-	AP_INIT_FLAG("PassengerHighPerformance",
-		(FlagFunc) cmd_passenger_high_performance,
+		RSRC_CONF,
+		"The maximum number of seconds that a preloader process may be idle before it is shutdown."),
+	AP_INIT_TAKE1("UnionStationGatewayAddress",
+		(Take1Func) cmd_union_station_gateway_address,
 		NULL,
-		OR_ALL,
-		"Enable or disable Passenger's high performance mode."),
-	AP_INIT_FLAG("PassengerEnabled",
-		(FlagFunc) cmd_passenger_enabled,
+		RSRC_CONF,
+		"The Union Station Gateway host name."),
+	AP_INIT_TAKE1("UnionStationGatewayPort",
+		(Take1Func) cmd_union_station_gateway_port,
 		NULL,
-		OR_ALL,
-		"Enable or disable Phusion Passenger."),
+		RSRC_CONF,
+		"The Union Station Gateway port number."),
+	AP_INIT_TAKE1("UnionStationGatewayCert",
+		(Take1Func) cmd_union_station_gateway_cert,
+		NULL,
+		RSRC_CONF,
+		"The Union Station Gateway certificate."),
+	AP_INIT_TAKE1("UnionStationProxyAddress",
+		(Take1Func) cmd_union_station_proxy_address,
+		NULL,
+		RSRC_CONF,
+		"The address of the proxy that should be used for sending data to Union Station."),
+	AP_INIT_TAKE1("PassengerAnalyticsLogUser",
+		(Take1Func) cmd_passenger_analytics_log_user,
+		NULL,
+		RSRC_CONF,
+		"The owner of analytics files."),
+	AP_INIT_TAKE1("PassengerAnalyticsLogGroup",
+		(Take1Func) cmd_passenger_analytics_log_group,
+		NULL,
+		RSRC_CONF,
+		"The group of analytics files."),
+	AP_INIT_TAKE1("PassengerPreStart",
+		(Take1Func) cmd_passenger_pre_start,
+		NULL,
+		RSRC_CONF,
+		"Prestart the given web applications during startup."),
+	AP_INIT_TAKE1("PassengerSpawnMethod",
+		(Take1Func) cmd_passenger_spawn_method,
+		NULL,
+		RSRC_CONF,
+		"The spawn method to use."),
+	
+	#include "ConfigurationCommands.cpp"
+	
 	AP_INIT_TAKE1("PassengerAppGroupName",
 		(Take1Func) cmd_passenger_app_group_name,
 		NULL,
@@ -609,125 +571,64 @@ const command_rec passenger_commands[] = {
 		NULL,
 		OR_OPTIONS | ACCESS_CONF | RSRC_CONF,
 		"Whether to display friendly error pages when something goes wrong"),
-	AP_INIT_TAKE1("PassengerSpawnMethod",
-		(Take1Func) cmd_passenger_spawn_method,
+	AP_INIT_TAKE1("PassengerBaseURI",
+		(Take1Func) cmd_passenger_base_uri,
 		NULL,
-		RSRC_CONF,
-		"The spawn method to use."),
-	AP_INIT_TAKE1("UnionStationGatewayAddress",
-		(Take1Func) cmd_union_station_gateway_address,
-		NULL,
-		RSRC_CONF,
-		"The Union Station Gateway host name."),
-	AP_INIT_TAKE1("UnionStationGatewayPort",
-		(Take1Func) cmd_union_station_gateway_port,
-		NULL,
-		RSRC_CONF,
-		"The Union Station Gateway port number."),
-	AP_INIT_TAKE1("UnionStationGatewayCert",
-		(Take1Func) cmd_union_station_gateway_cert,
-		NULL,
-		RSRC_CONF,
-		"The Union Station Gateway certificate."),
-	AP_INIT_TAKE1("UnionStationProxyAddress",
-		(Take1Func) cmd_union_station_proxy_address,
-		NULL,
-		RSRC_CONF,
-		"The address of the proxy that should be used for sending data to Union Station."),
-	AP_INIT_TAKE1("UnionStationProxyType",
-		(Take1Func) cmd_union_station_proxy_type,
-		NULL,
-		RSRC_CONF,
-		"The type of the proxy that should be used for sending data to Union Station."),
-	AP_INIT_TAKE1("PassengerAnalyticsLogDir",
-		(Take1Func) cmd_passenger_analytics_log_dir,
-		NULL,
-		RSRC_CONF,
-		"Directory in which to store analytics logs."),
-	AP_INIT_TAKE1("PassengerAnalyticsLogUser",
-		(Take1Func) cmd_passenger_analytics_log_user,
-		NULL,
-		RSRC_CONF,
-		"The owner of analytics files."),
-	AP_INIT_TAKE1("PassengerAnalyticsLogGroup",
-		(Take1Func) cmd_passenger_analytics_log_group,
-		NULL,
-		RSRC_CONF,
-		"The group of analytics files."),
-	AP_INIT_TAKE1("PassengerAnalyticsLogPermissions",
-		(Take1Func) cmd_passenger_analytics_log_permissions,
-		NULL,
-		RSRC_CONF,
-		"The permissions of analytics files."),
-	AP_INIT_TAKE1("PassengerPreStart",
-		(Take1Func) cmd_passenger_pre_start,
-		NULL,
-		RSRC_CONF,
-		"Prestart the given web applications during startup."),
+		OR_OPTIONS | ACCESS_CONF | RSRC_CONF,
+		"Declare the given base URI as belonging to an application."),
 	AP_INIT_FLAG("UnionStationSupport",
 		(Take1Func) cmd_union_station_support,
 		NULL,
 		OR_OPTIONS | ACCESS_CONF | RSRC_CONF,
 		"Whether to enable logging through Union Station."),
-	
-	/*****************************/
 
-	// Rails-specific settings.
-	AP_INIT_TAKE1("RailsBaseURI",
-		(Take1Func) cmd_rails_base_uri,
+	/*****************************/
+	AP_INIT_TAKE1("PassengerMemoryLimit",
+		(Take1Func) cmd_passenger_enterprise_only,
+		NULL,
+		OR_LIMIT | ACCESS_CONF | RSRC_CONF,
+		"The maximum amount of memory in MB that an application instance may use."),
+	AP_INIT_TAKE1("PassengerMaxInstances",
+		(Take1Func) cmd_passenger_enterprise_only,
+		NULL,
+		OR_LIMIT | ACCESS_CONF | RSRC_CONF,
+		"The maximum number of instances for the current application that Passenger may spawn."),
+	AP_INIT_TAKE1("PassengerMaxRequestTime",
+		(Take1Func) cmd_passenger_enterprise_only,
+		NULL,
+		OR_ALL,
+		"The maximum time (in seconds) that the current application may spend on a request."),
+	AP_INIT_FLAG("PassengerRollingRestarts",
+		(FlagFunc) cmd_passenger_enterprise_only,
 		NULL,
 		OR_OPTIONS | ACCESS_CONF | RSRC_CONF,
-		"Reserve the given URI to a Rails application."),
-	AP_INIT_FLAG("RailsAutoDetect",
-		(FlagFunc) cmd_rails_auto_detect,
-		NULL,
-		RSRC_CONF,
-		"Whether auto-detection of Ruby on Rails applications should be enabled."),
-	AP_INIT_TAKE1("RailsEnv",
-		(Take1Func) cmd_environment,
+		"Whether to turn on rolling restarts"),
+	AP_INIT_FLAG("PassengerResistDeploymentErrors",
+		(FlagFunc) cmd_passenger_enterprise_only,
 		NULL,
 		OR_OPTIONS | ACCESS_CONF | RSRC_CONF,
-		"The environment under which a Rails app must run."),
-	AP_INIT_TAKE1("RailsFrameworkSpawnerIdleTime",
-		(Take1Func) cmd_rails_framework_spawner_idle_time,
-		NULL,
-		RSRC_CONF,
-		"The maximum number of seconds that a framework spawner may be idle before it is shutdown."),
-	AP_INIT_TAKE1("RailsAppSpawnerIdleTime",
-		(Take1Func) cmd_rails_app_spawner_idle_time,
-		NULL,
-		RSRC_CONF,
-		"The maximum number of seconds that an application spawner may be idle before it is shutdown."),
-	
-	// Rack-specific settings.
-	AP_INIT_TAKE1("RackBaseURI",
-		(Take1Func) cmd_rack_base_uri,
+		"Whether to turn on deployment error resistance"),
+	AP_INIT_FLAG("PassengerDebugger",
+		(FlagFunc) cmd_passenger_enterprise_only,
 		NULL,
 		OR_OPTIONS | ACCESS_CONF | RSRC_CONF,
-		"Reserve the given URI to a Rack application."),
-	AP_INIT_FLAG("RackAutoDetect",
-		(FlagFunc) cmd_rack_auto_detect,
+		"Whether to turn on debugger support"),
+	AP_INIT_TAKE1("PassengerConcurrencyModel",
+		(Take1Func) cmd_passenger_enterprise_only,
 		NULL,
-		RSRC_CONF,
-		"Whether auto-detection of Rack applications should be enabled."),
-	AP_INIT_TAKE1("RackEnv",
-		(Take1Func) cmd_environment,
+		OR_ALL,
+		"The concurrency model that should be used for applications."),
+	AP_INIT_TAKE1("PassengerThreadCount",
+		(Take1Func) cmd_passenger_enterprise_only,
 		NULL,
-		OR_OPTIONS | ACCESS_CONF | RSRC_CONF,
-		"The environment under which a Rack app must run."),
-	
-	// WSGI-specific settings.
-	AP_INIT_FLAG("PassengerWSGIAutoDetect",
-		(FlagFunc) cmd_wsgi_auto_detect,
-		NULL,
-		RSRC_CONF,
-		"Whether auto-detection of WSGI applications should be enabled."),
-	
+		OR_ALL,
+		"The number of threads that Phusion Passenger should spawn per application."),
+
 	// Backwards compatibility options.
 	AP_INIT_TAKE1("RailsRuby",
 		(Take1Func) cmd_passenger_ruby,
 		NULL,
-		RSRC_CONF,
+		OR_OPTIONS | ACCESS_CONF | RSRC_CONF,
 		"Deprecated option."),
 	AP_INIT_TAKE1("RailsMaxPoolSize",
 		(Take1Func) cmd_passenger_max_pool_size,
@@ -759,7 +660,22 @@ const command_rec passenger_commands[] = {
 		NULL,
 		RSRC_CONF,
 		"Deprecated option."),
-	
+	AP_INIT_TAKE1("RailsAppSpawnerIdleTime",
+		(Take1Func) cmd_passenger_max_preloader_idle_time,
+		NULL,
+		RSRC_CONF,
+		"Deprecated option."),
+	AP_INIT_TAKE1("RailsBaseURI",
+		(Take1Func) cmd_passenger_base_uri,
+		NULL,
+		OR_OPTIONS | ACCESS_CONF | RSRC_CONF,
+		"Deprecated option."),
+	AP_INIT_TAKE1("RackBaseURI",
+		(Take1Func) cmd_passenger_base_uri,
+		NULL,
+		OR_OPTIONS | ACCESS_CONF | RSRC_CONF,
+		"Deprecated option."),
+
 	// Obsolete options.
 	AP_INIT_TAKE1("RailsSpawnServer",
 		(Take1Func) cmd_rails_spawn_server,
@@ -770,8 +686,18 @@ const command_rec passenger_commands[] = {
 		(FlagFunc) cmd_rails_allow_mod_rewrite,
 		NULL,
 		RSRC_CONF,
-		"Whether custom mod_rewrite rules should be allowed."),
-	
+		"Obsolete option."),
+	AP_INIT_TAKE1("RailsFrameworkSpawnerIdleTime",
+		(Take1Func) cmd_rails_framework_spawner_idle_time,
+		NULL,
+		RSRC_CONF,
+		"Obsolete option."),
+	AP_INIT_FLAG("PassengerUseGlobalQueue",
+		(FlagFunc) cmd_passenger_use_global_queue,
+		NULL,
+		OR_OPTIONS | ACCESS_CONF | RSRC_CONF,
+		"Obsolete option."),
+
 	{ NULL }
 };
 

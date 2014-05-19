@@ -1,5 +1,5 @@
 # encoding: binary
-#  Phusion Passenger - http://www.modrails.com/
+#  Phusion Passenger - https://www.phusionpassenger.com/
 #  Copyright (c) 2010 Phusion
 #
 #  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
@@ -23,9 +23,9 @@
 #  THE SOFTWARE.
 
 require 'socket'
-require 'phusion_passenger/message_channel'
-require 'phusion_passenger/utils'
-require 'phusion_passenger/utils/tmpdir'
+PhusionPassenger.require_passenger_lib 'message_channel'
+PhusionPassenger.require_passenger_lib 'utils'
+PhusionPassenger.require_passenger_lib 'utils/tmpdir'
 
 module PhusionPassenger
 
@@ -74,10 +74,21 @@ class MessageClient
 		return !!@channel
 	end
 	
-	### ApplicationPool::Server methods ###
+	### HelperAgent methods ###
 	
-	def detach(detach_key)
-		write("detach", detach_key)
+	def pool_detach_process(pid)
+		write("detach_process", pid)
+		check_security_response
+		result = read
+		if result.nil?
+			raise EOFError
+		else
+			return result.first == "true"
+		end
+	end
+
+	def pool_detach_process_by_key(detach_key)
+		write("detach_process_by_key", detach_key)
 		check_security_response
 		result = read
 		if result.nil?
@@ -87,8 +98,8 @@ class MessageClient
 		end
 	end
 	
-	def status
-		write("inspect")
+	def pool_status(options = {})
+		write("inspect", *options.to_a.flatten)
 		check_security_response
 		return read_scalar
 	rescue
@@ -96,16 +107,41 @@ class MessageClient
 		raise
 	end
 	
-	def xml
+	def pool_xml
 		write("toXml", true)
 		check_security_response
 		return read_scalar
 	end
+
+	def restart_app_group(app_group_name, options = {})
+		write("restart_app_group", app_group_name, *options.to_a.flatten)
+		check_security_response
+		result = read
+		if result.nil?
+			raise EOFError
+		else
+			return result.first == "true"
+		end
+	end
+
+	def helper_agent_requests
+		write("requests")
+		check_security_response
+		return read_scalar
+	end
+
+	### HelperAgent BacktracesServer methods ###
 	
-	### BacktracesServer methods ###
-	
-	def backtraces
+	def helper_agent_backtraces
 		write("backtraces")
+		check_security_response
+		return read_scalar
+	end
+
+	### LoggingAgent AdminServer methods ###
+	
+	def logging_agent_status
+		write("status")
 		check_security_response
 		return read_scalar
 	end

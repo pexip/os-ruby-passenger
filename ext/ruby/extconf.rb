@@ -1,5 +1,5 @@
-#  Phusion Passenger - http://www.modrails.com/
-#  Copyright (c) 2010 Phusion
+#  Phusion Passenger - https://www.phusionpassenger.com/
+#  Copyright (c) 2010-2013 Phusion
 #
 #  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
 #
@@ -23,6 +23,7 @@
 require 'mkmf'
 $LIBS = ""
 $CFLAGS << " -g"
+$LIBS << " -lpthread"
 
 if RUBY_PLATFORM =~ /solaris/
 	have_library('xnet')
@@ -35,7 +36,17 @@ end
 
 have_header('alloca.h')
 have_header('ruby/io.h')
+have_func('rb_thread_io_blocking_region')
 
 with_cflags($CFLAGS) do
 	create_makefile('passenger_native_support')
+	if RUBY_PLATFORM =~ /solaris/
+		# Fix syntax error in Solaris /usr/ccs/bin/make.
+		# https://code.google.com/p/phusion-passenger/issues/detail?id=999
+		makefile = File.read("Makefile")
+		makefile.sub!(/^ECHO = .*/, "ECHO = echo")
+		File.open("Makefile", "w") do |f|
+			f.write(makefile)
+		end
+	end
 end

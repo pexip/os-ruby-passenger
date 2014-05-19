@@ -1,6 +1,6 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
- *  Copyright (c) 2010 Phusion
+ *  Phusion Passenger - https://www.phusionpassenger.com/
+ *  Copyright (c) 2010-2013 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
  *
@@ -29,9 +29,12 @@
 #include <oxt/macros.hpp>
 #include <sys/types.h>
 #include <map>
+#include <set>
+#include <vector>
 #include <string>
 #include <Exceptions.h>
 #include <Utils/StrIntUtils.h>
+#include <Utils/Base64.h>
 #include <Utils/MessageIO.h>
 
 namespace Passenger {
@@ -103,11 +106,14 @@ public:
 		}
 		
 		/** The key that wasn't found. */
-		string getKey() const {
+		const string &getKey() const {
 			return key;
 		}
 	};
-	
+
+	typedef map<string, string>::iterator Iterator;
+	typedef map<string, string>::const_iterator ConstIterator;
+
 	/**
 	 * Populates a VariantMap from the data in <em>argv</em>, which
 	 * consists of <em>argc</em> elements.
@@ -124,19 +130,25 @@ public:
 		}
 		unsigned int i = 0;
 		while (i < argc) {
-			store[argv[i]] = argv[i + 1];
+			string name = argv[i];
+			if (startsWith(name, "--")) {
+				name.erase(0, 2);
+			}
+			name = replaceAll(name, "-", "_");
+
+			store[name] = replaceAll(argv[i + 1], "-", "_");
 			i += 2;
 		}
 	}
 	
 	/**
-	 * Populates a VariantMap from the data in <em>fd</em>. MessageIO
+	 * Populates a VariantMap from the data in `fd`. MessageIO
 	 * is used to read from the file descriptor.
 	 *
 	 * @throws SystemException
 	 * @throws IOException
 	 */
-	void readFrom(int fd) {
+	void readFrom(int fd, const StaticString &messageName = "VariantMap") {
 		TRACE_POINT();
 		vector<string> args;
 		
@@ -146,7 +158,7 @@ public:
 		if (args.size() == 0) {
 			throw IOException("Unexpected empty message received from channel");
 		}
-		if (args[0] != "VariantMap") {
+		if (args[0] != messageName) {
 			throw IOException("Unexpected message '" + args[0] + "' received from channel");
 		}
 		if (args.size() % 2 != 1) {
@@ -165,40 +177,108 @@ public:
 	}
 	
 	VariantMap &set(const string &name, const string &value) {
-		store[name] = value;
+		if (value.empty()) {
+			map<string, string>::iterator it = store.find(name);
+			if (it != store.end()) {
+				store.erase(it);
+			}
+		} else {
+			store[name] = value;
+		}
+		return *this;
+	}
+
+	VariantMap &setDefault(const string &name, const string &value) {
+		if (store.find(name) == store.end()) {
+			set(name, value);
+		}
 		return *this;
 	}
 	
 	VariantMap &setInt(const string &name, int value) {
-		store[name] = toString(value);
+		set(name, toString(value));
+		return *this;
+	}
+
+	VariantMap &setDefaultInt(const string &name, int value) {
+		if (store.find(name) == store.end()) {
+			store[name] = toString(value);
+		}
 		return *this;
 	}
 	
 	VariantMap &setULL(const string &name, unsigned long long value) {
-		store[name] = toString(value);
+		set(name, toString(value));
+		return *this;
+	}
+
+	VariantMap &setDefaultULL(const string &name, unsigned long long value) {
+		if (store.find(name) == store.end()) {
+			store[name] = toString(value);
+		}
 		return *this;
 	}
 	
 	VariantMap &setPid(const string &name, pid_t value) {
-		store[name] = toString((unsigned long long) value);
+		set(name, toString((unsigned long long) value));
+		return *this;
+	}
+
+	VariantMap &setDefaultPid(const string &name, pid_t value) {
+		if (store.find(name) == store.end()) {
+			store[name] = toString((unsigned long long) value);
+		}
 		return *this;
 	}
 	
 	VariantMap &setUid(const string &name, uid_t value) {
-		store[name] = toString((long long) value);
+		set(name, toString((long long) value));
+		return *this;
+	}
+
+	VariantMap &setDefaultUid(const string &name, uid_t value) {
+		if (store.find(name) == store.end()) {
+			store[name] = toString((unsigned long long) value);
+		}
 		return *this;
 	}
 	
 	VariantMap &setGid(const string &name, gid_t value) {
-		store[name] = toString((long long) value);
+		set(name, toString((long long) value));
+		return *this;
+	}
+
+	VariantMap &setDefaultGid(const string &name, gid_t value) {
+		if (store.find(name) == store.end()) {
+			store[name] = toString((unsigned long long) value);
+		}
 		return *this;
 	}
 	
 	VariantMap &setBool(const string &name, bool value) {
-		store[name] = value ? "true" : "false";
+		set(name, value ? "true" : "false");
 		return *this;
 	}
-	
+
+	VariantMap &setDefaultBool(const string &name, bool value) {
+		if (store.find(name) == store.end()) {
+			store[name] = value ? "true" : "false";
+		}
+		return *this;
+	}
+
+	VariantMap &setStrSet(const string &name, const std::set<string> &value) {
+		std::set<string>::const_iterator it;
+		string result;
+
+		for (it = value.begin(); it != value.end(); it++) {
+			result.append(*it);
+			result.append(1, '\0');
+		}
+		set(name, Base64::encode(result));
+		return *this;
+	}
+
 	const string &get(const string &name, bool required = true) const {
 		map<string, string>::const_iterator it = store.find(name);
 		if (it == store.end()) {
@@ -280,6 +360,18 @@ public:
 		}
 		return result;
 	}
+
+	vector<string> getStrSet(const string &name, bool required = true,
+		const vector<string> &defaultValue = vector<string>()) const
+	{
+		vector<string> result = defaultValue;
+		const string *str;
+		if (lookup(name, required, &str)) {
+			result.clear();
+			split(Base64::decode(*str), '\0', result);
+		}
+		return result;
+	}
 	
 	bool erase(const string &name) {
 		return store.erase(name) != 0;
@@ -294,6 +386,15 @@ public:
 	unsigned int size() const {
 		return store.size();
 	}
+
+	void addTo(VariantMap &other) const {
+		map<string, string>::const_iterator it;
+		map<string, string>::const_iterator end = store.end();
+
+		for (it = store.begin(); it != end; it++) {
+			other.set(it->first, it->second);
+		}
+	}
 	
 	/**
 	 * Writes a representation of the contents in this VariantMap to
@@ -302,20 +403,36 @@ public:
 	 *
 	 * @throws SystemException
 	 */
-	void writeToFd(int fd) const {
+	void writeToFd(int fd, const StaticString &messageName = "VariantMap") const {
 		map<string, string>::const_iterator it;
 		map<string, string>::const_iterator end = store.end();
 		vector<string> args;
 		
 		args.reserve(1 + 2 * store.size());
-		args.push_back("VariantMap");
+		args.push_back(messageName);
 		for (it = store.begin(); it != end; it++) {
 			args.push_back(it->first);
 			args.push_back(it->second);
 		}
 		writeArrayMessage(fd, args);
 	}
-	
+
+	Iterator begin() {
+		return store.begin();
+	}
+
+	ConstIterator begin() const {
+		return store.begin();
+	}
+
+	Iterator end() {
+		return store.end();
+	}
+
+	ConstIterator end() const {
+		return store.end();
+	}
+
 	string inspect() const {
 		map<string, string>::const_iterator it;
 		map<string, string>::const_iterator end = store.end();

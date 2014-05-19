@@ -1,3 +1,3 @@
 version=3
-options="dversionmangle=s/debian[0-9]*//" \
-http://rubyforge.org/frs/?group_id=5873 .*passenger-([\d.-]*)\.t.* debian debian/repack.sh
+opts=pgpsigurlmangle=s/$/.asc/ \
+  https://www.phusionpassenger.com/file_releases http://s3.amazonaws.com/phusion-passenger/releases/passenger-([\d.-]*)\.tar\.gz

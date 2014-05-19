@@ -1,5 +1,5 @@
-#  Phusion Passenger - http://www.modrails.com/
-#  Copyright (c) 2010 Phusion
+#  Phusion Passenger - https://www.phusionpassenger.com/
+#  Copyright (c) 2010-2013 Phusion
 #
 #  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
 #
@@ -22,31 +22,51 @@
 #  THE SOFTWARE.
 
 require 'rbconfig'
-require 'phusion_passenger/platform_info'
+PhusionPassenger.require_passenger_lib 'platform_info'
 
 module PhusionPassenger
 
 module PlatformInfo
 	# Returns the operating system's name. This name is in lowercase and contains no spaces,
-	# and thus is suitable to be used in some kind of ID. E.g. "linux", "macosx".
+	# and thus is suitable to be used in some kind of ID. It may contain a version number.
+	# Linux is always identified as "linux". OS X is always identified as "macosx".
+	# Identifiers for other operating systems may contain a version number, e.g. "freebsd10".
 	def self.os_name
 		if rb_config['target_os'] =~ /darwin/ && (sw_vers = find_command('sw_vers'))
 			return "macosx"
+		elsif rb_config['target_os'] == "linux-"
+			return "linux"
 		else
-			return RUBY_PLATFORM.sub(/.*?-/, '')
+			return rb_config['target_os']
 		end
 	end
 	memoize :os_name
 	
 	# The current platform's shared library extension ('so' on most Unices).
 	def self.library_extension
-		if RUBY_PLATFORM =~ /darwin/
+		if os_name == "macosx"
 			return "bundle"
 		else
 			return "so"
 		end
 	end
 	
+	# Returns the `uname` command, or nil if `uname` cannot be found.
+	# In addition to looking for `uname` in `PATH`, this method also looks
+	# for `uname` in /bin and /usr/bin, just in case the user didn't
+	# configure its PATH properly.
+	def self.uname_command
+		if result = find_command("uname")
+			result
+		elsif File.exist?("/bin/uname")
+			return "/bin/uname"
+		elsif File.exist?("/usr/bin/uname")
+			return "/usr/bin/uname"
+		else
+			return nil
+		end
+	end
+
 	# Returns a list of all CPU architecture names that the current machine CPU
 	# supports. If there are multiple such architectures then the first item in
 	# the result denotes that OS runtime's main/preferred architecture.
@@ -75,8 +95,10 @@ module PlatformInfo
 	# everything is 64-bit by default. The latter result indicates an OS X
 	# version older than 10.6.
 	def self.cpu_architectures
+		uname = uname_command
+		raise "The 'uname' command cannot be found" if !uname
 		if os_name == "macosx"
-			arch = `uname -p`.strip
+			arch = `#{uname} -p`.strip
 			if arch == "i386"
 				# Macs have been x86 since around 2007. I think all of them come with
 				# a recent enough Intel CPU that supports both x86 and x86_64, and I
@@ -95,11 +117,12 @@ module PlatformInfo
 				arch
 			end
 		else
-			arch = `uname -p`.strip
+			arch = `#{uname} -p`.strip
 			# On some systems 'uname -p' returns something like
-			# 'Intel(R) Pentium(R) M processor 1400MHz'.
-			if arch == "unknown" || arch =~ / /
-				arch = `uname -m`.strip
+			# 'Intel(R) Pentium(R) M processor 1400MHz' or
+			# 'Intel(R)_Xeon(R)_CPU___________X7460__@_2.66GHz'.
+			if arch == "unknown" || arch =~ / / || arch =~ /Hz$/
+				arch = `#{uname} -m`.strip
 			end
 			if arch =~ /^i.86$/
 				arch = "x86"
@@ -129,7 +152,7 @@ module PlatformInfo
 	def self.supports_sfence_instruction?
 		arch = cpu_architectures[0]
 		return arch == "x86_64" || (arch == "x86" &&
-			try_compile_and_run(:c, %Q{
+			try_compile_and_run("Checking for sfence instruction support", :c, %Q{
 				int
 				main() {
 					__asm__ __volatile__ ("sfence" ::: "memory");
@@ -144,7 +167,7 @@ module PlatformInfo
 	def self.supports_lfence_instruction?
 		arch = cpu_architectures[0]
 		return arch == "x86_64" || (arch == "x86" &&
-			try_compile_and_run(:c, %Q{
+			try_compile_and_run("Checking for lfence instruction support", :c, %Q{
 				int
 				main() {
 					__asm__ __volatile__ ("lfence" ::: "memory");

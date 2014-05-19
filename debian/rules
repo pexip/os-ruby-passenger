@@ -1,27 +1,42 @@
 #!/usr/bin/make -f
 #export DH_VERBOSE=1
 
+include /usr/share/dpkg/buildflags.mk
+export EXTRA_CFLAGS=$(CFLAGS) $(CPPFLAGS)
+export EXTRA_CXXFLAGS=$(CXXFLAGS) $(CPPFLAGS)
+export EXTRA_LDFLAGS=$(LDFLAGS)
+
 export USE_VENDORED_LIBEV=false
 
+# needed to generate docs
+export LC_ALL=C.UTF-8
+
+SUPPORTED_RUBY_VERSIONS=$(shell dh_ruby --print-supported)
+
 %:
-	dh $@ --buildsystem=ruby --with ruby,apache2
+	dh $@ --buildsystem=ruby --with ruby,apache2,autoreconf
 
 override_dh_auto_build:
-	/usr/bin/ruby1.8 /usr/bin/rake fakeroot
-	mv pkg/fakeroot pkg/fakeroot1.8
-	/usr/bin/ruby1.9.1 /usr/bin/rake fakeroot
-	mv pkg/fakeroot pkg/fakeroot1.9.1
+	set -e && for ruby in $(SUPPORTED_RUBY_VERSIONS); do \
+		/usr/bin/$$ruby /usr/bin/rake fakeroot; \
+		mv pkg/fakeroot pkg/fakeroot$$ruby; \
+	done
 
 override_dh_auto_install:
 	mkdir debian/tmp/
-	cp -a pkg/fakeroot1.8/* debian/tmp/
-	cp -a pkg/fakeroot1.9.1/* debian/tmp/
+	set -e && for ruby in $(SUPPORTED_RUBY_VERSIONS); do \
+		cp -a pkg/fakeroot$$ruby/* debian/tmp/; \
+	done
 	rm -f debian/tmp/usr/share/doc/phusion-passenger/images/._phusion_banner.png
 
 override_dh_auto_clean:
 	dh_auto_clean -O--buildsystem=ruby
-	rm -rf pkg/fakeroot1.8
-	rm -rf pkg/fakeroot1.9.1
+	set -e && for ruby in $(SUPPORTED_RUBY_VERSIONS); do \
+		rm -rf pkg/fakeroot$$ruby; \
+	done
 
 override_dh_install:
 	dh_install --list-missing -O--buildsystem=ruby
+
+override_dh_installchangelogs:
+	dh_installchangelogs NEWS

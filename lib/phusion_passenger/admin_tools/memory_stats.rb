@@ -1,5 +1,5 @@
-#  Phusion Passenger - http://www.modrails.com/
-#  Copyright (c) 2010 Phusion
+#  Phusion Passenger - https://www.phusionpassenger.com/
+#  Copyright (c) 2010-2013 Phusion
 #
 #  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
 #
@@ -21,7 +21,8 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #  THE SOFTWARE.
 
-require 'phusion_passenger/platform_info/apache'
+PhusionPassenger.require_passenger_lib 'platform_info/apache'
+PhusionPassenger.require_passenger_lib 'platform_info/operating_system'
 
 module PhusionPassenger
 module AdminTools
@@ -87,7 +88,7 @@ class MemoryStats
 	# Phusion Passenger is not running.
 	def passenger_processes
 		@passenger_processes ||= list_processes(:match =>
-			/((^| )Passenger |(^| )Rails:|(^| )Rack:|PassengerHelperAgent|PassengerWatchdog|PassengerLoggingAgent)/)
+			/((^| )Passenger|(^| )Rails:|(^| )Rack:|wsgi-loader.py)/)
 	end
 	
 	# Returns the sum of the memory usages of all given processes.
@@ -115,7 +116,7 @@ class MemoryStats
 	end
 	
 	def platform_provides_private_dirty_rss_information?
-		return ruby_platform =~ /linux/
+		return os_name == "linux"
 	end
 	
 	# Returns whether root privileges are required in order to measure private dirty RSS.
@@ -135,7 +136,7 @@ class MemoryStats
 	# if the system's RAM usage cannot be determined.
 	def system_ram_usage
 		@total_system_ram ||= begin
-			case ruby_platform
+			case os_name
 			when /linux/
 				free_text = `free -k`
 				
@@ -148,7 +149,7 @@ class MemoryStats
 				used = line.split(/ +/).first.to_i
 				
 				[total, used]
-			when /darwin/
+			when /macosx/
 				vm_stat = `vm_stat`
 				vm_stat =~ /page size of (\d+) bytes/
 				page_size = $1
@@ -199,8 +200,8 @@ class MemoryStats
 	end
 
 private
-	def ruby_platform
-		return RUBY_PLATFORM
+	def os_name
+		return PlatformInfo.os_name
 	end
 	
 	# Returns a list of Process objects that match the given search criteria.
@@ -216,14 +217,14 @@ private
 	def list_processes(options)
 		if options[:exe]
 			name = options[:exe].sub(/.*\/(.*)/, '\1')
-			if ruby_platform =~ /linux/
+			if os_name =~ /linux/
 				ps = "ps -C '#{name}'"
 			else
 				ps = "ps -A"
 				options[:match] = Regexp.new(Regexp.escape(name))
 			end
 		elsif options[:name]
-			if ruby_platform =~ /linux/
+			if os_name =~ /linux/
 				ps = "ps -C '#{options[:name]}'"
 			else
 				ps = "ps -A"
@@ -236,11 +237,11 @@ private
 		end
 		
 		processes = []
-		case RUBY_PLATFORM
+		case os_name
 		when /solaris/
 			list = `#{ps} -o pid,ppid,nlwp,vsz,rss,pcpu,comm`.split("\n")
 			threads_known = true
-		when /darwin/
+		when /macosx/
 			list = `#{ps} -w -o pid,ppid,vsz,rss,%cpu,command`.split("\n")
 			threads_known = false
 		else

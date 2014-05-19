@@ -1,5 +1,5 @@
 /*
- *  Phusion Passenger - http://www.modrails.com/
+ *  Phusion Passenger - https://www.phusionpassenger.com/
  *  Copyright (c) 2010 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
@@ -144,7 +144,7 @@ private:
 		ClientSet::iterator it;
 		ClientSet::iterator end = clients.end();
 		
-		for (it = clients.begin(); it != clients.end(); it++) {
+		for (it = clients.begin(); it != end; it++) {
 			(*it)->unref();
 		}
 		clients.clear();
@@ -221,7 +221,7 @@ private:
 				}
 				done = true;
 			} else {
-				FileDescriptor clientfdGuard = clientfd;
+				FileDescriptor clientfdGuard(clientfd);
 				int optval = 1;
 				
 				setNonBlocking(clientfdGuard);

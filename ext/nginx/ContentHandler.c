@@ -1,7 +1,7 @@
 /*
  * Copyright (C) Igor Sysoev
  * Copyright (C) 2007 Manlio Perillo (manlio.perillo@gmail.com)
- * Copyright (C) 2010, 2011, 2012 Phusion
+ * Copyright (C) 2010-2013 Phusion
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,11 +26,12 @@
  */
 
 #include <nginx.h>
+#include <ngx_http.h>
 #include "ngx_http_passenger_module.h"
 #include "ContentHandler.h"
 #include "StaticContentHandler.h"
 #include "Configuration.h"
-#include "../common/Constants.h"
+#include "common/Constants.h"
 
 
 #define NGX_HTTP_SCGI_PARSE_NO_HEADER  20
@@ -52,10 +53,11 @@ static void abort_request(ngx_http_request_t *r);
 static void finalize_request(ngx_http_request_t *r, ngx_int_t rc);
 
 
-static void
+static unsigned int
 uint_to_str(ngx_uint_t i, u_char *str, ngx_uint_t size) {
-    ngx_memzero(str, size);
-    ngx_snprintf(str, size, "%ui", i);
+    unsigned int len = ngx_snprintf(str, size - 1, "%ui", i) - str;
+    str[len] = '\0';
+    return len;
 }
 
 static FileType
@@ -63,10 +65,10 @@ get_file_type(const u_char *filename, unsigned int throttle_rate) {
     struct stat buf;
     int ret;
     
-    ret = cached_file_stat_perform(passenger_stat_cache,
-                                   (const char *) filename,
-                                   &buf,
-                                   throttle_rate);
+    ret = pp_cached_file_stat_perform(pp_stat_cache,
+                                      (const char *) filename,
+                                      &buf,
+                                      throttle_rate);
     if (ret == 0) {
         if (S_ISREG(buf.st_mode)) {
             return FT_FILE;
@@ -85,32 +87,14 @@ file_exists(const u_char *filename, unsigned int throttle_rate) {
     return get_file_type(filename, throttle_rate) == FT_FILE;
 }
 
-static passenger_app_type_t
-detect_application_type(const ngx_str_t *public_dir) {
-    u_char filename[NGX_MAX_PATH];
-    
-    ngx_memzero(filename, sizeof(filename));
-    ngx_snprintf(filename, sizeof(filename), "%s/%s",
-                 public_dir->data, "../config.ru");
-    if (file_exists(filename, 1)) {
-        return AP_RACK;
-    }
-    
-    ngx_memzero(filename, sizeof(filename));
-    ngx_snprintf(filename, sizeof(filename), "%s/%s",
-                 public_dir->data, "../config/environment.rb");
-    if (file_exists(filename, 1)) {
-        return AP_RAILS;
-    }
-        
-    ngx_memzero(filename, sizeof(filename));
-    ngx_snprintf(filename, sizeof(filename), "%s/%s",
-                 public_dir->data, "../passenger_wsgi.py");
-    if (file_exists(filename, 1)) {
-        return AP_WSGI;
-    }
-    
-    return AP_NONE;
+static int
+mapped_filename_equals(const u_char *filename, size_t filename_len, ngx_str_t *str)
+{
+    return (str->len == filename_len &&
+            memcmp(str->data, filename, filename_len) == 0) ||
+           (str->len == filename_len - 1 &&
+            filename[filename_len - 1] == '/' &&
+            memcmp(str->data, filename, filename_len - 1) == 0);
 }
 
 /**
@@ -141,16 +125,12 @@ map_uri_to_page_cache_file(ngx_http_request_t *r, ngx_str_t *public_dir,
     
     /* From this point on we know that filename is not an empty string. */
     
-    /* Check whether filename is equal to public_dir. filename may also be equal to
-     * public_dir + "/" so check for that as well.
+    
+    /* Check whether `filename` is equal to public_dir.
+     * `filename` may also be equal to public_dir + "/" so check for that as well.
      */
-    if ((public_dir->len == filename_len && memcmp(public_dir->data, filename,
-                                                   filename_len) == 0) ||
-        (public_dir->len == filename_len - 1 &&
-         filename[filename_len - 1] == '/' &&
-         memcmp(public_dir->data, filename, filename_len - 1) == 0)
-       ) {
-        /* If the URI maps to the 'public' directory (i.e. the request is the
+    if (mapped_filename_equals(filename, filename_len, public_dir)) {
+        /* If the URI maps to the 'public' or the alias directory (i.e. the request is the
          * base URI) then index.html is the page cache file.
          */
         
@@ -196,11 +176,11 @@ find_base_uri(ngx_http_request_t *r, const passenger_loc_conf_t *loc,
         return 0;
     } else {
         base_uris = (ngx_str_t *) loc->base_uris->elts;
+        uri       = &r->uri;
         for (i = 0; i < loc->base_uris->nelts; i++) {
             base_uri = &base_uris[i];
-            uri      = &r->uri;
             
-            if (uri->len == 1 && uri->data[0] == '/') {
+            if (base_uri->len == 1 && base_uri->data[0] == '/') {
                 /* Ignore 'passenger_base_uri /' options. Users usually
                  * specify this out of ignorance.
                  */
@@ -212,7 +192,7 @@ find_base_uri(ngx_http_request_t *r, const passenger_loc_conf_t *loc,
              || (    uri->len >  base_uri->len
                   && ngx_strncmp(uri->data, base_uri->data, base_uri->len) == 0
                   && uri->data[base_uri->len] == (u_char) '/' )) {
-                *found_base_uri = base_uris[i];
+                *found_base_uri = *base_uri;
                 return 1;
             }
         }
@@ -236,11 +216,11 @@ set_upstream_server_address(ngx_http_upstream_t *upstream, ngx_http_upstream_con
      * we substitute the placeholder filename with the real helper agent request
      * socket filename.
      */
-    if (address->name.data == passenger_placeholder_upstream_address.data) {
+    if (address->name.data == pp_placeholder_upstream_address.data) {
         sockaddr = (struct sockaddr_un *) address->sockaddr;
         request_socket_filename =
-            agents_starter_get_request_socket_filename(passenger_agents_starter,
-                                                       &request_socket_filename_len);
+            pp_agents_starter_get_request_socket_filename(pp_agents_starter,
+                                                           &request_socket_filename_len);
         
         address->name.data = (u_char *) request_socket_filename;
         address->name.len  = request_socket_filename_len;
@@ -249,62 +229,56 @@ set_upstream_server_address(ngx_http_upstream_t *upstream, ngx_http_upstream_con
     }
 }
 
+/**
+ * If the helper agent socket cannot be connected to then we want Nginx to print
+ * the proper socket filename in the error message. The socket filename is stored
+ * in one of the upstream peer data structures. This name is initialized during
+ * the first ngx_http_read_client_request_body() call so there's no way to fix the
+ * name before the first request, which is why we do it after the fact.
+ */
+static void
+fix_peer_address(ngx_http_request_t *r) {
+    ngx_http_upstream_rr_peer_data_t *rrp;
+    ngx_http_upstream_rr_peers_t     *peers;
+    ngx_http_upstream_rr_peer_t      *peer;
+    unsigned int                      peer_index;
+    const char                       *request_socket_filename;
+    unsigned int                      request_socket_filename_len;
 
-/* Convenience macros for building the SCGI header in create_request(). */
+    if (r->upstream->peer.get != ngx_http_upstream_get_round_robin_peer) {
+        /* This function only supports the round-robin upstream method. */
+        return;
+    }
 
-#define ANALYZE_BOOLEAN_CONFIG_LENGTH(name, container, config_field)    \
-    do {                                                                \
-        if (container->config_field) {                                  \
-            len += sizeof(name) + sizeof("true");                       \
-        } else {                                                        \
-            len += sizeof(name) + sizeof("false");                      \
-        }                                                               \
-    } while (0)
+    rrp        = r->upstream->peer.data;
+    peers      = rrp->peers;
+    request_socket_filename =
+        pp_agents_starter_get_request_socket_filename(pp_agents_starter,
+                                                       &request_socket_filename_len);
 
-#define SERIALIZE_BOOLEAN_CONFIG_DATA(name, container, config_field)    \
-    do {                                                                \
-        b->last = ngx_copy(b->last, name, sizeof(name));                \
-        if (container->config_field) {                                  \
-            b->last = ngx_copy(b->last, "true", sizeof("true"));        \
-        } else {                                                        \
-            b->last = ngx_copy(b->last, "false", sizeof("false"));      \
-        }                                                               \
-    } while (0)
-
-#define PREPARE_INT_CONFIG_DATA(name, container, config_field)      \
-    do {                                                            \
-        end = ngx_snprintf(config_field ## _string,                 \
-                           sizeof(config_field ## _string) - 1,     \
-                           "%d",                                    \
-                           container->config_field);                \
-        *end = '\0';                                                \
-        len += sizeof(name) + (end - config_field ## _string) + 1;  \
-    } while (0)
-
-#define SERIALIZE_INT_CONFIG_DATA(name, container, config_field)        \
-    do {                                                                \
-        b->last = ngx_copy(b->last, name, sizeof(name));                \
-        b->last = ngx_copy(b->last, config_field ## _string,            \
-                           ngx_strlen(config_field ## _string) + 1);    \
-    } while (0)
-
-#define ANALYZE_STR_CONFIG_LENGTH(name, container, config_field)        \
-    do {                                                                \
-        if (container->config_field.data != NULL) {                     \
-            len += sizeof(name) + (container->config_field.len) + 1;    \
-        }                                                               \
-    } while (0)
-
-#define SERIALIZE_STR_CONFIG_DATA(name, container, config_field)        \
-    do {                                                                \
-        if (container->config_field.data != NULL) {                     \
-            b->last = ngx_copy(b->last, name, sizeof(name));            \
-            b->last = ngx_copy(b->last, container->config_field.data,   \
-                               container->config_field.len);            \
-            *b->last = '\0';                                            \
-            b->last++;                                                  \
-        }                                                               \
-    } while (0)
+    while (peers != NULL) {
+        if (peers->name) {
+            if (peers->name->data == (u_char *) request_socket_filename) {
+                /* Peer names already fixed. */
+                return;
+            }
+            peers->name->data = (u_char *) request_socket_filename;
+            peers->name->len  = request_socket_filename_len;
+        }
+        peer_index = 0;
+        while (1) {
+            peer = &peers->peer[peer_index];
+            peer->name.data = (u_char *) request_socket_filename;
+            peer->name.len  = request_socket_filename_len;
+            if (peer->down) {
+                peer_index++;
+            } else {
+                break;
+            }
+        }
+        peers = peers->next;
+    }
+}
 
 
 #if (NGX_HTTP_CACHE)
@@ -338,18 +312,13 @@ create_request(ngx_http_request_t *r)
     u_char                         ch;
     const char *                   helper_agent_request_socket_password_data;
     unsigned int                   helper_agent_request_socket_password_len;
-    u_char                         buf[sizeof("4294967296")];
-    size_t                         len, size, key_len, val_len, content_length;
+    u_char                         buf[sizeof("4294967296") + 1];
+    size_t                         len, size, key_len, val_len;
     const u_char                  *app_type_string;
     size_t                         app_type_string_len;
     int                            server_name_len;
     ngx_str_t                      escaped_uri;
     ngx_str_t                     *union_station_filters = NULL;
-    u_char                         min_instances_string[12];
-    u_char                         max_requests_string[12];
-    u_char                         framework_spawner_idle_time_string[12];
-    u_char                         app_spawner_idle_time_string[12];
-    u_char                        *end;
     void                          *tmp;
     ngx_uint_t                     i, n;
     ngx_buf_t                     *b;
@@ -362,9 +331,6 @@ create_request(ngx_http_request_t *r)
     passenger_loc_conf_t          *slcf;
     passenger_context_t           *context;
     ngx_http_script_len_code_pt    lcode;
-    #if (NGX_HTTP_SSL)
-        ngx_http_ssl_srv_conf_t   *ssl_conf;
-    #endif
     
     cscf = ngx_http_get_module_srv_conf(r, ngx_http_core_module);
     slcf = ngx_http_get_module_loc_conf(r, ngx_http_passenger_module);
@@ -373,24 +339,8 @@ create_request(ngx_http_request_t *r)
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
     
-    switch (context->app_type) {
-    case AP_RAILS:
-        app_type_string = (const u_char *) "rails";
-        app_type_string_len = sizeof("rails");
-        break;
-    case AP_RACK:
-        app_type_string = (const u_char *) "rack";
-        app_type_string_len = sizeof("rack");
-        break;
-    case AP_WSGI:
-        app_type_string = (const u_char *) "wsgi";
-        app_type_string_len = sizeof("wsgi");
-        break;
-    default:
-        app_type_string = (const u_char *) "rack";
-        app_type_string_len = sizeof("rack");
-        break;
-    }
+    app_type_string = (const u_char *) pp_get_app_type_name(context->app_type);
+    app_type_string_len = strlen((const char *) app_type_string) + 1; /* include null terminator */
     
     
     /*
@@ -410,15 +360,15 @@ create_request(ngx_http_request_t *r)
      * Determine the request header length.
      **************************************************/
     
-    /* Length of the Content-Length header. */
-    if (r->headers_in.content_length_n < 0) {
-        content_length = 0;
-    } else {
-        content_length = r->headers_in.content_length_n;
+    len = 0;
+
+    /* Length of the Content-Length header. A value of -1 means that the content
+     * length is unspecified, which is the case for e.g. WebSocket requests. */
+    if (r->headers_in.content_length_n >= 0) {
+        len += sizeof("CONTENT_LENGTH") +
+            uint_to_str(r->headers_in.content_length_n, buf, sizeof(buf)) +
+            1; /* +1 for trailing null */
     }
-    uint_to_str(content_length, buf, sizeof(buf));
-    /* +1 for trailing null */
-    len = sizeof("CONTENT_LENGTH") + ngx_strlen(buf) + 1;
     
     /* DOCUMENT_ROOT, SCRIPT_NAME, RAILS_RELATIVE_URL_ROOT, PATH_INFO and REQUEST_URI. */
     len += sizeof("DOCUMENT_ROOT") + context->public_dir.len + 1;
@@ -456,66 +406,16 @@ create_request(ngx_http_request_t *r)
     }
     
     #if (NGX_HTTP_SSL)
-        ssl_conf = ngx_http_get_module_srv_conf(r, ngx_http_ssl_module);
-        if (ssl_conf->enable) {
+        if (r->http_connection->ssl) {
             len += sizeof("HTTPS") + sizeof("on");
         }
     #endif
     
     /* Lengths of Passenger application pool options. */
-    ANALYZE_BOOLEAN_CONFIG_LENGTH("PASSENGER_USE_GLOBAL_QUEUE",
-                                  slcf, use_global_queue);
-    ANALYZE_BOOLEAN_CONFIG_LENGTH("PASSENGER_FRIENDLY_ERROR_PAGES",
-                                  slcf, friendly_error_pages);
-    ANALYZE_BOOLEAN_CONFIG_LENGTH("UNION_STATION_SUPPORT",
-                                  slcf, union_station_support);
-    ANALYZE_BOOLEAN_CONFIG_LENGTH("PASSENGER_DEBUGGER",
-                                  slcf, debugger);
-    ANALYZE_BOOLEAN_CONFIG_LENGTH("PASSENGER_SHOW_VERSION_IN_HEADER",
-                                  slcf, show_version_in_header);
-    len += sizeof("PASSENGER_ENVIRONMENT") + slcf->environment.len + 1;
-    len += sizeof("PASSENGER_SPAWN_METHOD") + slcf->spawn_method.len + 1;
-    len += sizeof("PASSENGER_APP_TYPE") + app_type_string_len;
-    ANALYZE_STR_CONFIG_LENGTH("PASSENGER_APP_GROUP_NAME", slcf, app_group_name);
-    ANALYZE_STR_CONFIG_LENGTH("PASSENGER_APP_RIGHTS", slcf, app_rights);
-    ANALYZE_STR_CONFIG_LENGTH("PASSENGER_USER", slcf, user);
-    ANALYZE_STR_CONFIG_LENGTH("PASSENGER_GROUP", slcf, group);
-    ANALYZE_STR_CONFIG_LENGTH("PASSENGER_UNION_STATION_KEY", slcf, union_station_key);
-    
-    end = ngx_snprintf(min_instances_string,
-                       sizeof(min_instances_string) - 1,
-                       "%d",
-                       (slcf->min_instances == (ngx_int_t) -1) ? 1 : slcf->min_instances);
-    *end = '\0';
-    len += sizeof("PASSENGER_MIN_INSTANCES") +
-           ngx_strlen(min_instances_string) + 1;
+    len += slcf->options_cache.len;
 
-    end = ngx_snprintf(max_requests_string,
-                       sizeof(max_requests_string) - 1,
-                       "%d",
-                       (slcf->max_requests == (ngx_int_t) -1) ? 0 : slcf->max_requests);
-    *end = '\0';
-    len += sizeof("PASSENGER_MAX_REQUESTS") +
-           ngx_strlen(max_requests_string) + 1;
-    
-    end = ngx_snprintf(framework_spawner_idle_time_string,
-                       sizeof(framework_spawner_idle_time_string) - 1,
-                       "%d",
-                       (slcf->framework_spawner_idle_time == (ngx_int_t) -1) ?
-                           -1 : slcf->framework_spawner_idle_time);
-    *end = '\0';
-    len += sizeof("PASSENGER_FRAMEWORK_SPAWNER_IDLE_TIME") +
-           ngx_strlen(framework_spawner_idle_time_string) + 1;
-    
-    end = ngx_snprintf(app_spawner_idle_time_string,
-                       sizeof(app_spawner_idle_time_string) - 1,
-                       "%d",
-                       (slcf->app_spawner_idle_time == (ngx_int_t) -1) ?
-                           -1 : slcf->app_spawner_idle_time);
-    *end = '\0';
-    len += sizeof("PASSENGER_APP_SPAWNER_IDLE_TIME") +
-           ngx_strlen(app_spawner_idle_time_string) + 1;
-    
+    len += sizeof("PASSENGER_APP_TYPE") + app_type_string_len;
+
     if (slcf->union_station_filters != NGX_CONF_UNSET_PTR && slcf->union_station_filters->nelts > 0) {
         len += sizeof("UNION_STATION_FILTERS");
         
@@ -580,40 +480,13 @@ create_request(ngx_http_request_t *r)
         }
     }
 
-    /* Trailing dummy header.
-     *
-     * If the last header value is an empty string, then the buffer
-     * will end with "\0\0". For example, if 'SSL_CLIENT_CERT'
-     * is the last header and it has an empty value, then the SCGI header
-     * will end with:
-     *
-     *   "SSL_CLIENT_CERT\0\0"
-     *
-     * The data in the buffer will be processed by the AbstractRequestHandler class,
-     * which is implemented in Ruby. But it uses Hash[*data.split("\0")] to
-     * unserialize the data. Unfortunately String#split will not transform
-     * the trailing "\0\0" into an empty string:
-     *
-     *   "SSL_CLIENT_CERT\0\0".split("\0")
-     *   # => desired result: ["SSL_CLIENT_CERT", ""]
-     *   # => actual result:  ["SSL_CLIENT_CERT"]
-     *
-     * When that happens, Hash[..] will raise an ArgumentError because
-     * data.split("\0") does not return an array with a length that is a
-     * multiple of 2.
-     *
-     * So here, we add a dummy header to prevent situations like that from
-     * happening.
-     */
-    len += sizeof("_") + sizeof("_");
-
 
     /**************************************************
      * Build the request header data.
      **************************************************/
     
     helper_agent_request_socket_password_data =
-        agents_starter_get_request_socket_password(passenger_agents_starter,
+        pp_agents_starter_get_request_socket_password(pp_agents_starter,
             &helper_agent_request_socket_password_len);
     size = helper_agent_request_socket_password_len +
         /* netstring length + ":" + trailing "," */
@@ -639,12 +512,13 @@ create_request(ngx_http_request_t *r)
     b->last = ngx_snprintf(b->last, 10, "%ui", len);
     *b->last++ = (u_char) ':';
 
-    /* Build CONTENT_LENGTH header. This must always be sent, even if 0. */
-    b->last = ngx_copy(b->last, "CONTENT_LENGTH",
-                       sizeof("CONTENT_LENGTH"));
+    if (r->headers_in.content_length_n >= 0) {
+        b->last = ngx_copy(b->last, "CONTENT_LENGTH",
+                           sizeof("CONTENT_LENGTH"));
 
-    b->last = ngx_snprintf(b->last, 10, "%ui", content_length);
-    *b->last++ = (u_char) 0;
+        b->last = ngx_snprintf(b->last, 10, "%ui", r->headers_in.content_length_n);
+        *b->last++ = (u_char) 0;
+    }
     
     /* Build DOCUMENT_ROOT, SCRIPT_NAME, RAILS_RELATIVE_URL_ROOT, PATH_INFO and REQUEST_URI. */
     b->last = ngx_copy(b->last, "DOCUMENT_ROOT", sizeof("DOCUMENT_ROOT"));
@@ -703,8 +577,7 @@ create_request(ngx_http_request_t *r)
     }
     
     #if (NGX_HTTP_SSL)
-        ssl_conf = ngx_http_get_module_srv_conf(r, ngx_http_ssl_module);
-        if (ssl_conf->enable) {
+        if (r->http_connection->ssl) {
             b->last = ngx_copy(b->last, "HTTPS", sizeof("HTTPS"));
             b->last = ngx_copy(b->last, "on", sizeof("on"));
         }
@@ -712,61 +585,11 @@ create_request(ngx_http_request_t *r)
     
 
     /* Build Passenger application pool option headers. */
-    SERIALIZE_BOOLEAN_CONFIG_DATA("PASSENGER_USE_GLOBAL_QUEUE",
-                                  slcf, use_global_queue);
-    SERIALIZE_BOOLEAN_CONFIG_DATA("PASSENGER_FRIENDLY_ERROR_PAGES",
-                                  slcf, friendly_error_pages);
-    SERIALIZE_BOOLEAN_CONFIG_DATA("UNION_STATION_SUPPORT",
-                                  slcf, union_station_support);
-    SERIALIZE_BOOLEAN_CONFIG_DATA("PASSENGER_DEBUGGER",
-                                  slcf, debugger);
-    SERIALIZE_BOOLEAN_CONFIG_DATA("PASSENGER_SHOW_VERSION_IN_HEADER",
-                                  slcf, show_version_in_header);
-    
-    b->last = ngx_copy(b->last, "PASSENGER_ENVIRONMENT",
-                       sizeof("PASSENGER_ENVIRONMENT"));
-    b->last = ngx_copy(b->last, slcf->environment.data,
-                       slcf->environment.len + 1);
-
-    b->last = ngx_copy(b->last, "PASSENGER_SPAWN_METHOD",
-                       sizeof("PASSENGER_SPAWN_METHOD"));
-    b->last = ngx_copy(b->last, slcf->spawn_method.data,
-                       slcf->spawn_method.len + 1);
-
-    SERIALIZE_STR_CONFIG_DATA("PASSENGER_APP_GROUP_NAME",
-                              slcf, app_group_name);
-    SERIALIZE_STR_CONFIG_DATA("PASSENGER_APP_RIGHTS",
-                              slcf, app_rights);
-    SERIALIZE_STR_CONFIG_DATA("PASSENGER_USER",
-                              slcf, user);
-    SERIALIZE_STR_CONFIG_DATA("PASSENGER_GROUP",
-                              slcf, group);
-    SERIALIZE_STR_CONFIG_DATA("PASSENGER_UNION_STATION_KEY",
-                              slcf, union_station_key);
+    b->last = ngx_copy(b->last, slcf->options_cache.data, slcf->options_cache.len);
 
     b->last = ngx_copy(b->last, "PASSENGER_APP_TYPE",
                        sizeof("PASSENGER_APP_TYPE"));
     b->last = ngx_copy(b->last, app_type_string, app_type_string_len);
-
-    b->last = ngx_copy(b->last, "PASSENGER_MIN_INSTANCES",
-                       sizeof("PASSENGER_MIN_INSTANCES"));
-    b->last = ngx_copy(b->last, min_instances_string,
-                       ngx_strlen(min_instances_string) + 1);
-
-    b->last = ngx_copy(b->last, "PASSENGER_MAX_REQUESTS",
-                       sizeof("PASSENGER_MAX_REQUESTS"));
-    b->last = ngx_copy(b->last, max_requests_string,
-                       ngx_strlen(max_requests_string) + 1);
-
-    b->last = ngx_copy(b->last, "PASSENGER_FRAMEWORK_SPAWNER_IDLE_TIME",
-                       sizeof("PASSENGER_FRAMEWORK_SPAWNER_IDLE_TIME"));
-    b->last = ngx_copy(b->last, framework_spawner_idle_time_string,
-                       ngx_strlen(framework_spawner_idle_time_string) + 1);
-
-    b->last = ngx_copy(b->last, "PASSENGER_APP_SPAWNER_IDLE_TIME",
-                       sizeof("PASSENGER_APP_SPAWNER_IDLE_TIME"));
-    b->last = ngx_copy(b->last, app_spawner_idle_time_string,
-                       ngx_strlen(app_spawner_idle_time_string) + 1);
 
     if (slcf->union_station_filters != NGX_CONF_UNSET_PTR && slcf->union_station_filters->nelts > 0) {
         b->last = ngx_copy(b->last, "UNION_STATION_FILTERS",
@@ -856,10 +679,6 @@ create_request(ngx_http_request_t *r)
          }
     }
     
-    /* Trailing dummy header. See earlier comment for explanation. */
-    b->last = ngx_copy(b->last, "_\0_", sizeof("_\0_"));
-
-
     *b->last++ = (u_char) ',';
 
     if (slcf->upstream_config.pass_request_body) {
@@ -916,6 +735,7 @@ reinit_request(ngx_http_request_t *r)
     context->status_end = NULL;
 
     r->upstream->process_header = process_status_line;
+    r->state = 0;
 
     return NGX_OK;
 }
@@ -1191,17 +1011,20 @@ done:
 static ngx_int_t
 process_header(ngx_http_request_t *r)
 {
-    ngx_int_t                       rc;
-    ngx_uint_t                      i;
+    ngx_str_t                      *status_line;
+    ngx_int_t                       rc, status;
     ngx_table_elt_t                *h;
+    ngx_http_upstream_t            *u;
     ngx_http_upstream_header_t     *hh;
     ngx_http_upstream_main_conf_t  *umcf;
+    ngx_http_core_loc_conf_t       *clcf;
     passenger_loc_conf_t           *slcf;
 
     umcf = ngx_http_get_module_main_conf(r, ngx_http_upstream_module);
+    clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
     slcf = ngx_http_get_module_loc_conf(r, ngx_http_passenger_module);
 
-    for ( ;;  ) {
+    for ( ;; ) {
 
         rc = ngx_http_parse_header_line(r, &r->upstream->buffer, 1);
 
@@ -1211,7 +1034,7 @@ process_header(ngx_http_request_t *r)
 
             h = ngx_list_push(&r->upstream->headers_in.headers);
             if (h == NULL) {
-                return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                return NGX_ERROR;
             }
 
             h->hash = r->header_hash;
@@ -1219,10 +1042,11 @@ process_header(ngx_http_request_t *r)
             h->key.len = r->header_name_end - r->header_name_start;
             h->value.len = r->header_end - r->header_start;
 
-            h->key.data = ngx_palloc(r->pool,
-                               h->key.len + 1 + h->value.len + 1 + h->key.len);
+            h->key.data = ngx_pnalloc(r->pool,
+                                      h->key.len + 1 + h->value.len + 1
+                                      + h->key.len);
             if (h->key.data == NULL) {
-                return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                return NGX_ERROR;
             }
 
             h->value.data = h->key.data + h->key.len + 1;
@@ -1237,21 +1061,18 @@ process_header(ngx_http_request_t *r)
                 ngx_memcpy(h->lowcase_key, r->lowcase_header, h->key.len);
 
             } else {
-                for (i = 0; i < h->key.len; i++) {
-                    h->lowcase_key[i] = ngx_tolower(h->key.data[i]);
-                }
+                ngx_strlow(h->lowcase_key, h->key.data, h->key.len);
             }
 
             hh = ngx_hash_find(&umcf->headers_in_hash, h->hash,
                                h->lowcase_key, h->key.len);
 
             if (hh && hh->handler(r, h, hh->offset) != NGX_OK) {
-                return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                return NGX_ERROR;
             }
 
             ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                           "http scgi header: \"%V: %V\"",
-                           &h->key, &h->value);
+                           "http scgi header: \"%V: %V\"", &h->key, &h->value);
 
             continue;
         }
@@ -1280,9 +1101,17 @@ process_header(ngx_http_request_t *r)
                 h->key.len = sizeof("Server") - 1;
                 h->key.data = (u_char *) "Server";
                 if( slcf->show_version_in_header == 0 ) {
-                    h->value.data = (u_char *) (NGINX_VER " + Phusion Passenger (mod_rails/mod_rack)");
+                    if (clcf->server_tokens) {
+                        h->value.data = (u_char *) (NGINX_VER " + Phusion Passenger");
+                    } else {
+                        h->value.data = (u_char *) ("nginx + Phusion Passenger");
+                    }
                 } else {
-                    h->value.data = (u_char *) (NGINX_VER " + Phusion Passenger " PASSENGER_VERSION " (mod_rails/mod_rack)");
+                    if (clcf->server_tokens) {
+                        h->value.data = (u_char *) (NGINX_VER " + Phusion Passenger " PASSENGER_VERSION);
+                    } else {
+                        h->value.data = (u_char *) ("nginx + Phusion Passenger " PASSENGER_VERSION);
+                    }
                 }
                 h->value.len = ngx_strlen(h->value.data);
                 h->lowcase_key = (u_char *) "server";
@@ -1302,6 +1131,53 @@ process_header(ngx_http_request_t *r)
                 h->value.data = NULL;
                 h->lowcase_key = (u_char *) "date";
             }
+
+            /* Process "Status" header. */
+
+            u = r->upstream;
+
+            if (u->headers_in.status_n) {
+                goto done;
+            }
+
+            if (u->headers_in.status) {
+                status_line = &u->headers_in.status->value;
+
+                status = ngx_atoi(status_line->data, 3);
+                if (status == NGX_ERROR) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "upstream sent invalid status \"%V\"",
+                                  status_line);
+                    return NGX_HTTP_UPSTREAM_INVALID_HEADER;
+                }
+
+                u->headers_in.status_n = status;
+                u->headers_in.status_line = *status_line;
+
+            } else if (u->headers_in.location) {
+                u->headers_in.status_n = 302;
+                ngx_str_set(&u->headers_in.status_line,
+                            "302 Moved Temporarily");
+
+            } else {
+                u->headers_in.status_n = 200;
+                ngx_str_set(&u->headers_in.status_line, "200 OK");
+            }
+
+            if (u->state) {
+                u->state->status = u->headers_in.status_n;
+            }
+
+        done:
+
+            /* Supported since Nginx 1.3.15. */
+            #ifdef NGX_HTTP_SWITCHING_PROTOCOLS
+                if (u->headers_in.status_n == NGX_HTTP_SWITCHING_PROTOCOLS
+                    && r->headers_in.upgrade)
+                {
+                    u->upgrade = 1;
+                }
+            #endif
 
             return NGX_OK;
         }
@@ -1346,10 +1222,11 @@ passenger_content_handler(ngx_http_request_t *r)
     u_char                *path_last, *end;
     u_char                 root_path_str[NGX_MAX_PATH + 1];
     ngx_str_t              root_path;
-    size_t                 root, len;
+    size_t                 root_len, len;
     u_char                 page_cache_file_str[NGX_MAX_PATH + 1];
     ngx_str_t              page_cache_file;
     passenger_context_t   *context;
+    PP_Error               error;
 
     if (passenger_main_conf.root_dir.len == 0) {
         return NGX_DECLINED;
@@ -1372,7 +1249,7 @@ passenger_content_handler(ngx_http_request_t *r)
     /* Let the next content handler take care of this request if this URL
      * maps to an existing file.
      */
-    path_last = ngx_http_map_uri_to_path(r, &path, &root, 0);
+    path_last = ngx_http_map_uri_to_path(r, &path, &root_len, 0);
     if (path_last != NULL && file_exists(path.data, 0)) {
         return NGX_DECLINED;
     }
@@ -1380,10 +1257,10 @@ passenger_content_handler(ngx_http_request_t *r)
     /* Create a string containing the root path. This path already
      * contains a trailing slash.
      */
-    end = ngx_copy(root_path_str, path.data, root);
+    end = ngx_copy(root_path_str, path.data, root_len);
     *end = '\0';
     root_path.data = root_path_str;
-    root_path.len  = root;
+    root_path.len  = root_len;
     
     
     context = ngx_pcalloc(r->pool, sizeof(passenger_context_t));
@@ -1395,13 +1272,20 @@ passenger_content_handler(ngx_http_request_t *r)
     
     /* Find the base URI for this web application, if any. */
     if (find_base_uri(r, slcf, &base_uri)) {
-        /* Store the found base URI in context->public_dir. We infer that the 'public'
-         * directory of the web application is document root + base URI.
+        /* Store the found base URI into context->public_dir. We infer that
+         * the 'public' directory of the web app equals document root + base URI.
          */
-        len = root_path.len + base_uri.len + 1;
-        context->public_dir.data = ngx_palloc(r->pool, sizeof(u_char) * len);
-        end = ngx_copy(context->public_dir.data, root_path.data, root_path.len);
-        end = ngx_copy(end, base_uri.data, base_uri.len);
+        if (slcf->document_root.data != NULL) {
+            len = slcf->document_root.len + 1;
+            context->public_dir.data = ngx_palloc(r->pool, sizeof(u_char) * len);
+            end = ngx_copy(context->public_dir.data, slcf->document_root.data,
+                           slcf->document_root.len);
+        } else {
+            len = root_path.len + base_uri.len + 1;
+            context->public_dir.data = ngx_palloc(r->pool, sizeof(u_char) * len);
+            end = ngx_copy(context->public_dir.data, root_path.data, root_path.len);
+            end = ngx_copy(end, base_uri.data, base_uri.len);
+        }
         *end = '\0';
         context->public_dir.len = len - 1;
         context->base_uri = base_uri;
@@ -1428,9 +1312,48 @@ passenger_content_handler(ngx_http_request_t *r)
         return passenger_static_content_handler(r, &page_cache_file);
     }
     
-    context->app_type = detect_application_type(&context->public_dir);
-    if (context->app_type == AP_NONE) {
-        return NGX_DECLINED;
+    if (slcf->app_type.data == NULL) {
+        pp_error_init(&error);
+        if (slcf->app_root.data == NULL) {
+            context->app_type = pp_app_type_detector_check_document_root(
+                pp_app_type_detector,
+                (const char *) context->public_dir.data, context->public_dir.len,
+                context->base_uri.len != 0,
+                &error);
+        } else {
+            context->app_type = pp_app_type_detector_check_app_root(
+                pp_app_type_detector,
+                (const char *) slcf->app_root.data, slcf->app_root.len,
+                &error);
+        }
+        if (context->app_type == PAT_NONE) {
+            return NGX_DECLINED;
+        } else if (context->app_type == PAT_ERROR) {
+            if (error.errnoCode == EACCES) {
+                ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
+                              "%s; This error means that the Nginx worker process (PID %d, "
+                              "running as UID %d) does not have permission to access this file. "
+                              "Please read the manual to learn how to fix this problem: "
+                              "section 'Troubleshooting' -> 'Upon accessing the web app, Nginx "
+                              "reports a \"Permission denied\" error'; Extra info",
+                              error.message,
+                              (int) getpid(),
+                              (int) getuid());
+            } else {
+                ngx_log_error(NGX_LOG_ALERT, r->connection->log,
+                              (error.errnoCode == PP_NO_ERRNO) ? 0 : error.errnoCode,
+                              "%s",
+                              error.message);
+            }
+            pp_error_destroy(&error);
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+    } else {
+        context->app_type = pp_get_app_type2((const char *) slcf->app_type.data,
+            slcf->app_type.len);
+        if (context->app_type == PAT_NONE) {
+            return NGX_DECLINED;
+        }
     }
     
     
@@ -1441,7 +1364,7 @@ passenger_content_handler(ngx_http_request_t *r)
     }
     u = r->upstream;
     
-    u->schema = passenger_schema_string;
+    u->schema = pp_schema_string;
     u->output.tag = (ngx_buf_tag_t) &ngx_http_passenger_module;
     set_upstream_server_address(u, &slcf->upstream_config);
     u->conf = &slcf->upstream_config;
@@ -1454,6 +1377,7 @@ passenger_content_handler(ngx_http_request_t *r)
     u->process_header   = process_status_line;
     u->abort_request    = abort_request;
     u->finalize_request = finalize_request;
+    r->state = 0;
 
     u->buffering = slcf->upstream_config.buffering;
     
@@ -1466,6 +1390,8 @@ passenger_content_handler(ngx_http_request_t *r)
     u->pipe->input_ctx = r;
 
     rc = ngx_http_read_client_request_body(r, ngx_http_upstream_init);
+
+    fix_peer_address(r);
 
     if (rc >= NGX_HTTP_SPECIAL_RESPONSE) {
         return rc;

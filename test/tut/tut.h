@@ -69,14 +69,14 @@ static int setenv(const char *name, const char *value, int override) {
 	typedef factory::object object; \
 	factory name## _group(#name)
 
-#ifdef __clang__
-	#define TEST_METHOD(i) \
-		template<> \
-		void object::test<i>()
+#define TEST_METHOD(i) \
+	template<> template<> \
+	void object::test<i>()
+
+#ifdef __GNUC__
+    #define TUT_UNUSED __attribute__((unused))
 #else
-	#define TEST_METHOD(i) \
-		template<> template<> \
-		void object::test<i>()
+    #define TUT_UNUSED
 #endif
 
 /**
@@ -563,6 +563,67 @@ public:
         }
     }
 
+    /**
+     * Runs specified tests in specified groups.
+     */
+    void run_tests(const std::map< std::string, std::vector<int> >& groups_and_tests) const
+    {
+        callback_->run_started();
+
+        std::map< std::string, std::vector<int> >::const_iterator g_it;
+        for (g_it = groups_and_tests.begin(); g_it != groups_and_tests.end(); g_it++)
+        {
+            const std::string &group_name = g_it->first;
+            const std::vector<int> &test_numbers = g_it->second;
+            
+            const_iterator i = groups_.find(group_name);
+            if (i == groups_.end())
+            {
+                callback_->run_completed();
+                throw no_such_group(group_name);
+            }
+
+            callback_->group_started(group_name);
+            try
+            {
+                if (test_numbers.empty())
+                {
+                    run_all_tests_in_group_(i);
+                }
+                else
+                {
+                    std::vector<int>::const_iterator n_it;
+                    for (n_it = test_numbers.begin(); n_it != test_numbers.end(); n_it++)
+                    {
+                        int n = *n_it;
+                        test_result tr = i->second->run_test(n);
+                        callback_->test_completed(tr);
+                    }
+                }
+            }
+            catch (const no_more_tests&)
+            {
+                // ok
+            }
+            catch (const beyond_last_test&)
+            {
+                callback_->group_completed(group_name);
+                callback_->run_completed();
+                throw;
+            }
+            catch (const no_such_test&)
+            {
+                callback_->group_completed(group_name);
+                callback_->run_completed();
+                throw;
+            }
+
+            callback_->group_completed(group_name);
+        }
+
+        callback_->run_completed();
+    }
+
 protected:
     
     typedef std::map<std::string, group_base*> groups;
@@ -667,7 +728,7 @@ namespace
  * Tests provided condition.
  * Throws if false.
  */
-void ensure(bool cond)
+TUT_UNUSED void ensure(bool cond)
 {
     if (!cond)
     {
@@ -680,7 +741,7 @@ void ensure(bool cond)
  * Tests provided condition.
  * Throws if true.
  */
-void ensure_not(bool cond)
+TUT_UNUSED void ensure_not(bool cond)
 {
     ensure(!cond);
 }
@@ -776,7 +837,7 @@ void ensure_distance(const T& actual, const T& expected, const T& distance)
 /**
  * Unconditionally fails with message.
  */
-void fail(const char* msg = "")
+TUT_UNUSED void fail(const char* msg = "")
 {
     throw failure(msg);
 }
@@ -1051,6 +1112,7 @@ private:
     test_result run_test_(const tests_iterator& ti, safe_holder<object>& obj)
     {
         std::string current_test_name;
+        int number = ti->first; // In a variable so we can easily inspect wih gdb.
         try
         {
             if (run_test_seh_(ti->second,obj, current_test_name) == false)
@@ -1132,7 +1194,7 @@ private:
         */
 
         // test passed
-        test_result tr(name_,ti->first, current_test_name, test_result::ok);
+        test_result tr(name_,number, current_test_name, test_result::ok);
         return tr;
     }
 

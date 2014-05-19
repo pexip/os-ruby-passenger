@@ -1,4 +1,4 @@
-#  Phusion Passenger - http://www.modrails.com/
+#  Phusion Passenger - https://www.phusionpassenger.com/
 #  Copyright (c) 2010 Phusion
 #
 #  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
@@ -57,7 +57,6 @@ protected
 			system("mkdir", "-p", "-m", "u=rwxs,g=rwx,o=rwx", dir)
 			system("mkdir", "-p", "-m", "u=rwxs,g=rwx,o=rwx", "#{dir}/generation-0")
 			system("mkdir", "-p", "-m", "u=rwxs,g=rwx,o=rwx", "#{dir}/backends")
-			system("mkdir", "-p", "-m", "u=rwxs,g=rwx,o=rwx", "#{dir}/spawn-server")
 		end
 		return dir
 	end

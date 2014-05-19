@@ -1,3 +1,100 @@
+ruby-passenger (4.0.37-3pexip1) pexip; urgency=medium
+
+  * Prepare Pexip packaging
+
+ -- John-Mark Bell <jmb@pexip.com>  Mon, 19 May 2014 20:28:53 +0100
+
+ruby-passenger (4.0.37-3) unstable; urgency=medium
+
+  * Query the supported ruby versions from dh_ruby instead of hardcoding them.
+    (Closes: #744808)
+
+ -- Felix Geyer <fgeyer@debian.org>  Wed, 23 Apr 2014 23:44:19 +0200
+
+ruby-passenger (4.0.37-2) unstable; urgency=medium
+
+  * Cherry-pick upstream commit to fix CVE-2014-1832.
+    The fix for CVE-2014-1831 was incomplete.
+    - Add CVE-2014-1832.patch
+
+ -- Felix Geyer <fgeyer@debian.org>  Sat, 08 Mar 2014 19:27:27 +0100
+
+ruby-passenger (4.0.37-1) unstable; urgency=medium
+
+  * New upstream release.
+    - Fixes CVE-2014-1831: insecure use of /tmp. (Closes: #736958)
+
+  [ Cédric Boutillier ]
+  * Move upstream GPG key into debian/upstream.
+
+  [ Felix Geyer ]
+  * Make sure the build flags are used for all source files.
+    - Export CFLAGS and CPPFLAGS as EXTRA_CFLAGS.
+  * Don't mention nginx in the package description as it isn't actually
+    supported in this package.
+
+ -- Felix Geyer <fgeyer@debian.org>  Sat, 08 Mar 2014 18:15:49 +0100
+
+ruby-passenger (4.0.35-1) unstable; urgency=low
+
+  * Team upload
+
+  [ Felix Geyer ]
+  * Import the upstream release signing key for uscan to verify the tarball.
+
+  [ Cédric Boutillier ]
+  * Imported Upstream version 4.0.35
+  * Drop rubygems from Depends since it is shipped by Ruby1.9+
+  * Bump Standards-Version to 3.9.5 (no changes needed)
+  * debian/patches:
+    - drop fix_ftbfs_fortify_source.patch, applied upstream
+    - refresh fix_install_path.patch and no_jsoncpp.patch
+    - add bin_load_path.patch to prevent load_path manipulation in bin/*
+  * Fix installation path for (multiarch) Ruby2.0
+  * Replace debian/upstream-signing-key.pgp by its armored ASCII version
+  * Install NEWS as the upstream changelog
+
+ -- Cédric Boutillier <boutil@debian.org>  Thu, 16 Jan 2014 12:53:56 +0100
+
+ruby-passenger (4.0.25-2) unstable; urgency=low
+
+  * Fix building the documentation. (Closes: #680357)
+    - Build-depend on ruby-mizuho.
+
+ -- Felix Geyer <fgeyer@debian.org>  Sat, 30 Nov 2013 19:12:13 +0100
+
+ruby-passenger (4.0.25-1) unstable; urgency=low
+
+  * New upstream release.
+  * Refresh fix_install_path.patch.
+  * Build for Ruby 2.0 instead of 1.8. (Closes: #725591)
+  * Add fix_ftbfs_fortify_source.patch.
+  * Install passenger template files.
+
+ -- Felix Geyer <fgeyer@debian.org>  Sat, 23 Nov 2013 23:50:02 +0100
+
+ruby-passenger (4.0.10-1) unstable; urgency=low
+
+  * New upstream release. (Closes: #711906)
+  * Stop repacking the upstream tarball as it doesn't contain any minified
+    javascript files anymore.
+    - Add valgrind.h license to the copyright file.
+    - Drop libjs-scriptaculous from build-depends.
+  * Refresh fix_install_path.patch.
+  * Drop fix_ftbfs_glibc217.patch, CVE-2013-2119.patch and CVE-2013-4136.patch,
+    applied upstream.
+  * Point PassengerRoot to the locations.ini in passenger.conf.
+  * Pass CXXFLAGS, CPPFLAGS and LDFLAGS to the build system.
+  * Add ruby1.9.1 as an alternative dependency to rubygems. (Closes: #683511)
+  * Add myself as Uploader.
+  * Fix the watch file.
+  * Use dh-autoreconf.
+  * Bump Standards-Version to 3.9.4, no changes needed.
+  * Don't build the embedded jsoncpp source as it's not actually used.
+    - Add no_jsoncpp.patch.
+
+ -- Felix Geyer <fgeyer@debian.org>  Tue, 06 Aug 2013 23:08:29 +0200
+
 ruby-passenger (3.0.13debian-1.2pexip2) pexip; urgency=low
 
   * Correct control file.
