@@ -1,5 +1,6 @@
 #include <TestSupport.h>
-#include <UnionStation.h>
+#include <UnionStation/Core.h>
+#include <UnionStation/Transaction.h>
 #include <MessageClient.h>
 #include <agents/LoggingAgent/LoggingServer.h>
 #include <Utils/MessageIO.h>
@@ -32,7 +33,7 @@ namespace tut {
 		FileDescriptor serverFd;
 		LoggingServerPtr server;
 		boost::shared_ptr<oxt::thread> serverThread;
-		LoggerFactoryPtr factory, factory2, factory3, factory4;
+		CorePtr core, core2, core3, core4;
 		
 		UnionStationTest() {
 			createServerInstanceDirAndGeneration(serverInstanceDir, generation);
@@ -44,14 +45,14 @@ namespace tut {
 			setLogLevel(-1);
 			
 			startLoggingServer();
-			factory = ptr(new LoggerFactory(socketAddress, "test", "1234",
-				"localhost"));
-			factory2 = ptr(new LoggerFactory(socketAddress, "test", "1234",
-				"localhost"));
-			factory3 = ptr(new LoggerFactory(socketAddress, "test", "1234",
-				"localhost"));
-			factory4 = ptr(new LoggerFactory(socketAddress, "test", "1234",
-				"localhost"));
+			core = make_shared<Core>(socketAddress, "test", "1234",
+				"localhost");
+			core2 = make_shared<Core>(socketAddress, "test", "1234",
+				"localhost");
+			core3 = make_shared<Core>(socketAddress, "test", "1234",
+				"localhost");
+			core4 = make_shared<Core>(socketAddress, "test", "1234",
+				"localhost");
 		}
 		
 		~UnionStationTest() {
@@ -128,12 +129,12 @@ namespace tut {
 		// Test logging of new transaction.
 		SystemTime::forceAll(YESTERDAY);
 		
-		LoggerPtr log = factory->newTransaction("foobar");
+		TransactionPtr log = core->newTransaction("foobar");
 		log->message("hello");
 		log->message("world");
 		log->flushToDiskAfterClose(true);
 		
-		ensure(!factory->isNull());
+		ensure(!core->isNull());
 		ensure(!log->isNull());
 		
 		log.reset();
@@ -147,11 +148,11 @@ namespace tut {
 		// Test logging of existing transaction.
 		SystemTime::forceAll(YESTERDAY);
 		
-		LoggerPtr log = factory->newTransaction("foobar");
+		TransactionPtr log = core->newTransaction("foobar");
 		log->message("message 1");
 		log->flushToDiskAfterClose(true);
 		
-		LoggerPtr log2 = factory2->continueTransaction(log->getTxnId(),
+		TransactionPtr log2 = core2->continueTransaction(log->getTxnId(),
 			log->getGroupName(), log->getCategory());
 		log2->message("message 2");
 		log2->flushToDiskAfterClose(true);
@@ -167,19 +168,19 @@ namespace tut {
 	TEST_METHOD(3) {
 		// Test logging with different points in time.
 		SystemTime::forceAll(YESTERDAY);
-		LoggerPtr log = factory->newTransaction("foobar");
+		TransactionPtr log = core->newTransaction("foobar");
 		log->message("message 1");
 		SystemTime::forceAll(TODAY);
 		log->message("message 2");
 		log->flushToDiskAfterClose(true);
 		
 		SystemTime::forceAll(TOMORROW);
-		LoggerPtr log2 = factory2->continueTransaction(log->getTxnId(),
+		TransactionPtr log2 = core2->continueTransaction(log->getTxnId(),
 			log->getGroupName(), log->getCategory());
 		log2->message("message 3");
 		log2->flushToDiskAfterClose(true);
 		
-		LoggerPtr log3 = factory3->newTransaction("foobar");
+		TransactionPtr log3 = core3->newTransaction("foobar");
 		log3->message("message 4");
 		log3->flushToDiskAfterClose(true);
 		
@@ -196,13 +197,13 @@ namespace tut {
 	
 	TEST_METHOD(4) {
 		// newTransaction() and continueTransaction() write an ATTACH message
-		// to the log file, while Logger writes a DETACH message upon
+		// to the log file, while UnionStation::Transaction writes a DETACH message upon
 		// destruction.
 		SystemTime::forceAll(YESTERDAY);
-		LoggerPtr log = factory->newTransaction("foobar");
+		TransactionPtr log = core->newTransaction("foobar");
 		
 		SystemTime::forceAll(TODAY);
-		LoggerPtr log2 = factory2->continueTransaction(log->getTxnId(),
+		TransactionPtr log2 = core2->continueTransaction(log->getTxnId(),
 			log->getGroupName(), log->getCategory());
 		log2->flushToDiskAfterClose(true);
 		log2.reset();
@@ -221,11 +222,11 @@ namespace tut {
 	TEST_METHOD(5) {
 		// newTransaction() generates a new ID, while continueTransaction()
 		// reuses the ID.
-		LoggerPtr log = factory->newTransaction("foobar");
-		LoggerPtr log2 = factory2->newTransaction("foobar");
-		LoggerPtr log3 = factory3->continueTransaction(log->getTxnId(),
+		TransactionPtr log = core->newTransaction("foobar");
+		TransactionPtr log2 = core2->newTransaction("foobar");
+		TransactionPtr log3 = core3->continueTransaction(log->getTxnId(),
 			log->getGroupName(), log->getCategory());
-		LoggerPtr log4 = factory4->continueTransaction(log2->getTxnId(),
+		TransactionPtr log4 = core4->continueTransaction(log2->getTxnId(),
 			log2->getGroupName(), log2->getCategory());
 		
 		ensure_equals(log->getTxnId(), log3->getTxnId());
@@ -234,19 +235,19 @@ namespace tut {
 	}
 	
 	TEST_METHOD(6) {
-		// An empty Logger doesn't do anything.
-		Logger log;
+		// An empty UnionStation::Transaction doesn't do anything.
+		UnionStation::Transaction log;
 		ensure(log.isNull());
 		log.message("hello world");
 		ensure_equals(getFileType(dumpFile), FT_NONEXISTANT);
 	}
 	
 	TEST_METHOD(7) {
-		// An empty LoggerFactory doesn't do anything.
-		LoggerFactory factory;
-		ensure(factory.isNull());
+		// An empty UnionStation::Core doesn't do anything.
+		UnionStation::Core core;
+		ensure(core.isNull());
 		
-		LoggerPtr log = factory.newTransaction("foo");
+		TransactionPtr log = core.newTransaction("foo");
 		ensure(log->isNull());
 		log->message("hello world");
 		ensure_equals(getFileType(dumpFile), FT_NONEXISTANT);
@@ -255,19 +256,18 @@ namespace tut {
 	TEST_METHOD(11) {
 		// newTransaction() does not reconnect to the server for a short
 		// period of time if connecting failed
-		factory->setReconnectTimeout(60 * 1000000);
-		factory->setMaxConnectTries(1);
+		core->setReconnectTimeout(60 * 1000000);
 		
 		SystemTime::forceAll(TODAY);
 		stopLoggingServer();
-		ensure(factory->newTransaction("foobar")->isNull());
+		ensure(core->newTransaction("foobar")->isNull());
 		
 		SystemTime::forceAll(TODAY + 30 * 1000000);
 		startLoggingServer();
-		ensure(factory->newTransaction("foobar")->isNull());
+		ensure(core->newTransaction("foobar")->isNull());
 		
 		SystemTime::forceAll(TODAY + 61 * 1000000);
-		ensure(!factory->newTransaction("foobar")->isNull());
+		ensure(!core->newTransaction("foobar")->isNull());
 	}
 	
 	TEST_METHOD(12) {
@@ -277,23 +277,23 @@ namespace tut {
 		// calls will reestablish the connection when the connection timeout
 		// has passed.
 		SystemTime::forceAll(TODAY);
-		LoggerPtr log, log2;
+		TransactionPtr log, log2;
 		
-		log = factory->newTransaction("foobar");
-		factory2->continueTransaction(log->getTxnId(), "foobar");
+		log = core->newTransaction("foobar");
+		core2->continueTransaction(log->getTxnId(), "foobar");
 		log.reset(); // Check connection back into the pool.
 		stopLoggingServer();
 		startLoggingServer();
 
-		log = factory->newTransaction("foobar");
+		log = core->newTransaction("foobar");
 		ensure("(1)", log->isNull());
-		log2 = factory2->continueTransaction("some-id", "foobar");
+		log2 = core2->continueTransaction("some-id", "foobar");
 		ensure("(2)", log2->isNull());
 		
 		SystemTime::forceAll(TODAY + 60000000);
-		log = factory->newTransaction("foobar");
+		log = core->newTransaction("foobar");
 		ensure("(3)", !log->isNull());
-		log2 = factory2->continueTransaction(log->getTxnId(), "foobar");
+		log2 = core2->continueTransaction(log->getTxnId(), "foobar");
 		ensure("(4)", !log2->isNull());
 		log2->message("hello");
 		log2->flushToDiskAfterClose(true);
@@ -308,23 +308,21 @@ namespace tut {
 	TEST_METHOD(13) {
 		// continueTransaction() does not reconnect to the server for a short
 		// period of time if connecting failed
-		factory->setReconnectTimeout(60 * 1000000);
-		factory->setMaxConnectTries(1);
-		factory2->setReconnectTimeout(60 * 1000000);
-		factory2->setMaxConnectTries(1);
+		core->setReconnectTimeout(60 * 1000000);
+		core2->setReconnectTimeout(60 * 1000000);
 		
 		SystemTime::forceAll(TODAY);
-		LoggerPtr log = factory->newTransaction("foobar");
-		factory2->continueTransaction(log->getTxnId(), "foobar");
+		TransactionPtr log = core->newTransaction("foobar");
+		core2->continueTransaction(log->getTxnId(), "foobar");
 		stopLoggingServer();
-		ensure(factory2->continueTransaction(log->getTxnId(), "foobar")->isNull());
+		ensure(core2->continueTransaction(log->getTxnId(), "foobar")->isNull());
 		
 		SystemTime::forceAll(TODAY + 30 * 1000000);
 		startLoggingServer();
-		ensure(factory2->continueTransaction(log->getTxnId(), "foobar")->isNull());
+		ensure(core2->continueTransaction(log->getTxnId(), "foobar")->isNull());
 		
 		SystemTime::forceAll(TODAY + 61 * 1000000);
-		ensure(!factory2->continueTransaction(log->getTxnId(), "foobar")->isNull());
+		ensure(!core2->continueTransaction(log->getTxnId(), "foobar")->isNull());
 	}
 	
 	TEST_METHOD(14) {
@@ -515,7 +513,7 @@ namespace tut {
 	
 	TEST_METHOD(22) {
 		// The destructor flushes all data.
-		LoggerPtr log = factory->newTransaction("foobar");
+		TransactionPtr log = core->newTransaction("foobar");
 		log->message("hello world");
 		log.reset();
 		stopLoggingServer();
@@ -529,11 +527,11 @@ namespace tut {
 		// The 'flush' command flushes all data.
 		SystemTime::forceAll(YESTERDAY);
 		
-		LoggerPtr log = factory->newTransaction("foobar");
+		TransactionPtr log = core->newTransaction("foobar");
 		log->message("hello world");
 		log.reset();
 		
-		ConnectionPtr connection = factory->checkoutConnection();
+		ConnectionPtr connection = core->checkoutConnection();
 		vector<string> args;
 		writeArrayMessage(connection->fd, "flush", NULL);
 		ensure(readArrayMessage(connection->fd, args));
@@ -551,19 +549,19 @@ namespace tut {
 		SystemTime::forceAll(YESTERDAY);
 		vector<string> args;
 		
-		LoggerPtr log = factory->newTransaction("foobar");
+		TransactionPtr log = core->newTransaction("foobar");
 		log->message("hello world");
 		
-		LoggerPtr log2 = factory2->continueTransaction(log->getTxnId(),
+		TransactionPtr log2 = core2->continueTransaction(log->getTxnId(),
 			log->getGroupName(), log->getCategory());
 		log2->message("message 2");
 		log2.reset();
 		
-		ConnectionPtr connection = factory->checkoutConnection();
+		ConnectionPtr connection = core->checkoutConnection();
 		writeArrayMessage(connection->fd, "flush", NULL);
 		ensure(readArrayMessage(connection->fd, args));
 		
-		connection = factory2->checkoutConnection();
+		connection = core2->checkoutConnection();
 		writeArrayMessage(connection->fd, "flush", NULL);
 		ensure(readArrayMessage(connection->fd, args));
 		
@@ -669,7 +667,7 @@ namespace tut {
 		// turned on.
 		SystemTime::forceAll(YESTERDAY);
 		
-		LoggerPtr log = factory->newTransaction("foobar");
+		TransactionPtr log = core->newTransaction("foobar");
 		log->message("hello world");
 		log.reset();
 		
@@ -682,7 +680,7 @@ namespace tut {
 	}
 	
 	TEST_METHOD(28) {
-		// LoggerFactory treats a server that's semi-gracefully exiting as
+		// UnionStation::Core treats a server that's semi-gracefully exiting as
 		// one that's refusing connections.
 		SystemTime::forceAll(YESTERDAY);
 		
@@ -690,8 +688,7 @@ namespace tut {
 		client.write("exit", "semi-gracefully", NULL);
 		client.disconnect();
 		
-		factory->setMaxConnectTries(1);
-		LoggerPtr log = factory->newTransaction("foobar");
+		TransactionPtr log = core->newTransaction("foobar");
 		ensure(log->isNull());
 	}
 	
@@ -718,7 +715,7 @@ namespace tut {
 		// Test logging of new transaction.
 		SystemTime::forceAll(YESTERDAY);
 		
-		LoggerPtr log = factory->newTransaction("foobar", "requests", "-",
+		TransactionPtr log = core->newTransaction("foobar", "requests", "-",
 			"uri == \"/foo\""
 			"\1"
 			"uri != \"/bar\"");
@@ -727,7 +724,7 @@ namespace tut {
 		log->flushToDiskAfterClose(true);
 		log.reset();
 		
-		log = factory->newTransaction("foobar", "requests", "-",
+		log = core->newTransaction("foobar", "requests", "-",
 			"uri == \"/foo\""
 			"\1"
 			"uri == \"/bar\"");

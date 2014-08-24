@@ -1095,7 +1095,7 @@ pre {
 <div id="toc">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><div id="toctitle">Table of Contents</div>
 <div class="foo toclevel2"><a href="#_support_information">1. Support information</a></div>
-<div class="foo toclevel3"><a href="#_supported_operating_systems">1.1. Supported operating systems</a></div>
+<div class="foo toclevel3"><a href="#_supported_operating_systems_and_languages">1.1. Supported operating systems and languages</a></div>
 <div class="foo toclevel3"><a href="#where_to_get_support">1.2. Where to get support</a></div>
 <div class="foo toclevel2"><a href="#installation">2. Installation</a></div>
 <div class="foo toclevel3"><a href="#_synopsis">2.1. Synopsis</a></div>
@@ -1134,9 +1134,10 @@ pre {
 <div class="foo toclevel2"><a href="#troubleshooting">7. Troubleshooting</a></div>
 <div class="foo toclevel3"><a href="#_generic_troubleshooting_tips">7.1. Generic troubleshooting tips</a></div>
 <div class="foo toclevel3"><a href="#_upon_uploading_a_file_phusion_passenger_reports_client_body_temp_00000000xx_failed_2_no_such_file_or_directory">7.2. Upon uploading a file, Phusion Passenger reports "client_body_temp/00000000xx failed (2: No such file or directory)"</a></div>
+<div class="foo toclevel3"><a href="#_i_get_command_not_found_when_running_a_phusion_passenger_command_through_sudo">7.3. I get "command not found" when running a Phusion Passenger command through sudo</a></div>
 <div class="foo toclevel2"><a href="#about_environment_variables">8. Appendix: About environment variables</a></div>
 <div class="foo toclevel3"><a href="#_working_with_environment_variables">8.1. Working with environment variables</a></div>
-<div class="foo toclevel3"><a href="#_the_path_environment_variable">8.2. The PATH environment variable</a></div>
+<div class="foo toclevel3"><a href="#the_path_env_var">8.2. The PATH environment variable</a></div>
 <div class="foo toclevel4"><a href="#_adding_phusion_passenger_8217_s_administration_tools_to_path">8.2.1. Adding Phusion Passenger’s administration tools to PATH</a></div>
 <div class="foo toclevel3"><a href="#_making_environment_variables_permanent">8.3. Making environment variables permanent</a></div>
 <div class="foo toclevel4"><a href="#_bash">8.3.1. bash</a></div>
@@ -1153,18 +1154,125 @@ pre {
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_support_information"></span><h2 data-comment-topic="support-information-1x8e9ee" data-anchor="_support_information">1. Support information</h2>
 <div class="sectionbody">
 <div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_supported_operating_systems"></span><h3 data-comment-topic="supported-operating-systems-1387080" data-anchor="_supported_operating_systems">1.1. Supported operating systems</h3>
-<div class="paragraph"><p>Phusion Passenger works on any POSIX-compliant operating system. In other
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_supported_operating_systems_and_languages"></span><h3 data-comment-topic="supported-operating-systems-1387080" data-anchor="_supported_operating_systems_and_languages">1.1. Supported operating systems and languages</h3>
+<div class="paragraph"><p>Phusion Passenger works on almost any POSIX-compliant operating system. In other
 words: practically any operating system on earth, except Microsoft Windows.</p></div>
-<div class="paragraph"><p>Phusion Passenger is confirmed on a large number of operating systems and Linux
-distributions, including, but not limited to, Ubuntu, Debian, CentOS/Fedora/RHEL,
-Gentoo, Mac OS X, FreeBSD and Solaris. OpenBSD is supported since version 5.2.
-Both 32-bit and 64-bit platforms are supported.</p></div>
-<div class="paragraph"><p>Please
-<a href="http://code.google.com/p/phusion-passenger/issues/list">report a bug</a>
+<div class="paragraph"><p>Supported operating systems:</p></div>
+<table class="tableblock frame-all grid-all" style="
+width:100%;
+">
+<col style="width:50%;">
+<col style="width:50%;">
+<thead><tr>
+<th class="tableblock halign-left valign-top"> OS                  </th>
+<th class="tableblock halign-left valign-top"> Minimum version</th>
+</tr></thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ubuntu</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">10.04</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Debian</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">6</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Red Hat, CentOS</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">5</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Amazon Linux</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">All versions supported</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mac OS X</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">10.8 Mountain Lion</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">FreeBSD</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">8</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">OpenBSD</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">5.2</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Other Unix</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">-</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph"><p>"Other Unix" is supported on a "best-effort" basis. We do not regularly check whether Phusion Passenger still works on other Unices, but if users report issues then we’ll try to address them.</p></div>
+<div class="paragraph"><p>Supported architectures:</p></div>
+<table class="tableblock frame-all grid-all" style="
+width:100%;
+">
+<col style="width:50%;">
+<col style="width:50%;">
+<thead><tr>
+<th class="tableblock halign-left valign-top"> Architecture      </th>
+<th class="tableblock halign-left valign-top"> Notes</th>
+</tr></thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">x86 (32-bit)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">-</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">x86_64 (64-bit)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">-</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Other</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Supported on a "best-effort" basis.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph"><p>Supported languages and frameworks:</p></div>
+<table class="tableblock frame-all grid-all" style="
+width:100%;
+">
+<col style="width:50%;">
+<col style="width:50%;">
+<thead><tr>
+<th class="tableblock halign-left valign-top"> Language/framework  </th>
+<th class="tableblock halign-left valign-top"> Minimum version</th>
+</tr></thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ruby (MRI)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1.8.5</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">JRuby</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1.7.0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rubinius</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2.2.0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ruby on Rails</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1.2</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Python</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2.6</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Node.js</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.10</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Meteor</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.6</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph"><p>If you run into any issues, please
+<a href="https://github.com/phusion/passenger/issues">report a bug</a>
 or
-<a href="http://groups.google.com/group/phusion-passenger">join our discussion forum</a>
-if it doesn’t work on your POSIX-compliant operating system.</p></div>
+<a href="http://groups.google.com/group/phusion-passenger">join our discussion forum</a>.</p></div>
 </div>
 <div class="sect2">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="where_to_get_support"></span><h3 data-comment-topic="where-to-get-support-xkx7rx" data-anchor="where_to_get_support">1.2. Where to get support</h3>
@@ -1177,7 +1285,7 @@ if it doesn’t work on your POSIX-compliant operating system.</p></div>
 </li>
 <li>
 <p>
-<a href="http://code.google.com/p/phusion-passenger/issues/list">Issue tracker</a> - report
+<a href="https://github.com/phusion/passenger/issues">Issue tracker</a> - report
   bugs here.
 </p>
 </li>
@@ -1256,9 +1364,9 @@ brew upgrade passenger</pre>
 </div>
 <div class="sect2">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="install_on_debian_ubuntu"></span><h3 data-comment-topic="installing-or-upgrading-on-debian-or-ubuntu-gme2a9" data-anchor="install_on_debian_ubuntu">2.3. Installing or upgrading on Debian or Ubuntu</h3>
-<div class="paragraph"><p>We provide and official Phusion Passenger APT repository. This APT repository contains Phusion Passenger packages for multiple versions of Debian and Ubuntu. These packages are automatically built by our build server after we push out a source release, and thus are always up to date with the official source releases.</p></div>
+<div class="paragraph"><p>We provide an official Phusion Passenger APT repository. This APT repository contains Phusion Passenger packages for multiple versions of Debian and Ubuntu. These packages are automatically built by our build server after we push out a source release, and thus are always up to date with the official source releases.</p></div>
 <div class="paragraph"><p>If you use these packages to install Phusion Passenger then you do not need to run <span class="monospaced">passenger-install-apache2-module</span> or <span class="monospaced">passenger-install-nginx-module</span>. These packages contain all the binaries that you need.</p></div>
-<div class="paragraph"><p>Packages are available for the x86 and x86_64 architectures. Our policy is to support all Ubuntu LTS releases that are still supported by Canonical, plus the latest non-LTS Ubuntu release, plus all Debian releases that are still supported by Debian.</p></div>
+<div class="paragraph"><p>Packages are available for the x86 and x86_64 architectures. Our policy is to support all Ubuntu LTS releases that are still supported by Canonical, plus the latest Ubuntu release, plus all Debian releases that are still supported by Debian.</p></div>
 <div class="sect3">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="install_add_apt_repo"></span><h4 data-comment-topic="adding-our-apt-repository-1qu2se8" data-anchor="install_add_apt_repo">2.3.1. Adding our APT repository</h4>
 <div class="olist arabic"><ol class="arabic">
@@ -1298,8 +1406,8 @@ by Lorenzo Bettini
 http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
 <pre><tt><span style="font-style: italic"><span style="color: #9A1900">##### !!!! Only add ONE of these lines, not all of them !!!! #####</span></span>
-<span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 13.10</span></span>
-deb https<span style="color: #990000">:</span>//oss-binaries<span style="color: #990000">.</span>phusionpassenger<span style="color: #990000">.</span>com/apt/passenger saucy main
+<span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 14.04</span></span>
+deb https<span style="color: #990000">:</span>//oss-binaries<span style="color: #990000">.</span>phusionpassenger<span style="color: #990000">.</span>com/apt/passenger trusty main
 <span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 12.04</span></span>
 deb https<span style="color: #990000">:</span>//oss-binaries<span style="color: #990000">.</span>phusionpassenger<span style="color: #990000">.</span>com/apt/passenger precise main
 <span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 10.04</span></span>
@@ -1322,8 +1430,8 @@ by Lorenzo Bettini
 http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
 <pre><tt><span style="font-style: italic"><span style="color: #9A1900">##### !!!! Only add ONE of these lines, not all of them !!!! #####</span></span>
-<span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 13.10</span></span>
-deb https<span style="color: #990000">:</span>//download<span style="color: #990000">:</span>YOUR_DOWNLOAD_TOKEN@www<span style="color: #990000">.</span>phusionpassenger<span style="color: #990000">.</span>com/enterprise_apt saucy main
+<span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 14.04</span></span>
+deb https<span style="color: #990000">:</span>//download<span style="color: #990000">:</span>YOUR_DOWNLOAD_TOKEN@www<span style="color: #990000">.</span>phusionpassenger<span style="color: #990000">.</span>com/enterprise_apt trusty main
 <span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 12.04</span></span>
 deb https<span style="color: #990000">:</span>//download<span style="color: #990000">:</span>YOUR_DOWNLOAD_TOKEN@www<span style="color: #990000">.</span>phusionpassenger<span style="color: #990000">.</span>com/enterprise_apt precise main
 <span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 10.04</span></span>
@@ -1721,27 +1829,27 @@ gpg --keyserver keyserver.ubuntu.com --search-keys 0x2AC745A50A212A8C</pre>
 <div class="literalblock">
 <div class="content monospaced">
 <pre>Hongli Lai (hongli@phusion.nl)
-Short key ID: 4B6F4332
-Long key ID: 06A131094B6F4332
-Fingerprint: 64E8 0420 FC6A 499F 9E1F  81FA 06A1 3109 4B6F 4332</pre>
+Short key ID: 8C59158F
+Long key ID: CD70085E8C59158F
+Fingerprint: 218A 7255 83D0 2ECE F3A9 C2A7 CD70 085E 8C59 158F</pre>
 </div>
 </div>
 <div class="literalblock">
 <div class="content monospaced">
 <pre>Ninh Bui (ninh@phusion.nl)
-Short key ID: 6FAF3782
-Long key ID: BA8DA3F46FAF3782
-Fingerprint: 353A 398C 49AF 5CD5 74A0  656C BA8D A3F4 6FAF 3782</pre>
+Short key ID: 69481265
+Long key ID: AE405F7869481265
+Fingerprint: A77C 9CEF 766D 0E7D A95B 8778 AE40 5F78 6948 1265</pre>
 </div>
 </div>
 <div class="paragraph"><p>Both keys are stored at both sks-servers.net and keyserver.ubuntu.com. Import them with:</p></div>
 <div class="listingblock">
 <div class="content monospaced">
-<pre>gpg --keyserver pool.sks-servers.net --search-keys 0x06A131094B6F4332
-gpg --keyserver pool.sks-servers.net --search-keys 0xBA8DA3F46FAF3782
+<pre>gpg --keyserver pool.sks-servers.net --search-keys 0xCD70085E8C59158F
+gpg --keyserver pool.sks-servers.net --search-keys 0xAE405F7869481265
 # -OR-
-gpg --keyserver keyserver.ubuntu.com --search-keys 0x06A131094B6F4332
-gpg --keyserver keyserver.ubuntu.com --search-keys 0xBA8DA3F46FAF3782</pre>
+gpg --keyserver keyserver.ubuntu.com --search-keys 0xCD70085E8C59158F
+gpg --keyserver keyserver.ubuntu.com --search-keys 0xAE405F7869481265</pre>
 </div>
 </div>
 </div>
@@ -2010,6 +2118,11 @@ http://www.gnu.org/software/src-highlite -->
 <div class="ulist"><ul>
 <li>
 <p>
+If you installed Phusion Passenger through Homebrew, then run <span class="monospaced">brew uninstall passenger</span>.
+</p>
+</li>
+<li>
+<p>
 If you installed Phusion Passenger via a Ruby gem, then run <span class="monospaced">gem uninstall passenger</span> (or, if you’re a <a href="https://www.phusionpassenger.com/enterprise">Phusion Passenger Enterprise</a> user, <span class="monospaced">gem uninstall passenger-enterprise-server</span>).
   You <a href="#is_ruby_home_or_system_wide_installed">might have to run this as root</a>.
 </p>
@@ -2024,11 +2137,6 @@ If you installed Phusion Passenger via a source tarball, then remove the directo
 <li>
 <p>
 If you installed Phusion Passenger through APT or YUM, then use them to uninstall Phusion Passenger.
-</p>
-</li>
-<li>
-<p>
-If you installed Phusion Passenger through Homebrew, then run <span class="monospaced">brew uninstall passenger</span>.
 </p>
 </li>
 </ul></div>
@@ -2117,11 +2225,28 @@ If you installed Phusion Passenger through Homebrew, then run <span class="monos
 </p>
 </dd>
 <dt class="hdlist1">
-<span class="monospaced">--no-friendly-error-pages</span>
+<span class="monospaced">--friendly-error-pages</span>
 </dt>
 <dd>
 <p>
-        If your app fails to start, Phusion Passenger will tell you by showing a friendly error page in the browser. This option disables it.
+    Phusion Passenger can display a friendly error page whenever your application fails to start. The friendly error page presents the startup error message, some suggestions for solving the problem, a backtrace, and a dump of the environment variables. This feature is very useful during application development and useful for less experienced system administrators, but the page might reveal potentially sensitive information, depending on the application. For this reason, friendly error pages are turned off by default when <span class="monospaced">--environment</span> is set to <em>staging</em> or <em>production</em>, but enabled by default otherwise.
+</p>
+<div class="paragraph"><p>You can use <span class="monospaced">--friendly-error-pages</span> and <span class="monospaced">--no-friendly-error-pages</span> to explicitly enable or disable this feature, respectively.</p></div>
+</dd>
+<dt class="hdlist1">
+<span class="monospaced">--sticky-sessions</span>
+</dt>
+<dd>
+<p>
+    Enables <a href="Users%20guide%20Nginx.html#PassengerStickySessions">sticky sessions</a>. Required for SockJS, Socket.io, faye-websocket and Meteor JS applications.
+</p>
+</dd>
+<dt class="hdlist1">
+<span class="monospaced">--sticky-sessions-cookie-name NAME</span>
+</dt>
+<dd>
+<p>
+    Allows customizing the sticky session cookie name.
 </p>
 </dd>
 <dt class="hdlist1">
@@ -2145,6 +2270,14 @@ If you installed Phusion Passenger through Homebrew, then run <span class="monos
 passenger start --ssl --ssl-certificate ... --ssl-certificate-key ... --ssl-port 3001</pre>
 </div>
 </div>
+</dd>
+<dt class="hdlist1">
+<span class="monospaced">--nginx-config-template</span>
+</dt>
+<dd>
+<p>
+        Specifies the Nginx configuration template file to use. See <a href="#advanced_configuration">Advanced configuration</a>.
+</p>
 </dd>
 </dl></div>
 <div class="paragraph"><p>See <span class="monospaced">--help</span> for all available options.</p></div>
@@ -2197,6 +2330,22 @@ passenger start --ssl --ssl-certificate ... --ssl-certificate-key ... --ssl-port
 </p>
 </dd>
 <dt class="hdlist1">
+<span class="monospaced">sticky_sessions</span>
+</dt>
+<dd>
+<p>
+    Equivalent to the <span class="monospaced">--sticky-sessions</span> command line option.
+</p>
+</dd>
+<dt class="hdlist1">
+<span class="monospaced">sticky_sessions_cookie_name</span>
+</dt>
+<dd>
+<p>
+    Equivalent to the <span class="monospaced">--sticky-sessions-cookie-name</span> command line option.
+</p>
+</dd>
+<dt class="hdlist1">
 <span class="monospaced">ssl</span>
 </dt>
 <dd>
@@ -2212,6 +2361,14 @@ passenger start --ssl --ssl-certificate ... --ssl-certificate-key ... --ssl-port
         Equivalent to the <span class="monospaced">--ssl-port</span> command line option.
 </p>
 <div class="paragraph"><p>When in mass deployment mode, you will probably want to set a different <span class="monospaced">port</span> too. If you don’t, and you end up in a situation in which a port is used for both HTTP and HTTPS traffic, then the builtin Nginx core will abort with an error.</p></div>
+</dd>
+<dt class="hdlist1">
+<span class="monospaced">nginx_config_template</span>
+</dt>
+<dd>
+<p>
+        Equivalent to the <span class="monospaced">--nginx-config-template</span> command line option.
+</p>
 </dd>
 </dl></div>
 <div class="paragraph"><p>Here is an example configuration file:</p></div>
@@ -2233,23 +2390,34 @@ http://www.gnu.org/software/src-highlite -->
 </div>
 <div class="sect2">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="advanced_configuration"></span><h3 data-comment-topic="advanced-configuration-e3v4pk" data-anchor="advanced_configuration">4.3. Advanced configuration</h3>
+<div class="paragraph"><p><strong>Introduced in version 4.0.39.</strong></p></div>
 <div class="paragraph"><p>Phusion Passenger Standalone is built on the same technology that powers <a href="Users%20guide%20Nginx.html">Phusion Passenger for Nginx</a>, so any configuration option supported by Phusion Passenger for Nginx can be applied to Standalone as well. You can do this by editing the Standalone configuration template directly.</p></div>
-<div class="paragraph"><p>First, go to the directory where Phusion Passenger is installed:</p></div>
+<div class="paragraph"><p>First, create a copy of the default Phusion Passenger Nginx configuration template file:</p></div>
 <div class="listingblock">
 <div class="content monospaced">
-<pre>cd $(passenger-config --root)</pre>
+<pre>cp $(passenger-config about resourcesdir)/templates/standalone/config.erb nginx.conf.erb</pre>
 </div>
 </div>
-<div class="paragraph"><p>Then open the file <span class="monospaced">resources/templates/standalone/config.erb</span>.</p></div>
+<div class="paragraph"><p>Then open <span class="monospaced">nginx.conf.erb</span> and modify it as you see fit. The file is a normal Nginx configuration file, in the ERB template format.</p></div>
+<div class="paragraph"><p>Every time you start Standalone, you must pass the <span class="monospaced">--nginx-config-template</span> parameter, which tells Standalone to use your specific Nginx configuration template file. For example:</p></div>
+<div class="listingblock">
+<div class="content">
+<!-- Generator: GNU source-highlight 2.11.1
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>passenger start --nginx-config-template nginx<span style="color: #990000">.</span>conf<span style="color: #990000">.</span>erb</tt></pre>
+</div>
+</div>
+<div class="paragraph"><p>Alternatively, if you don’t want to pass this parameter every time, you can also set the <span class="monospaced">nginx_config_template</span> option in <a href="#config_file">passenger-standalone.json</a>.</p></div>
 <div class="admonitionblock">
 <table><tr>
 <td class="icon">
 <img src="./images/icons/note.png" alt="Note">
 </td>
-<td class="content">If you installed Phusion Passenger using the Debian or Ubuntu packages, then the filename is <span class="monospaced">/usr/share/passenger/templates/standalone/config.erb</span> or <span class="monospaced">/usr/share/passenger-enterprise/templates/standalone/config.erb</span>.</td>
+<td class="content">The original configuration template file may change from time to time, e.g. because new features are introduced into Phusion Passenger. If your configuration template file does not contain the required changes, then these new features may not work properly. In the worst case, Standalone might even malfunction. Therefore, every time you upgrade Phusion Passenger, you should check whether the original configuration template file has changed, and merge back any changes into your own file.</td>
 </tr></table>
 </div>
-<div class="paragraph"><p>Please note that changes to this file only last until you reinstall or upgrade Phusion Passenger. We are currently working on a mechanism for permanently editing the configuration file.</p></div>
 </div>
 </div>
 </div>
@@ -2622,12 +2790,77 @@ passenger start --temp-dir=$HOME/tmp</pre>
 </dd>
 </dl></div>
 </div>
+<div class="sect2">
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_i_get_command_not_found_when_running_a_phusion_passenger_command_through_sudo"></span><h3 data-comment-topic="i-get-command-not-found-when-running-a-phusion-passenger-command-through-sudo-14k8kde" data-anchor="_i_get_command_not_found_when_running_a_phusion_passenger_command_through_sudo">7.3. I get "command not found" when running a Phusion Passenger command through sudo</h3>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<strong>Symptoms</strong>
+</dt>
+<dd>
+<p>
+        Phusion Passenger commands can be found as a normal user, but not when run through sudo:
+</p>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>$ passenger-status
+...some output, but no "command not found" error...
+$ passenger-install-apache2-module
+...some output, but no "command not found" error...
+$ sudo passenger-status
+sudo: passenger-status: command not found
+$ sudo passenger-install-apache2-module
+sudo: passenger-install-apache2-module: command not found</pre>
+</div>
+</div>
+</dd>
+<dt class="hdlist1">
+<strong>Cause</strong>
+</dt>
+<dd>
+<p>
+        The operating system looks up commands using <a href="#the_path_env_var">the PATH environment variable</a>. However, sudo resets all environment variables to a default value, dictated by sudo. If Phusion Passenger was installed to a location that is not in the default sudo PATH value, then sudo will not be able to find the Phusion Passenger commands.
+</p>
+<div class="paragraph"><p>In addition, if you installed Phusion Passenger using a Ruby interpreter that was installed through RVM, then you <strong>must</strong> use rvmsudo instead of sudo. As a rule, when you’re an RVM user, always use rvmsudo instead of sudo.</p></div>
+</dd>
+<dt class="hdlist1">
+<strong>Solution</strong>
+</dt>
+<dd>
+<p>
+        Execute the command using its full path. You can use <span class="monospaced">which</span> as a normal user to lookup the full path:
+</p>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>$ which passenger-status
+/somewhere/bin/passenger-status</pre>
+</div>
+</div>
+<div class="paragraph"><p>Next, run full path of the command using either sudo or rvmsudo:</p></div>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>$ sudo /somewhere/bin/passenger-status
+
+# -OR, if you're using RVM:-
+
+$ rvmsudo /somewhere/bin/passenger-status</pre>
+</div>
+</div>
+</dd>
+<dt class="hdlist1">
+<strong>Recommended reading</strong>
+</dt>
+<dd>
+<p>
+        When using sudo, you will probably run into similar "command not found" issues in the future, with components other than Phusion Passenger. We <strong>strongly recommend</strong> you to <a href="#about_environment_variables">learn about environment variables</a> so that you know what to do in the future.
+</p>
+</dd>
+</dl></div>
+</div>
 </div>
 </div>
 <div class="sect1">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="about_environment_variables"></span><h2 data-comment-topic="appendix-about-environment-variables-1ct91x3" data-anchor="about_environment_variables">8. Appendix: About environment variables</h2>
 <div class="sectionbody">
-<div class="paragraph"><p>The Phusion Passenger compilation process can be customized with environment variables.</p></div>
 <div class="paragraph"><p>Environment variables are named values that affect how the system works. For example they tell the system where to look for commands (the <span class="monospaced">PATH</span> variable) or where to look for libraries (<span class="monospaced">LD_LIBRARY_PATH</span>). Their names are often in all-uppercase. Sometimes people refer to an environment variable with a dollar sign <span class="monospaced">$</span> in front, but that’s the same thing: when people say "the $PATH environment variable" they mean "the PATH environment variable". This is because the dollar sign <span class="monospaced">$</span> is a shell syntax for refering to an environment variable, as you will learn later.</p></div>
 <div class="paragraph"><p>Environment variables are set on a <strong>per-process</strong> basis, but they are <strong>inherited</strong> by child processes. This means that if you set environment variables in process A, another already running process B will not see these new environment variables. But if A spawns a child process C, then C will have all environment variables that A had. If you once again change the environment variables in A, then C will not see the changes.</p></div>
 <div class="paragraph"><p>The per-process nature of environment variables some implications. When you set environment variables in your <span class="monospaced">bashrc</span> or other bash startup files…</p></div>
@@ -2739,7 +2972,7 @@ http://www.gnu.org/software/src-highlite -->
 </div>
 </div>
 <div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_the_path_environment_variable"></span><h3 data-comment-topic="the-path-environment-variable-yzfn3k" data-anchor="_the_path_environment_variable">8.2. The PATH environment variable</h3>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="the_path_env_var"></span><h3 data-comment-topic="the-path-environment-variable-yzfn3k" data-anchor="the_path_env_var">8.2. The PATH environment variable</h3>
 <div class="paragraph"><p>The <span class="monospaced">PATH</span> environment variable dictates where the system looks for command. It is a colon-separated list of directories. If you get a "command not found" error while you know that the command is installed, then setting <span class="monospaced">PATH</span> will help. For example suppose that the command <span class="monospaced">frobnicator</span> is in <span class="monospaced">/opt/local/bin</span>:</p></div>
 <div class="listingblock">
 <div class="content">

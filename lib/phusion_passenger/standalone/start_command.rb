@@ -50,17 +50,18 @@ class StartCommand < Command
 
 	def run
 		parse_my_options
-		sanity_check_options
 
 		PhusionPassenger.require_passenger_lib 'standalone/runtime_locator'
 		@runtime_locator = RuntimeLocator.new(@options[:runtime_dir],
 			@options[:nginx_version])
 		ensure_runtime_installed
+		set_stdout_stderr_binmode
 		exit if @options[:runtime_check_only]
 		require_app_finder
 		@app_finder = AppFinder.new(@args, @options)
 		@apps = @app_finder.scan
 		@options = @app_finder.global_options
+		sanity_check_server_options
 		determine_various_resource_locations
 		@plugin.call_hook(:found_apps, @apps)
 
@@ -124,6 +125,7 @@ private
 	def parse_my_options
 		description = "Starts Phusion Passenger Standalone and serve one or more Ruby web applications."
 		parse_options!("start [directory]", description) do |opts|
+			opts.separator "Server options:"
 			opts.on("-a", "--address HOST", String,
 				wrap_desc("Bind to HOST address (default: #{@options[:address]})")) do |value|
 				@options[:address] = value
@@ -137,57 +139,6 @@ private
 			opts.on("-S", "--socket FILE", String,
 				wrap_desc("Bind to Unix domain socket instead of TCP socket")) do |value|
 				@options[:socket_file] = value
-			end
-
-			opts.separator ""
-			opts.on("-e", "--environment ENV", String,
-				wrap_desc("Framework environment (default: #{@options[:environment]})")) do |value|
-				@options[:environment] = value
-			end
-			opts.on("-R", "--rackup FILE", String,
-				wrap_desc("Consider application a Ruby Rack app, and use the given rackup file")) do |value|
-				@options[:app_type] = "rack"
-				@options[:startup_file] = value
-			end
-			opts.on("--app-type NAME", String,
-				wrap_desc("Force app to be detected as the given type")) do |value|
-				@options[:app_type] = value
-			end
-			opts.on("--startup-file FILENAME", String,
-				wrap_desc("Force given startup file to be used")) do |value|
-				@options[:startup_file] = value
-			end
-			opts.on("--max-pool-size NUMBER", Integer,
-				wrap_desc("Maximum number of application processes (default: #{@options[:max_pool_size]})")) do |value|
-				@options[:max_pool_size] = value
-			end
-			opts.on("--min-instances NUMBER", Integer,
-				wrap_desc("Minimum number of processes per application (default: #{@options[:min_instances]})")) do |value|
-				@options[:min_instances] = value
-			end
-			opts.on("--spawn-method NAME", String,
-				wrap_desc("The spawn method to use (default: #{@options[:spawn_method]})")) do |value|
-				@options[:spawn_method] = value
-			end
-			opts.on("--concurrency-model NAME", String,
-				wrap_desc("The concurrency model to use, either 'process' or 'thread' (default: #{@options[:concurrency_model]}) (Enterprise only)")) do |value|
-				@options[:concurrency_model] = value
-			end
-			opts.on("--thread-count NAME", Integer,
-				wrap_desc("The number of threads to use when using the 'thread' concurrency model (default: #{@options[:thread_count]}) (Enterprise only)")) do |value|
-				@options[:thread_count] = value
-			end
-			opts.on("--rolling-restarts",
-				wrap_desc("Enable rolling restarts (Enterprise only)")) do
-				@options[:rolling_restarts] = true
-			end
-			opts.on("--resist-deployment-errors",
-				wrap_desc("Enable deployment error resistance (Enterprise only)")) do
-				@options[:resist_deployment_errors] = true
-			end
-			opts.on("--no-friendly-error-pages",
-				wrap_desc("Disable passenger_friendly_error_pages")) do
-				@options[:friendly_error_pages] = false
 			end
 			opts.on("--ssl",
 				wrap_desc("Enable SSL support")) do
@@ -205,35 +156,6 @@ private
 				wrap_desc("Listen for SSL on this port, while listening for HTTP on the normal port")) do |val|
 				@options[:ssl_port] = val
 			end
-			opts.on("--static-files-dir PATH", String,
-				wrap_desc("Specify the static files dir")) do |val|
-				@options[:static_files_dir] = File.expand_path(val)
-			end
-			opts.on("--restart-dir PATH", String,
-				wrap_desc("Specify the restart dir")) do |val|
-				@options[:restart_dir] = File.expand_path(val)
-			end
-			opts.on("--union-station-gateway HOST:PORT", String,
-				wrap_desc("Specify Union Station Gateway host and port")) do |value|
-				host, port = value.split(":", 2)
-				port = port.to_i
-				port = 443 if port == 0
-				@options[:union_station_gateway_address] = host
-				@options[:union_station_gateway_port] = port.to_i
-			end
-			opts.on("--union-station-key KEY", String,
-				wrap_desc("Specify Union Station key")) do |value|
-				@options[:union_station_key] = value
-			end
-
-			opts.separator ""
-			opts.on("--ping-port NUMBER", Integer,
-				wrap_desc("Use the given port number for checking whether Nginx is alive (default: same as the normal port)")) do |value|
-				@options[:ping_port] = value
-			end
-			@plugin.call_hook(:parse_options, opts)
-
-			opts.separator ""
 			opts.on("-d", "--daemonize",
 				wrap_desc("Daemonize into the background")) do
 				@options[:daemonize] = true
@@ -257,6 +179,108 @@ private
 			end
 
 			opts.separator ""
+			opts.separator "Application loading options:"
+			opts.on("-e", "--environment ENV", String,
+				wrap_desc("Framework environment (default: #{@options[:environment]})")) do |value|
+				@options[:environment] = value
+			end
+			opts.on("-R", "--rackup FILE", String,
+				wrap_desc("Consider application a Ruby Rack app, and use the given rackup file")) do |value|
+				@options[:app_type] = "rack"
+				@options[:startup_file] = value
+			end
+			opts.on("--app-type NAME", String,
+				wrap_desc("Force app to be detected as the given type")) do |value|
+				@options[:app_type] = value
+			end
+			opts.on("--startup-file FILENAME", String,
+				wrap_desc("Force given startup file to be used")) do |value|
+				@options[:startup_file] = value
+			end
+			opts.on("--spawn-method NAME", String,
+				wrap_desc("The spawn method to use (default: #{@options[:spawn_method]})")) do |value|
+				@options[:spawn_method] = value
+			end
+			opts.on("--static-files-dir PATH", String,
+				wrap_desc("Specify the static files dir")) do |val|
+				@options[:static_files_dir] = File.expand_path(val)
+			end
+			opts.on("--restart-dir PATH", String,
+				wrap_desc("Specify the restart dir")) do |val|
+				@options[:restart_dir] = File.expand_path(val)
+			end
+			opts.on("--friendly-error-pages",
+				wrap_desc("Turn on friendly error pages")) do
+				@options[:friendly_error_pages] = true
+			end
+			opts.on("--no-friendly-error-pages",
+				wrap_desc("Turn off friendly error pages")) do
+				@options[:friendly_error_pages] = false
+			end
+			opts.on("--load-shell-envvars",
+				wrap_desc("Load shell startup files before loading application")) do
+				@options[:load_shell_envvars] = true
+			end
+
+			opts.separator ""
+			opts.separator "Process management options:"
+			opts.on("--max-pool-size NUMBER", Integer,
+				wrap_desc("Maximum number of application processes (default: #{@options[:max_pool_size]})")) do |value|
+				@options[:max_pool_size] = value
+			end
+			opts.on("--min-instances NUMBER", Integer,
+				wrap_desc("Minimum number of processes per application (default: #{@options[:min_instances]})")) do |value|
+				@options[:min_instances] = value
+			end
+			opts.on("--concurrency-model NAME", String,
+				wrap_desc("The concurrency model to use, either 'process' or 'thread' (default: #{@options[:concurrency_model]}) (Enterprise only)")) do |value|
+				@options[:concurrency_model] = value
+			end
+			opts.on("--thread-count NAME", Integer,
+				wrap_desc("The number of threads to use when using the 'thread' concurrency model (default: #{@options[:thread_count]}) (Enterprise only)")) do |value|
+				@options[:thread_count] = value
+			end
+			opts.on("--rolling-restarts",
+				wrap_desc("Enable rolling restarts (Enterprise only)")) do
+				@options[:rolling_restarts] = true
+			end
+			opts.on("--resist-deployment-errors",
+				wrap_desc("Enable deployment error resistance (Enterprise only)")) do
+				@options[:resist_deployment_errors] = true
+			end
+
+			opts.separator ""
+			opts.separator "Request handling options:"
+			opts.on("--sticky-sessions",
+				wrap_desc("Enable sticky sessions")) do
+				@options[:sticky_sessions] = true
+			end
+			opts.on("--sticky-sessions-cookie-name", String,
+				wrap_desc("Cookie name to use for sticky sessions (default: #{DEFAULT_STICKY_SESSIONS_COOKIE_NAME})")) do |val|
+				@options[:sticky_sessions_cookie_name] = val
+			end
+
+			opts.separator ""
+			opts.separator "Union Station options:"
+			opts.on("--union-station-gateway HOST:PORT", String,
+				wrap_desc("Specify Union Station Gateway host and port")) do |value|
+				host, port = value.split(":", 2)
+				port = port.to_i
+				port = 443 if port == 0
+				@options[:union_station_gateway_address] = host
+				@options[:union_station_gateway_port] = port.to_i
+			end
+			opts.on("--union-station-key KEY", String,
+				wrap_desc("Specify Union Station key")) do |value|
+				@options[:union_station_key] = value
+			end
+
+			opts.separator ""
+			opts.separator "Advanced options:"
+			opts.on("--ping-port NUMBER", Integer,
+				wrap_desc("Use the given port number for checking whether Nginx is alive (default: same as the normal port)")) do |value|
+				@options[:ping_port] = value
+			end
 			opts.on("--nginx-bin FILENAME", String,
 				wrap_desc("Nginx binary to use as core")) do |value|
 				@options[:nginx_bin] = value
@@ -269,6 +293,10 @@ private
 				wrap_desc("If Nginx needs to be installed, then the given tarball will " +
 				          "be used instead of downloading from the Internet")) do |value|
 				@options[:nginx_tarball] = File.expand_path(value)
+			end
+			opts.on("--nginx-config-template FILENAME", String,
+				wrap_desc("The template to use for generating the Nginx config file")) do |value|
+				@options[:nginx_config_template] = File.expand_path(value)
 			end
 			opts.on("--binaries-url-root URL", String,
 				wrap_desc("If Nginx needs to be installed, then the specified URL will be " +
@@ -291,11 +319,14 @@ private
 				wrap_desc("Abort if runtime must be compiled")) do
 				@options[:dont_compile_runtime] = true
 			end
+
+			@plugin.call_hook(:parse_options, opts)
+			opts.separator ""
 		end
 		@plugin.call_hook(:done_parsing_options)
 	end
 
-	def sanity_check_options
+	def sanity_check_server_options
 		if @options[:tcp_explicitly_given] && @options[:socket_file]
 			error "You cannot specify both --address/--port and --socket. Please choose either one."
 			exit 1
@@ -374,9 +405,9 @@ private
 			end
 		end
 	else
-		def check_port(address, port)
+		def check_port_with_protocol(address, port, protocol)
 			begin
-				socket = Socket.new(Socket::Constants::AF_INET, Socket::Constants::SOCK_STREAM, 0)
+				socket = Socket.new(protocol, Socket::Constants::SOCK_STREAM, 0)
 				sockaddr = Socket.pack_sockaddr_in(port, address)
 				begin
 					socket.connect_nonblock(sockaddr)
@@ -401,6 +432,14 @@ private
 				return false
 			ensure
 				socket.close if socket && !socket.closed?
+			end
+		end
+
+		def check_port(address, port)
+			begin
+				check_port_with_protocol(address, port, Socket::Constants::AF_INET)
+			rescue Errno::EAFNOSUPPORT
+				check_port_with_protocol(address, port, Socket::Constants::AF_INET6)
 			end
 		end
 	end
@@ -435,9 +474,11 @@ private
 			else
 				scheme = "http"
 			end
-			result = "#{scheme}://#{@options[:address]}"
-			if @options[:port] != 80
-				result << ":#{@options[:port]}"
+			result = "#{scheme}://"
+			if @options[:port] == 80
+				result << @options[:address]
+			else
+				result << compose_ip_and_port(@options[:address], @options[:port])
 			end
 			result << "/"
 			return result
@@ -476,6 +517,14 @@ private
 			install_runtime(@runtime_locator) || exit(1)
 			@runtime_locator.reload
 		end
+	end
+
+	def set_stdout_stderr_binmode
+		# We already set STDOUT and STDERR to binmode in bin/passenger, which
+		# fixes https://github.com/phusion/passenger-ruby-heroku-demo/issues/11.
+		# However RuntimeInstaller sets them to UTF-8, so here we set them back.
+		STDOUT.binmode
+		STDERR.binmode
 	end
 
 	def start_nginx
@@ -695,7 +744,7 @@ private
 			else
 				port = options[:port]
 			end
-			return "#{options[:address]}:#{port}"
+			return compose_ip_and_port(options[:address], port)
 		end
 	end
 
@@ -703,7 +752,16 @@ private
 		if options[:socket_file]
 			return "unix:" + File.expand_path(options[:socket_file])
 		else
-			return "#{options[:address]}:#{options[:ssl_port]}"
+			return compose_ip_and_port(options[:address], options[:ssl_port])
+		end
+	end
+
+	def compose_ip_and_port(ip, port)
+		if ip =~ /:/
+			# IPv6
+			return "[#{ip}]:#{port}"
+		else
+			return "#{ip}:#{port}"
 		end
 	end
 

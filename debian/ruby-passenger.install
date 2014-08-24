@@ -2,6 +2,8 @@ usr/lib/passenger/agents/
 usr/share/passenger/union_station_gateway.crt
 usr/share/passenger/mime.types
 usr/share/passenger/helper-scripts/
+usr/share/passenger/node/
+usr/share/passenger/ruby_extension_source/
 usr/share/passenger/templates/
 usr/lib/ruby/vendor_ruby/
 usr/lib/*/ruby/vendor_ruby/

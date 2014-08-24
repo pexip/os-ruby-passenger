@@ -65,14 +65,10 @@ private:
 		BufferedIO io;
 	};
 
-	/** The event loop that created Process objects should use, and that I/O forwarding
-	 * functions should use. For example data on the error pipe is forwarded using this event loop.
-	 */
-	SafeLibevPtr libev;
 	const vector<string> preloaderCommand;
 	map<string, string> preloaderAnnotations;
 	Options options;
-	
+
 	// Protects m_lastUsed and pid.
 	mutable boost::mutex simpleFieldSyncher;
 	// Protects everything else.
@@ -86,11 +82,11 @@ private:
 	// Upon starting the preloader, its preparation info is stored here
 	// for future reference.
 	SpawnPreparationInfo preparation;
-	
+
 	string getPreloaderCommandString() const {
 		string result;
 		unsigned int i;
-		
+
 		for (i = 0; i < preloaderCommand.size(); i++) {
 			if (i != 0) {
 				result.append(1, '\0');
@@ -99,13 +95,13 @@ private:
 		}
 		return result;
 	}
-	
+
 	vector<string> createRealPreloaderCommand(const Options &options,
 		shared_array<const char *> &args)
 	{
-		string agentsDir = resourceLocator.getAgentsDir();
+		string agentsDir = config->resourceLocator.getAgentsDir();
 		vector<string> command;
-		
+
 		if (shouldLoadShellEnvvars(options, preparation)) {
 			command.push_back(preparation.shell);
 			command.push_back(preparation.shell);
@@ -125,22 +121,23 @@ private:
 		for (unsigned int i = 1; i < preloaderCommand.size(); i++) {
 			command.push_back(preloaderCommand[i]);
 		}
-		
+
 		createCommandArgs(command, args);
 		return command;
 	}
-	
+
 	void throwPreloaderSpawnException(const string &msg,
 		SpawnException::ErrorKind errorKind,
 		StartupDetails &details)
 	{
 		throwPreloaderSpawnException(msg, errorKind, details.stderrCapturer,
-			details.debugDir);
+			*details.options, details.debugDir);
 	}
 
 	void throwPreloaderSpawnException(const string &msg,
 		SpawnException::ErrorKind errorKind,
 		BackgroundIOCapturerPtr &stderrCapturer,
+		const Options &options,
 		const DebugDirPtr &debugDir)
 	{
 		TRACE_POINT();
@@ -150,7 +147,7 @@ private:
 		if (stderrCapturer != NULL) {
 			stderrOutput = stderrCapturer->stop();
 		}
-		
+
 		// If the exception wasn't due to a timeout, try to capture the
 		// remaining stderr output for at most 2 seconds.
 		if (errorKind != SpawnException::PRELOADER_STARTUP_TIMEOUT
@@ -162,7 +159,7 @@ private:
 			while (!done) {
 				char buf[1024 * 32];
 				unsigned int ret;
-				
+
 				try {
 					ret = readExact(stderrCapturer->getFd(), buf,
 						sizeof(buf), &timeout);
@@ -180,7 +177,7 @@ private:
 			}
 		}
 		stderrCapturer.reset();
-		
+
 		// Now throw SpawnException with the captured stderr output
 		// as error response.
 		SpawnException e(msg,
@@ -189,7 +186,7 @@ private:
 			errorKind);
 		e.setPreloaderCommand(getPreloaderCommandString());
 		annotatePreloaderException(e, debugDir);
-		throw e;
+		throwSpawnException(e, options);
 	}
 
 	void annotatePreloaderException(SpawnException &e, const DebugDirPtr &debugDir) {
@@ -209,7 +206,7 @@ private:
 		assert(!preloaderStarted());
 		P_DEBUG("Spawning new preloader: appRoot=" << options.appRoot);
 		checkChrootDirectories(options);
-		
+
 		shared_array<const char *> args;
 		preparation = prepareSpawn(options);
 		vector<string> command = createRealPreloaderCommand(options, args);
@@ -217,7 +214,7 @@ private:
 		Pipe errorPipe = createPipe();
 		DebugDirPtr debugDir = boost::make_shared<DebugDir>(preparation.uid, preparation.gid);
 		pid_t pid;
-		
+
 		pid = syscalls::fork();
 		if (pid == 0) {
 			setenv("PASSENGER_DEBUG_DIR", debugDir->getPath().c_str(), 1);
@@ -235,7 +232,7 @@ private:
 			switchUser(preparation);
 			setWorkingDirectory(preparation);
 			execvp(command[0].c_str(), (char * const *) args.get());
-			
+
 			int e = errno;
 			printf("!> Error\n");
 			printf("!> \n");
@@ -246,17 +243,17 @@ private:
 			fflush(stdout);
 			fflush(stderr);
 			_exit(1);
-			
+
 		} else if (pid == -1) {
 			int e = errno;
 			throw SystemException("Cannot fork a new process", e);
-			
+
 		} else {
 			ScopeGuard guard(boost::bind(nonInterruptableKillAndWaitpid, pid));
 			P_DEBUG("Preloader process forked for appRoot=" << options.appRoot << ": PID " << pid);
 			adminSocket.first.close();
 			errorPipe.second.close();
-			
+
 			StartupDetails details;
 			details.pid = pid;
 			details.adminSocket = adminSocket.second;
@@ -271,7 +268,7 @@ private:
 			details.debugDir = debugDir;
 			details.options = &options;
 			details.timeout = options.startTimeout * 1000;
-			
+
 			{
 				this_thread::restore_interruption ri(di);
 				this_thread::restore_syscall_interruption rsi(dsi);
@@ -282,7 +279,7 @@ private:
 				boost::lock_guard<boost::mutex> l(simpleFieldSyncher);
 				this->pid = pid;
 			}
-			
+
 			PipeWatcherPtr watcher;
 
 			watcher = boost::make_shared<PipeWatcher>(adminSocket.second,
@@ -294,7 +291,7 @@ private:
 				"stderr", pid);
 			watcher->initialize();
 			watcher->start();
-			
+
 			preloaderAnnotations = debugDir->readAll();
 			P_INFO("Preloader for " << options.appRoot <<
 				" started on PID " << pid <<
@@ -302,12 +299,12 @@ private:
 			guard.clear();
 		}
 	}
-	
+
 	void stopPreloader() {
 		TRACE_POINT();
 		this_thread::disable_interruption di;
 		this_thread::disable_syscall_interruption dsi;
-		
+
 		if (!preloaderStarted()) {
 			return;
 		}
@@ -330,19 +327,19 @@ private:
 		socketAddress.clear();
 		preparation = SpawnPreparationInfo();
 	}
-	
+
 	void sendStartupRequest(StartupDetails &details) {
 		TRACE_POINT();
 		try {
 			string data = "You have control 1.0\n"
-				"passenger_root: " + resourceLocator.getRoot() + "\n"
-				"ruby_libdir: " + resourceLocator.getRubyLibDir() + "\n"
+				"passenger_root: " + config->resourceLocator.getRoot() + "\n"
+				"ruby_libdir: " + config->resourceLocator.getRubyLibDir() + "\n"
 				"passenger_version: " PASSENGER_VERSION "\n"
 				"generation_dir: " + generation->getPath() + "\n";
 
 			vector<string> args;
 			vector<string>::const_iterator it, end;
-			details.options->toVector(args, resourceLocator, Options::SPAWN_OPTIONS);
+			details.options->toVector(args, config->resourceLocator, Options::SPAWN_OPTIONS);
 			for (it = args.begin(); it != args.end(); it++) {
 				const string &key = *it;
 				it++;
@@ -378,14 +375,14 @@ private:
 				details);
 		}
 	}
-	
+
 	string handleStartupResponse(StartupDetails &details) {
 		TRACE_POINT();
 		string socketAddress;
-		
+
 		while (true) {
 			string line;
-			
+
 			try {
 				line = readMessageLine(details);
 			} catch (const SystemException &e) {
@@ -400,7 +397,7 @@ private:
 					SpawnException::PRELOADER_STARTUP_TIMEOUT,
 					details);
 			}
-			
+
 			if (line.empty()) {
 				throwPreloaderSpawnException("An error occurred while starting up "
 					"the preloader. It unexpected closed the connection while "
@@ -416,7 +413,7 @@ private:
 			} else if (line == "\n") {
 				break;
 			}
-			
+
 			string::size_type pos = line.find(": ");
 			if (pos == string::npos) {
 				throwPreloaderSpawnException("An error occurred while starting up "
@@ -425,7 +422,7 @@ private:
 					SpawnException::PRELOADER_STARTUP_PROTOCOL_ERROR,
 					details);
 			}
-			
+
 			string key = line.substr(0, pos);
 			string value = line.substr(pos + 2, line.size() - pos - 3);
 			if (key == "socket") {
@@ -439,7 +436,7 @@ private:
 					details);
 			}
 		}
-		
+
 		if (socketAddress.empty()) {
 			throwPreloaderSpawnException("An error occurred while starting up "
 				"the preloader. It did not report a socket address in its "
@@ -447,17 +444,17 @@ private:
 				SpawnException::PRELOADER_STARTUP_PROTOCOL_ERROR,
 				details);
 		}
-		
+
 		return socketAddress;
 	}
-	
+
 	void handleErrorResponse(StartupDetails &details) {
 		TRACE_POINT();
 		map<string, string> attributes;
-		
+
 		while (true) {
 			string line;
-			
+
 			try {
 				line = readMessageLine(details);
 			} catch (const SystemException &e) {
@@ -472,7 +469,7 @@ private:
 					SpawnException::PRELOADER_STARTUP_TIMEOUT,
 					details);
 			}
-			
+
 			if (line.empty()) {
 				throwPreloaderSpawnException("An error occurred while starting up "
 					"the preloader. It unexpected closed the connection while "
@@ -488,7 +485,7 @@ private:
 			} else if (line == "\n") {
 				break;
 			}
-			
+
 			string::size_type pos = line.find(": ");
 			if (pos == string::npos) {
 				throwPreloaderSpawnException("An error occurred while starting up "
@@ -497,12 +494,12 @@ private:
 					SpawnException::PRELOADER_STARTUP_PROTOCOL_ERROR,
 					details);
 			}
-			
+
 			string key = line.substr(0, pos);
 			string value = line.substr(pos + 2, line.size() - pos - 3);
 			attributes[key] = value;
 		}
-		
+
 		try {
 			string message = details.io.readAll(&details.timeout);
 			SpawnException e("An error occured while starting up the preloader.",
@@ -511,7 +508,7 @@ private:
 				SpawnException::PRELOADER_STARTUP_EXPLAINABLE_ERROR);
 			e.setPreloaderCommand(getPreloaderCommandString());
 			annotatePreloaderException(e, details.debugDir);
-			throw e;
+			throwSpawnException(e, *details.options);
 		} catch (const SystemException &e) {
 			throwPreloaderSpawnException("An error occurred while starting up "
 				"the preloader. It tried to report an error message, but "
@@ -527,7 +524,7 @@ private:
 				details);
 		}
 	}
-	
+
 	void handleInvalidResponseType(StartupDetails &details, const string &line) {
 		if (line.empty()) {
 			throwPreloaderSpawnException("An error occurred while starting up "
@@ -543,7 +540,7 @@ private:
 				details);
 		}
 	}
-	
+
 	string negotiatePreloaderStartup(StartupDetails &details) {
 		TRACE_POINT();
 		string result;
@@ -561,7 +558,7 @@ private:
 				SpawnException::PRELOADER_STARTUP_TIMEOUT,
 				details);
 		}
-		
+
 		if (result == "I have control 1.0\n") {
 			UPDATE_TRACE_POINT();
 			sendStartupRequest(details);
@@ -594,12 +591,12 @@ private:
 				handleInvalidResponseType(details, result);
 			}
 		}
-		
+
 		// Never reached, shut up compiler warning.
 		abort();
 		return "";
 	}
-	
+
 	SpawnResult sendSpawnCommand(const Options &options) {
 		TRACE_POINT();
 		FileDescriptor fd;
@@ -612,18 +609,19 @@ private:
 				"socket: " + string(e.what()),
 				SpawnException::APP_STARTUP_PROTOCOL_ERROR,
 				stderrCapturer,
+				options,
 				DebugDirPtr());
 		}
-		
+
 		UPDATE_TRACE_POINT();
 		BufferedIO io(fd);
 		unsigned long long timeout = options.startTimeout * 1000;
 		string result;
 		vector<string> args;
 		vector<string>::const_iterator it;
-		
+
 		writeExact(fd, "spawn\n", &timeout);
-		options.toVector(args, resourceLocator, Options::SPAWN_OPTIONS);
+		options.toVector(args, config->resourceLocator, Options::SPAWN_OPTIONS);
 		for (it = args.begin(); it != args.end(); it++) {
 			const string &key = *it;
 			it++;
@@ -631,12 +629,12 @@ private:
 			writeExact(fd, key + ": " + value + "\n", &timeout);
 		}
 		writeExact(fd, "\n", &timeout);
-		
+
 		result = io.readLine(1024, &timeout);
 		if (result == "OK\n") {
 			UPDATE_TRACE_POINT();
 			pid_t spawnedPid;
-			
+
 			spawnedPid = atoi(io.readLine(1024, &timeout).c_str());
 			if (spawnedPid <= 0) {
 				BackgroundIOCapturerPtr stderrCapturer;
@@ -646,6 +644,7 @@ private:
 					toString(spawnedPid) + "'",
 					SpawnException::APP_STARTUP_PROTOCOL_ERROR,
 					stderrCapturer,
+					options,
 					DebugDirPtr());
 			}
 			// TODO: we really should be checking UID.
@@ -658,31 +657,32 @@ private:
 					"the same session: '" + toString(spawnedPid) + "'",
 					SpawnException::APP_STARTUP_PROTOCOL_ERROR,
 					stderrCapturer,
+					options,
 					DebugDirPtr());
 			}
-			
+
 			SpawnResult result;
 			result.pid = spawnedPid;
 			result.adminSocket = fd;
 			result.io = io;
 			return result;
-			
+
 		} else if (result == "Error\n") {
 			UPDATE_TRACE_POINT();
 			NegotiationDetails details;
 			details.io = io;
 			details.timeout = timeout;
 			handleSpawnErrorResponse(details);
-			
+
 		} else {
 			UPDATE_TRACE_POINT();
 			NegotiationDetails details;
 			handleInvalidSpawnResponseType(result, details);
 		}
-		
+
 		return SpawnResult(); // Never reached.
 	}
-	
+
 	template<typename Exception>
 	SpawnResult sendSpawnCommandAgain(const Exception &e, const Options &options) {
 		TRACE_POINT();
@@ -695,7 +695,7 @@ private:
 		guard.clear();
 		return result;
 	}
-	
+
 protected:
 	virtual void annotateAppSpawnException(SpawnException &e, NegotiationDetails &details) {
 		Spawner::annotateAppSpawnException(e, details);
@@ -703,42 +703,33 @@ protected:
 	}
 
 public:
-	SmartSpawner(const SafeLibevPtr &_libev,
-		const ResourceLocator &_resourceLocator,
-		const ServerInstanceDir::GenerationPtr &_generation,
+	SmartSpawner(const ServerInstanceDir::GenerationPtr &_generation,
 		const vector<string> &_preloaderCommand,
 		const Options &_options,
-		const SpawnerConfigPtr &_config = SpawnerConfigPtr())
-		: Spawner(_resourceLocator),
-		  libev(_libev),
+		const SpawnerConfigPtr &_config)
+		: Spawner(_config),
 		  preloaderCommand(_preloaderCommand)
 	{
 		if (preloaderCommand.size() < 2) {
 			throw ArgumentException("preloaderCommand must have at least 2 elements");
 		}
-		
+
 		generation = _generation;
-		options    = _options.copyAndPersist().clearLogger();
+		options    = _options.copyAndPersist().detachFromUnionStationTransaction();
 		pid        = -1;
 		m_lastUsed = SystemTime::getUsec();
-
-		if (_config == NULL) {
-			config = boost::make_shared<SpawnerConfig>();
-		} else {
-			config = _config;
-		}
 	}
-	
+
 	virtual ~SmartSpawner() {
 		boost::lock_guard<boost::mutex> l(syncher);
 		stopPreloader();
 	}
-	
+
 	virtual ProcessPtr spawn(const Options &options) {
 		TRACE_POINT();
 		assert(options.appType == this->options.appType);
 		assert(options.appRoot == this->options.appRoot);
-		
+
 		P_DEBUG("Spawning new process: appRoot=" << options.appRoot);
 		possiblyRaiseInternalError(options);
 
@@ -752,7 +743,7 @@ public:
 			UPDATE_TRACE_POINT();
 			startPreloader();
 		}
-		
+
 		UPDATE_TRACE_POINT();
 		SpawnResult result;
 		try {
@@ -764,11 +755,10 @@ public:
 		} catch (const SpawnException &e) {
 			result = sendSpawnCommandAgain(e, options);
 		}
-		
+
 		UPDATE_TRACE_POINT();
 		NegotiationDetails details;
 		details.preparation = &preparation;
-		details.libev = libev;
 		details.pid = result.pid;
 		details.adminSocket = result.adminSocket;
 		details.io = result.io;
@@ -782,7 +772,7 @@ public:
 	virtual bool cleanable() const {
 		return true;
 	}
-	
+
 	virtual void cleanup() {
 		TRACE_POINT();
 		{
@@ -797,7 +787,7 @@ public:
 		boost::lock_guard<boost::mutex> lock(simpleFieldSyncher);
 		return m_lastUsed;
 	}
-	
+
 	pid_t getPreloaderPid() const {
 		boost::lock_guard<boost::mutex> lock(simpleFieldSyncher);
 		return pid;

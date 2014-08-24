@@ -30,7 +30,12 @@
 namespace Passenger {
 namespace ApplicationPool2 {
 
-// Don't forget to update ApplicationPool2::Options::getStartCommand() too.
+/* If you update this structure, also update the following:
+ * - ApplicationPool2::Options::getStartCommand()
+ * - lib/phusion_passenger/standalone/app_finder.rb
+ * - The documentation for `PassengerAppEnv` (Apache) and `passenger_app_env` (Nginx)
+ * - The Developer Guide, section "Executing the loader or preloader"
+ */
 const AppTypeDefinition appTypeDefinitions[] = {
 	{ PAT_RACK, "rack", "config.ru", "Passenger RackApp" },
 	{ PAT_WSGI, "wsgi", "passenger_wsgi.py", "Passenger WsgiApp" },

@@ -1103,7 +1103,7 @@ using the command line.</p></div>
 <div id="toc">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><div id="toctitle">Table of Contents</div>
 <div class="foo toclevel2"><a href="#_support_information">1. Support information</a></div>
-<div class="foo toclevel3"><a href="#_supported_operating_systems">1.1. Supported operating systems</a></div>
+<div class="foo toclevel3"><a href="#_supported_operating_systems_and_languages">1.1. Supported operating systems and languages</a></div>
 <div class="foo toclevel3"><a href="#where_to_get_support">1.2. Where to get support</a></div>
 <div class="foo toclevel2"><a href="#installation">2. Installation</a></div>
 <div class="foo toclevel3"><a href="#_synopsis">2.1. Synopsis</a></div>
@@ -1156,27 +1156,30 @@ using the command line.</p></div>
 <div class="foo toclevel3"><a href="#_deploying_to_a_virtual_host_8217_s_root_3">5.2. Deploying to a virtual host’s root</a></div>
 <div class="foo toclevel3"><a href="#deploying_python_to_sub_uri">5.3. Deploying to a sub URI</a></div>
 <div class="foo toclevel3"><a href="#_redeploying_restarting_the_wsgi_application">5.4. Redeploying (restarting the WSGI application)</a></div>
+<div class="foo toclevel3"><a href="#_sample_span_class_monospaced_passenger_wsgi_py_span_for_django">5.5. Sample passenger_wsgi.py for Django</a></div>
 <div class="foo toclevel2"><a href="#_deploying_a_node_js_application">6. Deploying a Node.js application</a></div>
 <div class="foo toclevel2"><a href="#_deploying_a_meteor_application">7. Deploying a Meteor application</a></div>
 <div class="foo toclevel2"><a href="#_configuring_phusion_passenger">8. Configuring Phusion Passenger</a></div>
-<div class="foo toclevel3"><a href="#_passengerroot_lt_directory_gt">8.1. PassengerRoot &lt;directory&gt;</a></div>
+<div class="foo toclevel3"><a href="#PassengerRoot">8.1. PassengerRoot &lt;directory&gt;</a></div>
 <div class="foo toclevel3"><a href="#PassengerDefaultRuby">8.2. PassengerDefaultRuby &lt;filename&gt;</a></div>
 <div class="foo toclevel3"><a href="#_deployment_options">8.3. Deployment options</a></div>
 <div class="foo toclevel4"><a href="#PassengerEnabled">8.3.1. PassengerEnabled &lt;on|off&gt;</a></div>
-<div class="foo toclevel4"><a href="#PassengerRuby">8.3.2. PassengerRuby &lt;filename&gt;</a></div>
-<div class="foo toclevel4"><a href="#_passengerpython_lt_filename_gt">8.3.3. PassengerPython &lt;filename&gt;</a></div>
-<div class="foo toclevel4"><a href="#_passengernodejs_lt_filename_gt">8.3.4. PassengerNodejs &lt;filename&gt;</a></div>
-<div class="foo toclevel4"><a href="#PassengerAppEnv">8.3.5. PassengerAppEnv &lt;string&gt;</a></div>
-<div class="foo toclevel4"><a href="#rails_env">8.3.6. RailsEnv &lt;string&gt;</a></div>
-<div class="foo toclevel4"><a href="#rack_env">8.3.7. RackEnv &lt;string&gt;</a></div>
-<div class="foo toclevel4"><a href="#PassengerAppRoot">8.3.8. PassengerAppRoot &lt;path/to/root&gt;</a></div>
-<div class="foo toclevel4"><a href="#PassengerBaseURI">8.3.9. PassengerBaseURI &lt;uri&gt;</a></div>
-<div class="foo toclevel4"><a href="#_passengerrestartdir_lt_directory_gt">8.3.10. PassengerRestartDir &lt;directory&gt;</a></div>
-<div class="foo toclevel4"><a href="#PassengerRollingRestarts">8.3.11. PassengerRollingRestarts &lt;on|off&gt;</a></div>
-<div class="foo toclevel4"><a href="#PassengerResistDeploymentErrors">8.3.12. PassengerResistDeploymentErrors &lt;on|off&gt;</a></div>
-<div class="foo toclevel3"><a href="#_process_spawning_options">8.4. Process spawning options</a></div>
-<div class="foo toclevel4"><a href="#PassengerSpawnMethod">8.4.1. PassengerSpawnMethod &lt;string&gt;</a></div>
-<div class="foo toclevel4"><a href="#PassengerLoadShellEnvvars">8.4.2. PassengerLoadShellEnvvars &lt;on|off&gt;</a></div>
+<div class="foo toclevel4"><a href="#PassengerBaseURI">8.3.2. PassengerBaseURI &lt;uri&gt;</a></div>
+<div class="foo toclevel3"><a href="#_application_loading_options">8.4. Application loading options</a></div>
+<div class="foo toclevel4"><a href="#PassengerRuby">8.4.1. PassengerRuby &lt;filename&gt;</a></div>
+<div class="foo toclevel4"><a href="#_passengerpython_lt_filename_gt">8.4.2. PassengerPython &lt;filename&gt;</a></div>
+<div class="foo toclevel4"><a href="#_passengernodejs_lt_filename_gt">8.4.3. PassengerNodejs &lt;filename&gt;</a></div>
+<div class="foo toclevel4"><a href="#PassengerAppEnv">8.4.4. PassengerAppEnv &lt;string&gt;</a></div>
+<div class="foo toclevel4"><a href="#rails_env">8.4.5. RailsEnv &lt;string&gt;</a></div>
+<div class="foo toclevel4"><a href="#rack_env">8.4.6. RackEnv &lt;string&gt;</a></div>
+<div class="foo toclevel4"><a href="#PassengerAppRoot">8.4.7. PassengerAppRoot &lt;path/to/root&gt;</a></div>
+<div class="foo toclevel4"><a href="#PassengerAppType">8.4.8. PassengerAppType &lt;name&gt;</a></div>
+<div class="foo toclevel4"><a href="#PassengerStartupFile">8.4.9. PassengerStartupFile &lt;filename&gt;</a></div>
+<div class="foo toclevel4"><a href="#_passengerrestartdir_lt_directory_gt">8.4.10. PassengerRestartDir &lt;directory&gt;</a></div>
+<div class="foo toclevel4"><a href="#PassengerSpawnMethod">8.4.11. PassengerSpawnMethod &lt;string&gt;</a></div>
+<div class="foo toclevel4"><a href="#PassengerLoadShellEnvvars">8.4.12. PassengerLoadShellEnvvars &lt;on|off&gt;</a></div>
+<div class="foo toclevel4"><a href="#PassengerRollingRestarts">8.4.13. PassengerRollingRestarts &lt;on|off&gt;</a></div>
+<div class="foo toclevel4"><a href="#PassengerResistDeploymentErrors">8.4.14. PassengerResistDeploymentErrors &lt;on|off&gt;</a></div>
 <div class="foo toclevel3"><a href="#_security_options">8.5. Security options</a></div>
 <div class="foo toclevel4"><a href="#PassengerUserSwitching">8.5.1. PassengerUserSwitching &lt;on|off&gt;</a></div>
 <div class="foo toclevel4"><a href="#PassengerUser">8.5.2. PassengerUser &lt;username&gt;</a></div>
@@ -1205,6 +1208,8 @@ using the command line.</p></div>
 <div class="foo toclevel4"><a href="#PassengerBufferResponse">8.7.2. PassengerBufferResponse &lt;on|off&gt;</a></div>
 <div class="foo toclevel4"><a href="#PassengerErrorOverride">8.7.3. PassengerErrorOverride &lt;on|off&gt;</a></div>
 <div class="foo toclevel4"><a href="#PassengerMaxRequestQueueSize">8.7.4. PassengerMaxRequestQueueSize &lt;number&gt;</a></div>
+<div class="foo toclevel4"><a href="#PassengerStickySessions">8.7.5. PassengerStickySessions &lt;on|off&gt;</a></div>
+<div class="foo toclevel4"><a href="#PassengerStickySessionsCookieName">8.7.6. PassengerStickySessionsCookieName</a></div>
 <div class="foo toclevel3"><a href="#_compatibility_options">8.8. Compatibility options</a></div>
 <div class="foo toclevel4"><a href="#PassengerResolveSymlinksInDocumentRoot">8.8.1. PassengerResolveSymlinksInDocumentRoot &lt;on|off&gt;</a></div>
 <div class="foo toclevel4"><a href="#_passengerallowencodedslashes_lt_on_off_gt">8.8.2. PassengerAllowEncodedSlashes &lt;on|off&gt;</a></div>
@@ -1228,19 +1233,20 @@ using the command line.</p></div>
 <div class="foo toclevel2"><a href="#troubleshooting">9. Troubleshooting</a></div>
 <div class="foo toclevel3"><a href="#_generic_troubleshooting_tips">9.1. Generic troubleshooting tips</a></div>
 <div class="foo toclevel3"><a href="#_why_does_the_first_request_take_a_long_time">9.2. Why does the first request take a long time?</a></div>
-<div class="foo toclevel3"><a href="#_os_x_the_installer_cannot_locate_mamp_8217_s_apache">9.3. OS X: The installer cannot locate MAMP’s Apache</a></div>
-<div class="foo toclevel3"><a href="#_apache_reports_a_403_forbidden_error">9.4. Apache reports a "403 Forbidden" error</a></div>
-<div class="foo toclevel3"><a href="#_static_assets_such_as_images_and_stylesheets_aren_8217_t_being_displayed">9.5. Static assets such as images and stylesheets aren’t being displayed</a></div>
-<div class="foo toclevel3"><a href="#_the_apache_error_log_says_that_the_spawn_manager_script_does_not_exist_or_that_it_does_not_have_permission_to_execute_it">9.6. The Apache error log says that the spawn manager script does not exist, or that it does not have permission to execute it</a></div>
-<div class="foo toclevel3"><a href="#_the_application_thinks_its_not_on_ssl_even_though_it_is">9.7. The application thinks its not on SSL even though it is</a></div>
-<div class="foo toclevel3"><a href="#_ruby_on_rails_specific_troubleshooting">9.8. Ruby on Rails-specific troubleshooting</a></div>
-<div class="foo toclevel4"><a href="#_the_about_your_application_8217_s_environment_link_does_not_work">9.8.1. The "About your application’s environment" link does not work</a></div>
-<div class="foo toclevel4"><a href="#_the_rails_application_reports_that_it_8217_s_unable_to_start_because_of_a_permission_error">9.8.2. The Rails application reports that it’s unable to start because of a permission error</a></div>
-<div class="foo toclevel4"><a href="#_the_rails_application_8217_s_log_file_is_not_being_written_to">9.8.3. The Rails application’s log file is not being written to</a></div>
-<div class="foo toclevel3"><a href="#conflicting_apache_modules">9.9. Conflicting Apache modules</a></div>
-<div class="foo toclevel4"><a href="#_mod_userdir">9.9.1. mod_userdir</a></div>
-<div class="foo toclevel4"><a href="#_multiviews_mod_negotiation">9.9.2. MultiViews (mod_negotiation)</a></div>
-<div class="foo toclevel4"><a href="#_virtualdocumentroot">9.9.3. VirtualDocumentRoot</a></div>
+<div class="foo toclevel3"><a href="#_i_get_command_not_found_when_running_a_phusion_passenger_command_through_sudo">9.3. I get "command not found" when running a Phusion Passenger command through sudo</a></div>
+<div class="foo toclevel3"><a href="#_os_x_the_installer_cannot_locate_mamp_8217_s_apache">9.4. OS X: The installer cannot locate MAMP’s Apache</a></div>
+<div class="foo toclevel3"><a href="#_apache_reports_a_403_forbidden_error">9.5. Apache reports a "403 Forbidden" error</a></div>
+<div class="foo toclevel3"><a href="#_static_assets_such_as_images_and_stylesheets_aren_8217_t_being_displayed">9.6. Static assets such as images and stylesheets aren’t being displayed</a></div>
+<div class="foo toclevel3"><a href="#_the_apache_error_log_says_that_the_spawn_manager_script_does_not_exist_or_that_it_does_not_have_permission_to_execute_it">9.7. The Apache error log says that the spawn manager script does not exist, or that it does not have permission to execute it</a></div>
+<div class="foo toclevel3"><a href="#_the_application_thinks_its_not_on_ssl_even_though_it_is">9.8. The application thinks its not on SSL even though it is</a></div>
+<div class="foo toclevel3"><a href="#_ruby_on_rails_specific_troubleshooting">9.9. Ruby on Rails-specific troubleshooting</a></div>
+<div class="foo toclevel4"><a href="#_the_about_your_application_8217_s_environment_link_does_not_work">9.9.1. The "About your application’s environment" link does not work</a></div>
+<div class="foo toclevel4"><a href="#_the_rails_application_reports_that_it_8217_s_unable_to_start_because_of_a_permission_error">9.9.2. The Rails application reports that it’s unable to start because of a permission error</a></div>
+<div class="foo toclevel4"><a href="#_the_rails_application_8217_s_log_file_is_not_being_written_to">9.9.3. The Rails application’s log file is not being written to</a></div>
+<div class="foo toclevel3"><a href="#conflicting_apache_modules">9.10. Conflicting Apache modules</a></div>
+<div class="foo toclevel4"><a href="#_mod_userdir">9.10.1. mod_userdir</a></div>
+<div class="foo toclevel4"><a href="#_multiviews_mod_negotiation">9.10.2. MultiViews (mod_negotiation)</a></div>
+<div class="foo toclevel4"><a href="#_virtualdocumentroot">9.10.3. VirtualDocumentRoot</a></div>
 <div class="foo toclevel2"><a href="#_analysis_and_system_maintenance">10. Analysis and system maintenance</a></div>
 <div class="foo toclevel3"><a href="#_inspecting_memory_usage">10.1. Inspecting memory usage</a></div>
 <div class="foo toclevel3"><a href="#_inspecting_phusion_passenger_8217_s_internal_status">10.2. Inspecting Phusion Passenger’s internal status</a></div>
@@ -1294,14 +1300,13 @@ using the command line.</p></div>
 <div class="foo toclevel3"><a href="#_the_smart_spawning_method">15.2. The smart spawning method</a></div>
 <div class="foo toclevel4"><a href="#_how_it_works">15.2.1. How it works</a></div>
 <div class="foo toclevel4"><a href="#_summary_of_benefits">15.2.2. Summary of benefits</a></div>
-<div class="foo toclevel3"><a href="#_smart_spawning_gotcha_1_unintentional_file_descriptor_sharing">15.3. Smart spawning gotcha #1: unintentional file descriptor sharing</a></div>
+<div class="foo toclevel3"><a href="#_smart_spawning_caveat_1_unintentional_file_descriptor_sharing">15.3. Smart spawning caveat #1: unintentional file descriptor sharing</a></div>
 <div class="foo toclevel4"><a href="#_example_1_memcached_connection_sharing_harmful">15.3.1. Example 1: Memcached connection sharing (harmful)</a></div>
 <div class="foo toclevel4"><a href="#_example_2_log_file_sharing_not_harmful">15.3.2. Example 2: Log file sharing (not harmful)</a></div>
-<div class="foo toclevel3"><a href="#_smart_spawning_gotcha_2_the_need_to_revive_threads">15.4. Smart spawning gotcha #2: the need to revive threads</a></div>
-<div class="foo toclevel3"><a href="#_smart_spawning_gotcha_3_code_load_order">15.5. Smart spawning gotcha #3: code load order</a></div>
+<div class="foo toclevel3"><a href="#_smart_spawning_caveat_2_the_need_to_revive_threads">15.4. Smart spawning caveat #2: the need to revive threads</a></div>
 <div class="foo toclevel2"><a href="#about_environment_variables">16. Appendix D: About environment variables</a></div>
 <div class="foo toclevel3"><a href="#_working_with_environment_variables">16.1. Working with environment variables</a></div>
-<div class="foo toclevel3"><a href="#_the_path_environment_variable">16.2. The PATH environment variable</a></div>
+<div class="foo toclevel3"><a href="#the_path_env_var">16.2. The PATH environment variable</a></div>
 <div class="foo toclevel4"><a href="#_adding_phusion_passenger_8217_s_administration_tools_to_path">16.2.1. Adding Phusion Passenger’s administration tools to PATH</a></div>
 <div class="foo toclevel3"><a href="#_making_environment_variables_permanent">16.3. Making environment variables permanent</a></div>
 <div class="foo toclevel4"><a href="#_bash">16.3.1. bash</a></div>
@@ -1318,18 +1323,125 @@ using the command line.</p></div>
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_support_information"></span><h2 data-comment-topic="support-information-zkewk3" data-anchor="_support_information">1. Support information</h2>
 <div class="sectionbody">
 <div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_supported_operating_systems"></span><h3 data-comment-topic="supported-operating-systems-rhbg35" data-anchor="_supported_operating_systems">1.1. Supported operating systems</h3>
-<div class="paragraph"><p>Phusion Passenger works on any POSIX-compliant operating system. In other
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_supported_operating_systems_and_languages"></span><h3 data-comment-topic="supported-operating-systems-rhbg35" data-anchor="_supported_operating_systems_and_languages">1.1. Supported operating systems and languages</h3>
+<div class="paragraph"><p>Phusion Passenger works on almost any POSIX-compliant operating system. In other
 words: practically any operating system on earth, except Microsoft Windows.</p></div>
-<div class="paragraph"><p>Phusion Passenger is confirmed on a large number of operating systems and Linux
-distributions, including, but not limited to, Ubuntu, Debian, CentOS/Fedora/RHEL,
-Gentoo, Mac OS X, FreeBSD and Solaris. OpenBSD is supported since version 5.2.
-Both 32-bit and 64-bit platforms are supported.</p></div>
-<div class="paragraph"><p>Please
-<a href="http://code.google.com/p/phusion-passenger/issues/list">report a bug</a>
+<div class="paragraph"><p>Supported operating systems:</p></div>
+<table class="tableblock frame-all grid-all" style="
+width:100%;
+">
+<col style="width:50%;">
+<col style="width:50%;">
+<thead><tr>
+<th class="tableblock halign-left valign-top"> OS                  </th>
+<th class="tableblock halign-left valign-top"> Minimum version</th>
+</tr></thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ubuntu</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">10.04</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Debian</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">6</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Red Hat, CentOS</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">5</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Amazon Linux</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">All versions supported</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mac OS X</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">10.8 Mountain Lion</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">FreeBSD</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">8</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">OpenBSD</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">5.2</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Other Unix</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">-</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph"><p>"Other Unix" is supported on a "best-effort" basis. We do not regularly check whether Phusion Passenger still works on other Unices, but if users report issues then we’ll try to address them.</p></div>
+<div class="paragraph"><p>Supported architectures:</p></div>
+<table class="tableblock frame-all grid-all" style="
+width:100%;
+">
+<col style="width:50%;">
+<col style="width:50%;">
+<thead><tr>
+<th class="tableblock halign-left valign-top"> Architecture      </th>
+<th class="tableblock halign-left valign-top"> Notes</th>
+</tr></thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">x86 (32-bit)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">-</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">x86_64 (64-bit)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">-</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Other</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Supported on a "best-effort" basis.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph"><p>Supported languages and frameworks:</p></div>
+<table class="tableblock frame-all grid-all" style="
+width:100%;
+">
+<col style="width:50%;">
+<col style="width:50%;">
+<thead><tr>
+<th class="tableblock halign-left valign-top"> Language/framework  </th>
+<th class="tableblock halign-left valign-top"> Minimum version</th>
+</tr></thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ruby (MRI)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1.8.5</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">JRuby</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1.7.0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rubinius</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2.2.0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ruby on Rails</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1.2</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Python</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2.6</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Node.js</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.10</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Meteor</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.6</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph"><p>If you run into any issues, please
+<a href="https://github.com/phusion/passenger/issues">report a bug</a>
 or
-<a href="http://groups.google.com/group/phusion-passenger">join our discussion forum</a>
-if it doesn’t work on your POSIX-compliant operating system.</p></div>
+<a href="http://groups.google.com/group/phusion-passenger">join our discussion forum</a>.</p></div>
 </div>
 <div class="sect2">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="where_to_get_support"></span><h3 data-comment-topic="where-to-get-support-f3pbrb" data-anchor="where_to_get_support">1.2. Where to get support</h3>
@@ -1342,7 +1454,7 @@ if it doesn’t work on your POSIX-compliant operating system.</p></div>
 </li>
 <li>
 <p>
-<a href="http://code.google.com/p/phusion-passenger/issues/list">Issue tracker</a> - report
+<a href="https://github.com/phusion/passenger/issues">Issue tracker</a> - report
   bugs here.
 </p>
 </li>
@@ -1421,9 +1533,9 @@ brew upgrade passenger</pre>
 </div>
 <div class="sect2">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="install_on_debian_ubuntu"></span><h3 data-comment-topic="installing-or-upgrading-on-ubuntu-1xg22xs" data-anchor="install_on_debian_ubuntu">2.3. Installing or upgrading on Debian or Ubuntu</h3>
-<div class="paragraph"><p>We provide and official Phusion Passenger APT repository. This APT repository contains Phusion Passenger packages for multiple versions of Debian and Ubuntu. These packages are automatically built by our build server after we push out a source release, and thus are always up to date with the official source releases.</p></div>
+<div class="paragraph"><p>We provide an official Phusion Passenger APT repository. This APT repository contains Phusion Passenger packages for multiple versions of Debian and Ubuntu. These packages are automatically built by our build server after we push out a source release, and thus are always up to date with the official source releases.</p></div>
 <div class="paragraph"><p>If you use these packages to install Phusion Passenger then you do not need to run <span class="monospaced">passenger-install-apache2-module</span> or <span class="monospaced">passenger-install-nginx-module</span>. These packages contain all the binaries that you need.</p></div>
-<div class="paragraph"><p>Packages are available for the x86 and x86_64 architectures. Our policy is to support all Ubuntu LTS releases that are still supported by Canonical, plus the latest non-LTS Ubuntu release, plus all Debian releases that are still supported by Debian.</p></div>
+<div class="paragraph"><p>Packages are available for the x86 and x86_64 architectures. Our policy is to support all Ubuntu LTS releases that are still supported by Canonical, plus the latest Ubuntu release, plus all Debian releases that are still supported by Debian.</p></div>
 <div class="sect3">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="install_add_apt_repo"></span><h4 data-comment-topic="adding-our-apt-repository-1l8plxk" data-anchor="install_add_apt_repo">2.3.1. Adding our APT repository</h4>
 <div class="olist arabic"><ol class="arabic">
@@ -1463,8 +1575,8 @@ by Lorenzo Bettini
 http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
 <pre><tt><span style="font-style: italic"><span style="color: #9A1900">##### !!!! Only add ONE of these lines, not all of them !!!! #####</span></span>
-<span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 13.10</span></span>
-deb https<span style="color: #990000">:</span>//oss-binaries<span style="color: #990000">.</span>phusionpassenger<span style="color: #990000">.</span>com/apt/passenger saucy main
+<span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 14.04</span></span>
+deb https<span style="color: #990000">:</span>//oss-binaries<span style="color: #990000">.</span>phusionpassenger<span style="color: #990000">.</span>com/apt/passenger trusty main
 <span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 12.04</span></span>
 deb https<span style="color: #990000">:</span>//oss-binaries<span style="color: #990000">.</span>phusionpassenger<span style="color: #990000">.</span>com/apt/passenger precise main
 <span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 10.04</span></span>
@@ -1487,8 +1599,8 @@ by Lorenzo Bettini
 http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
 <pre><tt><span style="font-style: italic"><span style="color: #9A1900">##### !!!! Only add ONE of these lines, not all of them !!!! #####</span></span>
-<span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 13.10</span></span>
-deb https<span style="color: #990000">:</span>//download<span style="color: #990000">:</span>YOUR_DOWNLOAD_TOKEN@www<span style="color: #990000">.</span>phusionpassenger<span style="color: #990000">.</span>com/enterprise_apt saucy main
+<span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 14.04</span></span>
+deb https<span style="color: #990000">:</span>//download<span style="color: #990000">:</span>YOUR_DOWNLOAD_TOKEN@www<span style="color: #990000">.</span>phusionpassenger<span style="color: #990000">.</span>com/enterprise_apt trusty main
 <span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 12.04</span></span>
 deb https<span style="color: #990000">:</span>//download<span style="color: #990000">:</span>YOUR_DOWNLOAD_TOKEN@www<span style="color: #990000">.</span>phusionpassenger<span style="color: #990000">.</span>com/enterprise_apt precise main
 <span style="font-style: italic"><span style="color: #9A1900"># Ubuntu 10.04</span></span>
@@ -1540,6 +1652,17 @@ Install the package:
 </div>
 </div>
 </li>
+<li>
+<p>
+Enable the Phusion Passenger Apache module and restart Apache:
+</p>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>sudo a2enmod passenger
+sudo service apache2 restart</pre>
+</div>
+</div>
+</li>
 </ol></div>
 </dd>
 <dt class="hdlist1">
@@ -1564,6 +1687,17 @@ Install the packages:
 <div class="listingblock">
 <div class="content monospaced">
 <pre>sudo apt-get install libapache2-mod-passenger-enterprise</pre>
+</div>
+</div>
+</li>
+<li>
+<p>
+Enable the Phusion Passenger Apache module and restart Apache:
+</p>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>sudo a2enmod passenger
+sudo service apache2 restart</pre>
 </div>
 </div>
 </li>
@@ -1944,27 +2078,27 @@ gpg --keyserver keyserver.ubuntu.com --search-keys 0x2AC745A50A212A8C</pre>
 <div class="literalblock">
 <div class="content monospaced">
 <pre>Hongli Lai (hongli@phusion.nl)
-Short key ID: 4B6F4332
-Long key ID: 06A131094B6F4332
-Fingerprint: 64E8 0420 FC6A 499F 9E1F  81FA 06A1 3109 4B6F 4332</pre>
+Short key ID: 8C59158F
+Long key ID: CD70085E8C59158F
+Fingerprint: 218A 7255 83D0 2ECE F3A9 C2A7 CD70 085E 8C59 158F</pre>
 </div>
 </div>
 <div class="literalblock">
 <div class="content monospaced">
 <pre>Ninh Bui (ninh@phusion.nl)
-Short key ID: 6FAF3782
-Long key ID: BA8DA3F46FAF3782
-Fingerprint: 353A 398C 49AF 5CD5 74A0  656C BA8D A3F4 6FAF 3782</pre>
+Short key ID: 69481265
+Long key ID: AE405F7869481265
+Fingerprint: A77C 9CEF 766D 0E7D A95B 8778 AE40 5F78 6948 1265</pre>
 </div>
 </div>
 <div class="paragraph"><p>Both keys are stored at both sks-servers.net and keyserver.ubuntu.com. Import them with:</p></div>
 <div class="listingblock">
 <div class="content monospaced">
-<pre>gpg --keyserver pool.sks-servers.net --search-keys 0x06A131094B6F4332
-gpg --keyserver pool.sks-servers.net --search-keys 0xBA8DA3F46FAF3782
+<pre>gpg --keyserver pool.sks-servers.net --search-keys 0xCD70085E8C59158F
+gpg --keyserver pool.sks-servers.net --search-keys 0xAE405F7869481265
 # -OR-
-gpg --keyserver keyserver.ubuntu.com --search-keys 0x06A131094B6F4332
-gpg --keyserver keyserver.ubuntu.com --search-keys 0xBA8DA3F46FAF3782</pre>
+gpg --keyserver keyserver.ubuntu.com --search-keys 0xCD70085E8C59158F
+gpg --keyserver keyserver.ubuntu.com --search-keys 0xAE405F7869481265</pre>
 </div>
 </div>
 </div>
@@ -2350,6 +2484,12 @@ done this, you need to remove the Phusion Passenger files.</p></div>
 <div class="ulist"><ul>
 <li>
 <p>
+If you installed Phusion Passenger through Homebrew, then run <span class="monospaced">brew uninstall passenger</span>.
+Then run <span class="monospaced">rm -f /etc/apache2/other/passenger.conf</span>.
+</p>
+</li>
+<li>
+<p>
 If you installed Phusion Passenger via a Ruby gem, then run <span class="monospaced">gem uninstall passenger</span> (or, if you’re a <a href="https://www.phusionpassenger.com/enterprise">Phusion Passenger Enterprise</a> user, <span class="monospaced">gem uninstall passenger-enterprise-server</span>).
   You <a href="#is_ruby_home_or_system_wide_installed">might have to run this as root</a>.
 </p>
@@ -2364,11 +2504,6 @@ If you installed Phusion Passenger via a source tarball, then remove the directo
 <li>
 <p>
 If you installed Phusion Passenger through APT or YUM, then use them to uninstall Phusion Passenger.
-</p>
-</li>
-<li>
-<p>
-If you installed Phusion Passenger through Homebrew, then run <span class="monospaced">brew uninstall passenger</span>.
 </p>
 </li>
 </ul></div>
@@ -2455,6 +2590,8 @@ MultiViews must be disabled for this folder.
     &lt;Directory /webapps/mycook/public&gt;
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 &lt;/VirtualHost&gt;</pre>
 </div>
@@ -2490,6 +2627,9 @@ all parent folders. That is, /webapps/mycook and /webapps must also be readable 
     DocumentRoot /websites/phusion
     &lt;Directory /websites/phusion&gt;
         Allow from all
+        Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 &lt;/VirtualHost&gt;</pre>
 </div>
@@ -2525,7 +2665,7 @@ Create a <span class="monospaced">&lt;Directory {PATH TO YOUR APPLICATION'S PUBL
 </li>
 <li>
 <p>
-Inside the Directory block, set <span class="monospaced">Allow from all</span>.
+Inside the Directory block, set <span class="monospaced">Allow from all</span>, and (if you’re on Apache &gt;= 2.4) <span class="monospaced">Require all granted</span>.
 </p>
 </li>
 <li>
@@ -2542,6 +2682,9 @@ Inside the Directory block, disable MultiViews.
     DocumentRoot /websites/phusion
     &lt;Directory /websites/phusion&gt;
         Allow from all
+        Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 
     # These have been added:
@@ -2553,6 +2696,8 @@ Inside the Directory block, disable MultiViews.
     &lt;Directory /websites/rails/public&gt;
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 &lt;/VirtualHost&gt;</pre>
 </div>
@@ -2701,6 +2846,8 @@ the Apache configuration file:</p></div>
     &lt;Directory /webapps/rack_example/public&gt;
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 &lt;/VirtualHost&gt;</pre>
 </div>
@@ -2739,6 +2886,8 @@ MultiViews must be disabled for this folder.
     &lt;Directory /webapps/rackapp/public&gt;
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 &lt;/VirtualHost&gt;</pre>
 </div>
@@ -2774,6 +2923,9 @@ all parent folders. That is, /webapps/rackapp and /webapps must also be readable
     DocumentRoot /websites/phusion
     &lt;Directory /websites/phusion&gt;
         Allow from all
+        Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 &lt;/VirtualHost&gt;</pre>
 </div>
@@ -2809,7 +2961,7 @@ Create a <span class="monospaced">&lt;Directory {PATH TO YOUR APPLICATION'S PUBL
 </li>
 <li>
 <p>
-Inside the Directory block, set <span class="monospaced">Allow from all</span>.
+Inside the Directory block, set <span class="monospaced">Allow from all</span>, and (if you’re on Apache &gt;= 2.4) <span class="monospaced">Require all granted</span>.
 </p>
 </li>
 <li>
@@ -2826,6 +2978,9 @@ Inside the Directory block, disable MultiViews.
     DocumentRoot /websites/phusion
     &lt;Directory /websites/phusion&gt;
         Allow from all
+        Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 
     # These have been added:
@@ -2837,6 +2992,8 @@ Inside the Directory block, disable MultiViews.
     &lt;Directory /websites/rack/public&gt;
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 &lt;/VirtualHost&gt;</pre>
 </div>
@@ -2993,7 +3150,7 @@ run Sinatra::Application</pre>
 <div class="content monospaced">
 <pre>/webapps/wsgiapp
   |
-  +-- config.ru
+  +-- passenger_wsgi.py
   |
   +-- public/
   |
@@ -3032,6 +3189,8 @@ the Apache configuration file:</p></div>
     &lt;Directory /webapps/wsgi_example/public&gt;
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 &lt;/VirtualHost&gt;</pre>
 </div>
@@ -3070,6 +3229,8 @@ MultiViews must be disabled for this folder.
     &lt;Directory /webapps/wsgiapp/public&gt;
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 &lt;/VirtualHost&gt;</pre>
 </div>
@@ -3105,6 +3266,9 @@ all parent folders. That is, /webapps/wsgiapp and /webapps must also be readable
     DocumentRoot /websites/phusion
     &lt;Directory /websites/phusion&gt;
         Allow from all
+        Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 &lt;/VirtualHost&gt;</pre>
 </div>
@@ -3140,7 +3304,7 @@ Create a <span class="monospaced">&lt;Directory {PATH TO YOUR APPLICATION'S PUBL
 </li>
 <li>
 <p>
-Inside the Directory block, set <span class="monospaced">Allow from all</span>.
+Inside the Directory block, set <span class="monospaced">Allow from all</span>, and (if you’re on Apache &gt;= 2.4) <span class="monospaced">Require all granted</span>.
 </p>
 </li>
 <li>
@@ -3157,6 +3321,9 @@ Inside the Directory block, disable MultiViews.
     DocumentRoot /websites/phusion
     &lt;Directory /websites/phusion&gt;
         Allow from all
+        Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 
     # These have been added:
@@ -3168,6 +3335,8 @@ Inside the Directory block, disable MultiViews.
     &lt;Directory /websites/python/public&gt;
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 &lt;/VirtualHost&gt;</pre>
 </div>
@@ -3201,6 +3370,17 @@ command line:</p></div>
 </div>
 </div>
 </div>
+<div class="sect2">
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_sample_span_class_monospaced_passenger_wsgi_py_span_for_django"></span><h3 data-comment-topic="sample-passenger-wsgi-py-for-django-slb9m8" data-anchor="_sample_span_class_monospaced_passenger_wsgi_py_span_for_django">5.5. Sample <span class="monospaced">passenger_wsgi.py</span> for Django</h3>
+<div class="paragraph"><p>For Django applications, <span class="monospaced">passenger_wsgi.py</span> should look like this:</p></div>
+<div class="listingblock">
+<div class="content monospaced">
+<pre><strong>import</strong> myproject.wsgi
+application = myproject.wsgi.application</pre>
+</div>
+</div>
+<div class="paragraph"><p>Replace <span class="monospaced">myproject</span> with your project’s module name.</p></div>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -3223,10 +3403,28 @@ Nevertheless, the system administrator may be interested in changing
 Phusion Passenger’s behavior. Phusion Passenger’s Apache module supports the
 following configuration options:</p></div>
 <div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passengerroot_lt_directory_gt"></span><h3 data-comment-topic="passengerroot-directory--sere8l" data-anchor="_passengerroot_lt_directory_gt">8.1. PassengerRoot &lt;directory&gt;</h3>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerRoot"></span><h3 data-comment-topic="passengerroot-directory--sere8l" data-anchor="PassengerRoot">8.1. PassengerRoot &lt;directory&gt;</h3>
 <div class="paragraph"><p>The location to the Phusion Passenger root directory. This configuration option
 is essential to Phusion Passenger, and allows Phusion Passenger to locate its own
-data files. The correct value is given by the installer.</p></div>
+data files. If you do not set this option, or if you set this option to the wrong value, then Phusion Passenger will make Apache abort with an error.</p></div>
+<div class="paragraph"><p>While installing Phusion Passenger, you have been told to set this option in your Apache configuration file, and you have been told what value to set it to. So under normal conditions, you don’t have ask yourself what value to set for this option. But in case you lost the value (e.g. because you accidentally removed the Apache configuration file, and you are trying to reconstruct it), or in case you didn’t follow the installation instructions correctly, then here’s how you can find out the correct value:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+If you installed Phusion Passenger through <a href="#install_on_debian_ubuntu">our APT repository</a>, then the value can be obtained by running <span class="monospaced">/usr/bin/passenger-config --root</span>.
+</p>
+</li>
+<li>
+<p>
+If you installed Phusion Passenger through RubyGems, then the value can be obtained by running <span class="monospaced">passenger-config --root</span>.
+</p>
+</li>
+<li>
+<p>
+If you installed Phusion Passenger through the source tarball, then the value is the path to the Phusion Passenger directory. For example, if you extracted the tarball’s contents to <span class="monospaced">/opt/passenger/passenger-x.x.x</span>, then <span class="monospaced">passenger_root</span> must be <span class="monospaced">/opt/passenger/passenger-x.x.x</span>.
+</p>
+</li>
+</ul></div>
 <div class="paragraph"><p>If you’ve moved Phusion Passenger to a different directory then you need to update
 this option as well. Please read
 <a href="#moving_phusion_passenger">Moving Phusion Passenger to a different directory</a> for more information.</p></div>
@@ -3288,7 +3486,55 @@ In <em>.htaccess</em>.
 <div class="paragraph"><p>In each place, it may be specified at most once. The default value is <em>on</em>.</p></div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerRuby"></span><h4 data-comment-topic="passengerruby-filename--1r3fv73" data-anchor="PassengerRuby">8.3.2. PassengerRuby &lt;filename&gt;</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerBaseURI"></span><h4 data-comment-topic="passengerbaseuri-uri--97i9mm" data-anchor="PassengerBaseURI">8.3.2. PassengerBaseURI &lt;uri&gt;</h4>
+<div class="paragraph"><p>Used to specify that the given URI is a Phusion Passenger-served application. Please refer
+to the following sections for examples:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<a href="#deploying_rails_to_sub_uri">Deploying Rails 1.x and 2.x to a sub URI</a>
+</p>
+</li>
+<li>
+<p>
+<a href="#deploying_rack_to_sub_uri">Deploying Rack (including Rails &gt;= 3) to a sub URI</a>
+</p>
+</li>
+<li>
+<p>
+<a href="#deploying_python_to_sub_uri">Deploying Python to a sub URI</a>
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>This option may occur in the following places:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+In the global server configuration.
+</p>
+</li>
+<li>
+<p>
+In a virtual host configuration block.
+</p>
+</li>
+<li>
+<p>
+In a <span class="monospaced">&lt;Directory&gt;</span> or <span class="monospaced">&lt;Location&gt;</span> block.
+</p>
+</li>
+<li>
+<p>
+In <em>.htaccess</em>, if <span class="monospaced">AllowOverride Options</span> is on.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sect2">
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_application_loading_options"></span><h3 data-comment-topic="application-loading-options-1uedd4o" data-anchor="_application_loading_options">8.4. Application loading options</h3>
+<div class="sect3">
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerRuby"></span><h4 data-comment-topic="passengerruby-filename--1r3fv73" data-anchor="PassengerRuby">8.4.1. PassengerRuby &lt;filename&gt;</h4>
 <div class="paragraph"><p>The <span class="monospaced">PassengerDefaultRuby</span> and <span class="monospaced">PassengerRuby</span> directives specify the Ruby interpreter to use. Similarly, the <span class="monospaced">PassengerPython</span> and <span class="monospaced">PassengerNodejs</span> directives are for specifying the Python interpreter and the Node.js command, respectively.</p></div>
 <div class="paragraph"><p>The relationship between <span class="monospaced">PassengerDefaultRuby</span> and <span class="monospaced">PassengerRuby</span> is as follows:</p></div>
 <div class="ulist"><ul>
@@ -3347,6 +3593,8 @@ PassengerNodejs /usr/bin/node;
     &lt;Directory /websites/blog/public&gt;
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 &lt;/VirtualHost&gt;
 
@@ -3405,17 +3653,17 @@ Do you want to know which command to use for a different Ruby interpreter? 'rvm 
 </div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passengerpython_lt_filename_gt"></span><h4 data-comment-topic="passengerpython-filename--1ssesv3" data-anchor="_passengerpython_lt_filename_gt">8.3.3. PassengerPython &lt;filename&gt;</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passengerpython_lt_filename_gt"></span><h4 data-comment-topic="passengerpython-filename--1ssesv3" data-anchor="_passengerpython_lt_filename_gt">8.4.2. PassengerPython &lt;filename&gt;</h4>
 <div class="paragraph"><p><strong>Introduced in version 4.0.0.</strong></p></div>
 <div class="paragraph"><p>This option allows one to specify the Python interpreter to use. See <a href="#PassengerRuby">PassengerRuby</a> for more information. The default value is <em>python</em>, meaning that the Python interpreter will be looked up according to the <span class="monospaced">PATH</span> environment variable.</p></div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passengernodejs_lt_filename_gt"></span><h4 data-comment-topic="passengernodejs-filename--2mjb1j" data-anchor="_passengernodejs_lt_filename_gt">8.3.4. PassengerNodejs &lt;filename&gt;</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passengernodejs_lt_filename_gt"></span><h4 data-comment-topic="passengernodejs-filename--2mjb1j" data-anchor="_passengernodejs_lt_filename_gt">8.4.3. PassengerNodejs &lt;filename&gt;</h4>
 <div class="paragraph"><p><strong>Introduced in version 4.0.24.</strong></p></div>
 <div class="paragraph"><p>This option allows one to specify the Node.js command to use. See <a href="#PassengerRuby">PassengerRuby</a> for more information. The default value is <em>node</em>, meaning that the Node.js command will be looked up according to the <span class="monospaced">PATH</span> environment variable.</p></div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerAppEnv"></span><h4 data-comment-topic="passengerappenv-string--s3ojlc" data-anchor="PassengerAppEnv">8.3.5. PassengerAppEnv &lt;string&gt;</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerAppEnv"></span><h4 data-comment-topic="passengerappenv-string--s3ojlc" data-anchor="PassengerAppEnv">8.4.4. PassengerAppEnv &lt;string&gt;</h4>
 <div class="paragraph"><p>This option sets the value of the following environment variables:</p></div>
 <div class="ulist"><ul>
 <li>
@@ -3473,15 +3721,15 @@ In <em>.htaccess</em>, if <span class="monospaced">AllowOverride Options</span> 
 <div class="paragraph"><p>In each place, it may be specified at most once.</p></div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="rails_env"></span><h4 data-comment-topic="railsenv-string--1b0xxvu" data-anchor="rails_env">8.3.6. RailsEnv &lt;string&gt;</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="rails_env"></span><h4 data-comment-topic="railsenv-string--1b0xxvu" data-anchor="rails_env">8.4.5. RailsEnv &lt;string&gt;</h4>
 <div class="paragraph"><p>An alias for <a href="#PassengerAppEnv">PassengerAppEnv</a>.</p></div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="rack_env"></span><h4 data-comment-topic="rackenv-string--vve9py" data-anchor="rack_env">8.3.7. RackEnv &lt;string&gt;</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="rack_env"></span><h4 data-comment-topic="rackenv-string--vve9py" data-anchor="rack_env">8.4.6. RackEnv &lt;string&gt;</h4>
 <div class="paragraph"><p>An alias for <a href="#PassengerAppEnv">PassengerAppEnv</a>.</p></div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerAppRoot"></span><h4 data-comment-topic="passengerapproot-path-to-root--uf24yd" data-anchor="PassengerAppRoot">8.3.8. PassengerAppRoot &lt;path/to/root&gt;</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerAppRoot"></span><h4 data-comment-topic="passengerapproot-path-to-root--uf24yd" data-anchor="PassengerAppRoot">8.4.7. PassengerAppRoot &lt;path/to/root&gt;</h4>
 <div class="paragraph"><p>By default, Phusion Passenger assumes that the application’s root directory
 is the parent directory of the <em>public</em> directory. This option allows one to
 specify the application’s root independently from the DocumentRoot, which
@@ -3515,31 +3763,131 @@ In <em>.htaccess</em>, if <span class="monospaced">AllowOverride Options</span> 
 <div class="content monospaced">
 <pre>&lt;VirtualHost test.host&gt;
     DocumentRoot /var/rails/zena/sites/example.com/public
-    PassengerAppRoot /var/rails/zena   # &lt;-- normally Phusion Passenger would
-                                       #     have assumed that the application
-                                       #     root is "/var/rails/zena/sites/example.com"
+    # Normally Phusion Passenger would have assumed that the
+    # application root is "/var/rails/zena/sites/example.com".
+    # This overrides it.
+    PassengerAppRoot /var/rails/zena
 &lt;/VirtualHost&gt;</pre>
 </div>
 </div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerBaseURI"></span><h4 data-comment-topic="passengerbaseuri-uri--97i9mm" data-anchor="PassengerBaseURI">8.3.9. PassengerBaseURI &lt;uri&gt;</h4>
-<div class="paragraph"><p>Used to specify that the given URI is a Phusion Passenger-served application. Please refer
-to the following sections for examples:</p></div>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerAppType"></span><h4 data-comment-topic="passengerapptype-name--62jzqf" data-anchor="PassengerAppType">8.4.8. PassengerAppType &lt;name&gt;</h4>
+<div class="paragraph"><p><strong>Introduced in version 4.0.25.</strong></p></div>
+<div class="paragraph"><p>By default, Phusion Passenger autodetects the type of the application, e.g. whether it’s a Ruby, Python, Node.js or Meteor app. If it’s unable to autodetect the type of the application (e.g. because you’ve specified a custom <a href="#PassengerStartupFile">PassengerStartupFile</a>) then you can use this option to force Phusion Passenger to recognize the application as a specific type.</p></div>
+<div class="paragraph"><p>Allowed values are:</p></div>
 <div class="ulist"><ul>
 <li>
 <p>
-<a href="#deploying_rails_to_sub_uri">Deploying Rails 1.x and 2.x to a sub URI</a>
+<span class="monospaced">rack</span> - Ruby on Rails &gt;= 3.0 and Ruby Rack
 </p>
 </li>
 <li>
 <p>
-<a href="#deploying_rack_to_sub_uri">Deploying Rack (including Rails &gt;= 3) to a sub URI</a>
+<span class="monospaced">classic-rails</span> - Ruby on Rails 1.x and 2.0
 </p>
 </li>
 <li>
 <p>
-<a href="#deploying_python_to_sub_uri">Deploying Python to a sub URI</a>
+<span class="monospaced">wsgi</span> - Python
+</p>
+</li>
+<li>
+<p>
+<span class="monospaced">node</span> - Node.js, or Meteor JS in bundled mode
+</p>
+</li>
+<li>
+<p>
+<span class="monospaced">meteor</span> - Meteor JS in non-bundled mode
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>If you set this option, then you <strong>must</strong> also set <a href="#PassengerAppRoot">PassengerAppRoot</a>, otherwise Phusion Passenger does not properly recognize your application.</p></div>
+<div class="paragraph"><p>This option may occur in the following places:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+In the global server configuration.
+</p>
+</li>
+<li>
+<p>
+In a virtual host configuration block.
+</p>
+</li>
+<li>
+<p>
+In a <span class="monospaced">&lt;Directory&gt;</span> or <span class="monospaced">&lt;Location&gt;</span> block.
+</p>
+</li>
+<li>
+<p>
+In <em>.htaccess</em>.
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>In each place, it may be specified at most once.</p></div>
+<div class="paragraph"><p>Example:</p></div>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>&lt;VirtualHost test.host&gt;
+    DocumentRoot /webapps/example.com/public
+    # Use server.js as the startup file (entry point file) for
+    # your Node.js application, instead of the default app.js
+    PassengerStartupFile server.js
+    PassengerAppType node
+    PassengerAppRoot /webapps/example.com
+&lt;/VirtualHost&gt;</pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerStartupFile"></span><h4 data-comment-topic="passengerstartupfile-filename--14vhvn9" data-anchor="PassengerStartupFile">8.4.9. PassengerStartupFile &lt;filename&gt;</h4>
+<div class="paragraph"><p><strong>Introduced in version 4.0.25.</strong></p></div>
+<div class="paragraph"><p>This option specifies the startup file that Phusion Passenger should use when loading the application.</p></div>
+<div class="paragraph"><p>Every application has a <strong>startup file</strong> or <strong>entry point file</strong>: a file where the application begins execution. Some languages have widely accepted conventions about how such a file should be called (e.g. Ruby, with its <span class="monospaced">config.ru</span>). Other languages have somewhat-accepted conventions (e.g. Node.js, with its <span class="monospaced">app.js</span>). In these cases, Phusion Passenger reuses these conventions, and executes applications through those files.</p></div>
+<div class="paragraph"><p>Other languages have no conventions at all, and so Phusion Passenger invents one (e.g. Python WSGI with <span class="monospaced">passenger_wsgi.py</span>).</p></div>
+<div class="paragraph"><p>Here’s a list of the language-specific conventions that Phusion Passenger accepts:</p></div>
+<table class="tableblock frame-all grid-all" style="
+width:100%;
+">
+<col style="width:50%;">
+<col style="width:50%;">
+<thead><tr>
+<th class="tableblock halign-left valign-top"> Language                        </th>
+<th class="tableblock halign-left valign-top"> Phusion Passenger convention</th>
+</tr></thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ruby on Rails &gt;= 3.0, Ruby Rack</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">config.ru</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ruby on Rails 1.x and 2.x</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">config/environment.rb</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Python</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">passenger_wsgi.py</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Node.js</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">app.js</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph"><p>But sometimes you might not want to adhere to the convention that Phusion Passenger accepts. For example, on Node.js, you might want to use <span class="monospaced">server.js</span> as the startup file instead of the default <span class="monospaced">app.js</span>. With this option, you can customize the startup file to any file you like.</p></div>
+<div class="paragraph"><p>Notes:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+Customizing the startup file affects <a href="#user_switching">user switching</a>. After all, if user switching is enabled, the application is executed as the user that owns the startup file.
+</p>
+</li>
+<li>
+<p>
+If you set this option, you <strong>must</strong> also set <a href="#PassengerAppRoot">PassengerAppRoot</a> and <a href="#PassengerAppType">PassengerAppType</a>, otherwise Phusion Passenger doesn’t know what kind of application it is.
 </p>
 </li>
 </ul></div>
@@ -3562,13 +3910,27 @@ In a <span class="monospaced">&lt;Directory&gt;</span> or <span class="monospace
 </li>
 <li>
 <p>
-In <em>.htaccess</em>, if <span class="monospaced">AllowOverride Options</span> is on.
+In <em>.htaccess</em>.
 </p>
 </li>
 </ul></div>
+<div class="paragraph"><p>In each place, it may be specified at most once.</p></div>
+<div class="paragraph"><p>Example:</p></div>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>&lt;VirtualHost test.host&gt;
+    DocumentRoot /webapps/example.com/public
+    # Use server.js as the startup file (entry point file) for
+    # your Node.js application, instead of the default app.js
+    PassengerStartupFile server.js
+    PassengerAppType node
+    PassengerAppRoot /webapps/example.com
+&lt;/VirtualHost&gt;</pre>
+</div>
+</div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passengerrestartdir_lt_directory_gt"></span><h4 data-comment-topic="passengerrestartdir-directory--1fmhmv0" data-anchor="_passengerrestartdir_lt_directory_gt">8.3.10. PassengerRestartDir &lt;directory&gt;</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passengerrestartdir_lt_directory_gt"></span><h4 data-comment-topic="passengerrestartdir-directory--1fmhmv0" data-anchor="_passengerrestartdir_lt_directory_gt">8.4.10. PassengerRestartDir &lt;directory&gt;</h4>
 <div class="paragraph"><p>As described in the deployment chapters of this document, Phusion Passenger
 checks the file <em>tmp/restart.txt</em> in the applications'
 <a href="#application_root">root directory</a> for restarting applications. Sometimes it
@@ -3642,7 +4004,120 @@ allow the attacker to cause a Denial-of-Service.</p>
 directory that’s readable by Apache, but only writable by administrators.</p></div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerRollingRestarts"></span><h4 data-comment-topic="passengerrollingrestarts" data-anchor="PassengerRollingRestarts">8.3.11. PassengerRollingRestarts &lt;on|off&gt;</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerSpawnMethod"></span><h4 data-comment-topic="passengerspawnmethod-string--sodg2y" data-anchor="PassengerSpawnMethod">8.4.11. PassengerSpawnMethod &lt;string&gt;</h4>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img src="./images/icons/tip.png" alt="Tip">
+</td>
+<td class="content">
+<div class="title">"What spawn method should I use?"</div>
+<div class="paragraph"><p>This subsection attempts to describe spawn methods, but it’s okay if you don’t (want to)
+understand it, as it’s mostly a technical detail. You can basically follow this rule of thumb:</p></div>
+<div class="sidebarblock">
+<div class="content">
+<div class="paragraph"><p>If your application works on Mongrel or Thin, but not on Phusion Passenger, then set
+<span class="monospaced">PassengerSpawnMethod</span> to <em>direct</em>. Otherwise, leave it at <em>smart</em> (the default).</p></div>
+</div>
+</div>
+<div class="paragraph"><p>However, we do recommend you to try to understand it. The <em>smart</em> spawn
+method bring many benefits.</p></div>
+</td>
+</tr></table>
+</div>
+<div class="paragraph"><p>Internally, Phusion Passenger spawns multiple Ruby application processes in order to handle
+requests. But there are multiple ways with which processes can be spawned, each having
+its own set of pros and cons. Supported spawn methods are:</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<em>smart</em>
+</dt>
+<dd>
+<p>
+This spawning method caches code using the app preloader. Framework code is not
+cached between multiple applications, although it is cached within
+instances of the same application. Please read
+<a href="#spawning_methods_explained">Spawning methods explained</a> for a more detailed
+explanation of what smart spawning exactly does.
+</p>
+<div class="paragraph"><p><strong>Pros:</strong>
+Smart spawning caches code where possible to speed up the respawn process
+and is compatible with most applications</p></div>
+<div class="paragraph"><p><strong>Cons:</strong>
+It is possible that it may be incompatible with some applications</p></div>
+</dd>
+<dt class="hdlist1">
+<em>direct</em>
+</dt>
+<dd>
+<p>
+This spawning method is similar to the one used in Mongrel Cluster. It does not
+perform any code caching at all. Please read
+<a href="#spawning_methods_explained">Spawning methods explained</a> for a more detailed
+explanation of what direct spawning exactly does.
+</p>
+<div class="paragraph"><p><strong>Pros:</strong>
+Direct spawning is guaranteed to be compatible with all applications
+and libraries.</p></div>
+<div class="paragraph"><p><strong>Cons:</strong>
+Much slower than smart spawning. Every spawn action will be equally slow, though no slower than
+the startup time of a single server in Mongrel Cluster. Direct spawning will also
+render <a href="#reducing_memory_usage">Ruby Enterprise Edition’s memory reduction technology</a> useless.</p></div>
+</dd>
+</dl></div>
+<div class="sidebarblock">
+<div class="content">
+<div class="paragraph"><p>As of Phusion Passenger 4.0, <em>conservative</em> spawning was renamed to <em>direct</em> and <em>smart-lv2</em> was renamed
+to <em>smart</em>. The old <em>smart</em> spawning has been removed in favor of the new version.</p></div>
+</div>
+</div>
+<div class="paragraph"><p>This option may occur in the following places:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+In the global server configuration.
+</p>
+</li>
+<li>
+<p>
+In a virtual host configuration block.
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>In each place, it may be specified at most once. The default value is <em>smart</em>.</p></div>
+</div>
+<div class="sect3">
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerLoadShellEnvvars"></span><h4 data-comment-topic="passengerloadshellenvvars-on-off--1290yz1" data-anchor="PassengerLoadShellEnvvars">8.4.12. PassengerLoadShellEnvvars &lt;on|off&gt;</h4>
+<div class="paragraph"><p><strong>Introduced in version 4.0.20.</strong></p></div>
+<div class="paragraph"><p>Enables or disables the loading of shell environment variables before spawning the application.</p></div>
+<div class="paragraph"><p>If this option is turned on, and the user’s shell is <span class="monospaced">bash</span>, then applications are loaded by running them with <span class="monospaced">bash -l -c</span>. Otherwise, they are loaded by running them directly from the <span class="monospaced">PassengerHelperAgent</span> process.</p></div>
+<div class="paragraph"><p>This option may occur in the following places:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+In the global server configuration.
+</p>
+</li>
+<li>
+<p>
+In a virtual host configuration block.
+</p>
+</li>
+<li>
+<p>
+In a <span class="monospaced">&lt;Directory&gt;</span> or <span class="monospaced">&lt;Location&gt;</span> block.
+</p>
+</li>
+<li>
+<p>
+In <em>.htaccess</em>, if <span class="monospaced">AllowOverride Options</span> is on.
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>In each place, it may be specified at most once. The default value is <em>on</em>.</p></div>
+</div>
+<div class="sect3">
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerRollingRestarts"></span><h4 data-comment-topic="passengerrollingrestarts" data-anchor="PassengerRollingRestarts">8.4.13. PassengerRollingRestarts &lt;on|off&gt;</h4>
 <div class="paragraph"><p><strong>This feature is only available in <a href="https://www.phusionpassenger.com/enterprise">Phusion Passenger Enterprise</a>. It was introduced in version 3.0.0. <a href="https://www.phusionpassenger.com/download">Buy Phusion Passenger Enterprise here.</a></strong></p></div>
 <div class="paragraph"><p>Enables or disables support for rolling restarts through restart.txt. Normally when you
 restart an application by touching restart.txt, Phusion Passenger would
@@ -3729,7 +4204,7 @@ In <em>.htaccess</em>, if <span class="monospaced">AllowOverride Options</span> 
 <div class="paragraph"><p>In each place, it may be specified at most once. The default value is <em>off</em>.</p></div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerResistDeploymentErrors"></span><h4 data-comment-topic="passengerresistdeploymenterrors" data-anchor="PassengerResistDeploymentErrors">8.3.12. PassengerResistDeploymentErrors &lt;on|off&gt;</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerResistDeploymentErrors"></span><h4 data-comment-topic="passengerresistdeploymenterrors" data-anchor="PassengerResistDeploymentErrors">8.4.14. PassengerResistDeploymentErrors &lt;on|off&gt;</h4>
 <div class="paragraph"><p><strong>This feature is only available in <a href="https://www.phusionpassenger.com/enterprise">Phusion Passenger Enterprise</a>. It was introduced in version 3.0.0. <a href="https://www.phusionpassenger.com/download">Buy Phusion Passenger Enterprise here.</a></strong></p></div>
 <div class="paragraph"><p>Enables or disables resistance against deployment errors.</p></div>
 <div class="paragraph"><p>Suppose you’ve upgraded your application and you’ve issues a command to restart it (by touching restart.txt), but the application code contains an error that prevents Phusion Passenger from successfully spawning a process (e.g. a syntax error). Phusion Passenger would normally display an error message in response to this.</p></div>
@@ -3777,122 +4252,6 @@ In <em>.htaccess</em>, if <span class="monospaced">AllowOverride Options</span> 
 </li>
 </ul></div>
 <div class="paragraph"><p>In each place, it may be specified at most once. The default value is <em>off</em>.</p></div>
-</div>
-</div>
-<div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_process_spawning_options"></span><h3 data-comment-topic="process-spawning-options-v2vscm" data-anchor="_process_spawning_options">8.4. Process spawning options</h3>
-<div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerSpawnMethod"></span><h4 data-comment-topic="passengerspawnmethod-string--sodg2y" data-anchor="PassengerSpawnMethod">8.4.1. PassengerSpawnMethod &lt;string&gt;</h4>
-<div class="admonitionblock">
-<table><tr>
-<td class="icon">
-<img src="./images/icons/tip.png" alt="Tip">
-</td>
-<td class="content">
-<div class="title">"What spawn method should I use?"</div>
-<div class="paragraph"><p>This subsection attempts to describe spawn methods, but it’s okay if you don’t (want to)
-understand it, as it’s mostly a technical detail. You can basically follow this rule of thumb:</p></div>
-<div class="sidebarblock">
-<div class="content">
-<div class="paragraph"><p>If your application works on Mongrel or Thin, but not on Phusion Passenger, then set
-<span class="monospaced">PassengerSpawnMethod</span> to <em>direct</em>. Otherwise, leave it at <em>smart</em> (the default).</p></div>
-</div>
-</div>
-<div class="paragraph"><p>However, we do recommend you to try to understand it. The <em>smart</em> spawn
-method bring many benefits.</p></div>
-</td>
-</tr></table>
-</div>
-<div class="paragraph"><p>Internally, Phusion Passenger spawns multiple Ruby application processes in order to handle
-requests. But there are multiple ways with which processes can be spawned, each having
-its own set of pros and cons. Supported spawn methods are:</p></div>
-<div class="dlist"><dl>
-<dt class="hdlist1">
-<em>smart</em>
-</dt>
-<dd>
-<p>
-This spawning method caches code using the app preloader. Framework code is not
-cached between multiple applications, although it is cached within
-instances of the same application. Please read
-<a href="#spawning_methods_explained">Spawning methods explained</a> for a more detailed
-explanation of what smart spawning exactly does.
-</p>
-<div class="paragraph"><p><strong>Pros:</strong>
-Smart spawning caches code where possible to speed up the respawn process
-and is compatible with most applications</p></div>
-<div class="paragraph"><p><strong>Cons:</strong>
-It is possible that it may be incompatible with some applications</p></div>
-</dd>
-<dt class="hdlist1">
-<em>direct</em>
-</dt>
-<dd>
-<p>
-This spawning method is similar to the one used in Mongrel Cluster. It does not
-perform any code caching at all. Please read
-<a href="#spawning_methods_explained">Spawning methods explained</a> for a more detailed
-explanation of what direct spawning exactly does.
-</p>
-<div class="paragraph"><p><strong>Pros:</strong>
-Direct spawning is guaranteed to be compatible with all applications
-and libraries.</p></div>
-<div class="paragraph"><p><strong>Cons:</strong>
-Much slower than smart spawning. Every spawn action will be equally slow, though no slower than
-the startup time of a single server in Mongrel Cluster. Direct spawning will also
-render <a href="#reducing_memory_usage">Ruby Enterprise Edition’s memory reduction technology</a> useless.</p></div>
-</dd>
-</dl></div>
-<div class="sidebarblock">
-<div class="content">
-<div class="paragraph"><p>As of Phusion Passenger 4.0, <em>conservative</em> spawning was renamed to <em>direct</em> and <em>smart-lv2</em> was renamed
-to <em>smart</em>. The old <em>smart</em> spawning has been removed in favor of the new version.</p></div>
-</div>
-</div>
-<div class="paragraph"><p>This option may occur in the following places:</p></div>
-<div class="ulist"><ul>
-<li>
-<p>
-In the global server configuration.
-</p>
-</li>
-<li>
-<p>
-In a virtual host configuration block.
-</p>
-</li>
-</ul></div>
-<div class="paragraph"><p>In each place, it may be specified at most once. The default value is <em>smart</em>.</p></div>
-</div>
-<div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerLoadShellEnvvars"></span><h4 data-comment-topic="passengerloadshellenvvars-on-off--1290yz1" data-anchor="PassengerLoadShellEnvvars">8.4.2. PassengerLoadShellEnvvars &lt;on|off&gt;</h4>
-<div class="paragraph"><p><strong>Introduced in version 4.0.20.</strong></p></div>
-<div class="paragraph"><p>Enables or disables the loading of shell environment variables before spawning the application.</p></div>
-<div class="paragraph"><p>If this option is turned on, and the user’s shell is <span class="monospaced">bash</span>, then applications are loaded by running them with <span class="monospaced">bash -l -c</span>. Otherwise, they are loaded by running them directly from the <span class="monospaced">PassengerHelperAgent</span> process.</p></div>
-<div class="paragraph"><p>This option may occur in the following places:</p></div>
-<div class="ulist"><ul>
-<li>
-<p>
-In the global server configuration.
-</p>
-</li>
-<li>
-<p>
-In a virtual host configuration block.
-</p>
-</li>
-<li>
-<p>
-In a <span class="monospaced">&lt;Directory&gt;</span> or <span class="monospaced">&lt;Location&gt;</span> block.
-</p>
-</li>
-<li>
-<p>
-In <em>.htaccess</em>, if <span class="monospaced">AllowOverride Options</span> is on.
-</p>
-</li>
-</ul></div>
-<div class="paragraph"><p>In each place, it may be specified at most once. The default value is <em>on</em>.</p></div>
 </div>
 </div>
 <div class="sect2">
@@ -3980,11 +4339,13 @@ The default value is the primary group of the user specifified by
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerFriendlyErrorPages"></span><h4 data-comment-topic="passengerfriendlyerrorpages" data-anchor="PassengerFriendlyErrorPages">8.5.6. PassengerFriendlyErrorPages &lt;on|off&gt;</h4>
 <div class="paragraph"><p>Phusion Passenger can display friendly error pages whenever an application fails
 to start. This friendly error page presents the startup error message, some
-suggestions for solving the problem, and a backtrace. This feature is very useful
-during application development and useful for less experienced system administrators,
-but the page might reveal potentially sensitive information, depending on the
-application. Experienced system administrators who are using Phusion Passenger
-on serious production servers should consider turning this feature off.</p></div>
+suggestions for solving the problem, a backtrace and a dump of the environment variables.
+This feature is very useful during application development and useful for less experienced
+system administrators, but the page might reveal potentially sensitive information,
+depending on the application. For this reason, friendly error pages are turned off by default when
+<a href="#PassengerAppEnv">PassengerAppEnv (and its aliases such as RailsEnv and RackEnv)</a>
+is set to <em>staging</em> or <em>production</em>, but enabled by default otherwise. You can use
+this option to explicitly enable or disable this feature.</p></div>
 <div class="paragraph"><p>This option may occur in the following places:</p></div>
 <div class="ulist"><ul>
 <li>
@@ -4008,7 +4369,7 @@ In <em>.htaccess</em>, if <span class="monospaced">AllowOverride Options</span> 
 </p>
 </li>
 </ul></div>
-<div class="paragraph"><p>In each place, it may be specified at most once. The default value is <em>on</em>.</p></div>
+<div class="paragraph"><p>In each place, it may be specified at most once. The default value depends on <a href="#PassengerAppEnv">PassengerAppEnv (and its aliases such as RailsEnv and RackEnv)</a>, as documented above.</p></div>
 </div>
 </div>
 <div class="sect2">
@@ -4212,16 +4573,16 @@ The default value is <em>300</em>.</p></div>
 </div>
 <div class="sect3">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerMaxPreloaderIdleTime"></span><h4 data-comment-topic="railsappspawneridletime-integer--1awgog1" data-anchor="PassengerMaxPreloaderIdleTime">8.6.6. PassengerMaxPreloaderIdleTime &lt;integer&gt;</h4>
-<div class="paragraph"><p>The ApplicationSpawner server (explained in <a href="#spawning_methods_explained">Spawning methods explained</a>) has an idle timeout, just like the backend processes spawned by
+<div class="paragraph"><p>The preloader process(explained in <a href="#spawning_methods_explained">Spawning methods explained</a>) has an idle timeout, just like the backend processes spawned by
 Phusion Passenger do. That is, it will automatically shutdown if it hasn’t done
 anything for a given period.</p></div>
-<div class="paragraph"><p>This option allows you to set the ApplicationSpawner server’s idle timeout, in
+<div class="paragraph"><p>This option allows you to set the preloader’s idle timeout, in
 seconds. A value of <em>0</em> means that it should never idle timeout.</p></div>
-<div class="paragraph"><p>Setting a higher value will mean that the ApplicationSpawner server is kept around
+<div class="paragraph"><p>Setting a higher value will mean that the preloader is kept around
 longer, which may slightly increase memory usage. But as long as the
-ApplicationSpawner server is running, the time to spawn a Ruby on Rails backend
+preloader server is running, the time to spawn a Ruby on Rails backend
 process only takes about 10% of the time that is normally needed, assuming that
-you’re using the <em>smart</em> or <em>smart-lv2</em> <a href="#PassengerSpawnMethod">spawning method</a>. So if your
+you’re using the <em>smart</em> <a href="#PassengerSpawnMethod">spawning method</a>. So if your
 system has enough memory, is it recommended that you set this option to a high
 value or to <em>0</em>.</p></div>
 <div class="paragraph"><p>This option may occur in the following places:</p></div>
@@ -4685,6 +5046,8 @@ PassengerPreStart http://bar.com:3500/      # &lt;--- added</pre>
     &lt;Directory /websites/store/public&gt;
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 &lt;/VirtualHost&gt;</pre>
 </div>
@@ -4705,6 +5068,8 @@ like this:</p></div>
     &lt;Directory /websites/store/public&gt;
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache &gt;= 2.4:
+        #Require all granted
     &lt;/Directory&gt;
 &lt;/VirtualHost&gt;
 
@@ -4724,7 +5089,7 @@ The following example is wrong and won’t pre-start the store web application:<
 <div class="paragraph"><p>Application processes started with PassengerPreStart are
 also subject to the idle timeout rules as specified by
 <a href="#PassengerPoolIdleTime">PassengerPoolIdleTime</a>! That means that by default,
-the pre-started application processes for foo.com are bar.com are shut down
+the pre-started application processes for foo.com and bar.com are shut down
 after a few minutes of inactivity. If you don’t want that to happen, then
 you should combine PassengerPreStart with
 <a href="#PassengerMinInstances">PassengerMinInstances</a>, like this:</p></div>
@@ -5122,6 +5487,91 @@ In <em>.htaccess</em>.
 </ul></div>
 <div class="paragraph"><p>In each place, it may be specified at most once. The default value is <em>100</em>.</p></div>
 </div>
+<div class="sect3">
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerStickySessions"></span><h4 data-comment-topic="passengerstickysessions-on-off--fx1jkt" data-anchor="PassengerStickySessions">8.7.5. PassengerStickySessions &lt;on|off&gt;</h4>
+<div class="paragraph"><p><strong>Introduced in version 4.0.45.</strong></p></div>
+<div class="paragraph"><p>When sticky sessions are enabled, all requests that a client sends will be routed to the same originating application process, whenever possible. When sticky sessions are disabled, requests may be distributed over multiple processes, and may not necessarily be routed to the originating process, in order to balance traffic over multiple CPU cores. Because of this, sticky sessions should only be enabled in specific circumstances.</p></div>
+<div class="paragraph"><p>For applications that store important state inside the process’s own memory — that is, as opposed to storing state in a distributed data store, such as the database or Redis — sticky sessions <strong>should</strong> be enabled. This is because otherwise, some requests could be routed to a different process, which stores different state data. Because processes don’t share memory with each other, there’s no way for one process to know about the state in another process, and then things can go wrong.</p></div>
+<div class="paragraph"><p>One prominent example is the popular <a href="http://sockjs.org/">SockJS library</a>, which is capable of emulating WebSockets through long polling. This is implemented through two HTTP endpoints, <span class="monospaced">/SESSION_ID/xhr_stream</span> (a long polling end point which sends data from the server to the client), and <span class="monospaced">/SESSION_ID/xhr_send</span> (a normal POST endpoint which is used for sending data from the client to the server). SockJS correlates the two requests with each other through a session identifier. At the same time, in its default configuration, it stores all known session identifiers in an in-memory data structure. It is therefore important that a particular <span class="monospaced">/SESSION_ID/xhr_send</span> request is sent to the same process where the corresponding <span class="monospaced">/SESSION_ID/xhr_stream</span> request originates from; otherwise, SockJS cannot correlate the two requests, and an error occurs.</p></div>
+<div class="paragraph"><p>So prominent examples where sticky sessions should (or even <strong>must</strong>) be enabled, include:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+Applications that use the SockJS library (unless configured with a distributed data store)
+</p>
+</li>
+<li>
+<p>
+Applications that use the Socket.io library (unless configured with a distributed data store)
+</p>
+</li>
+<li>
+<p>
+Applications that use the faye-websocket gem (unless configured with a distributed data store)
+</p>
+</li>
+<li>
+<p>
+Meteor JS applications (because Meteor uses SockJS)
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>Sticky sessions work through the use of a special cookie, whose name can be customized with <a href="#PassengerStickySessionsCookieName">PassengerStickySessionsCookieName</a>. Phusion Passenger puts an identifier in this cookie, which tells Phusion Passenger what the originating process is. Next time the client sends a request, Phusion Passenger reads this cookie and uses the value in the cookie to route the request back to the originating process. If the originating process no longer exists (e.g. because it has crashed or restarted) then Phusion Passenger will route the request to some other process, and reset the cookie.</p></div>
+<div class="paragraph"><p>If you have a load balancer in front end of Phusion Passenger + Apache, then you must configure sticky sessions on that load balancer too. Otherwise, the load balancer could route the request to a different server.</p></div>
+<div class="paragraph"><p>This option may occur in the following places:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+In the global server configuration.
+</p>
+</li>
+<li>
+<p>
+In a virtual host configuration block.
+</p>
+</li>
+<li>
+<p>
+In a <span class="monospaced">&lt;Directory&gt;</span> or <span class="monospaced">&lt;Location&gt;</span> block.
+</p>
+</li>
+<li>
+<p>
+In <em>.htaccess</em>.
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>In each place, it may be specified at most once. The default value is <span class="monospaced">off</span>.</p></div>
+</div>
+<div class="sect3">
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="PassengerStickySessionsCookieName"></span><h4 data-comment-topic="passenger-sticky-sessions-cookie-name-stktkx" data-anchor="PassengerStickySessionsCookieName">8.7.6. PassengerStickySessionsCookieName</h4>
+<div class="paragraph"><p><strong>Introduced in version 4.0.45.</strong></p></div>
+<div class="paragraph"><p>Sets the name of the <a href="#PassengerStickySessions">sticky sessions</a> cookie.</p></div>
+<div class="paragraph"><p>This option may occur in the following places:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+In the global server configuration.
+</p>
+</li>
+<li>
+<p>
+In a virtual host configuration block.
+</p>
+</li>
+<li>
+<p>
+In a <span class="monospaced">&lt;Directory&gt;</span> or <span class="monospaced">&lt;Location&gt;</span> block.
+</p>
+</li>
+<li>
+<p>
+In <em>.htaccess</em>.
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>In each place, it may be specified at most once. The default value is <span class="monospaced">passenger_route</span>.</p></div>
+</div>
 </div>
 <div class="sect2">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_compatibility_options"></span><h3 data-comment-topic="compatibility-options-8jve5a" data-anchor="_compatibility_options">8.8. Compatibility options</h3>
@@ -5482,7 +5932,73 @@ configuration option.
 </dl></div>
 </div>
 <div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_os_x_the_installer_cannot_locate_mamp_8217_s_apache"></span><h3 data-comment-topic="macos-x-the-installer-cannot-locate-mamp-s-apache-or908n" data-anchor="_os_x_the_installer_cannot_locate_mamp_8217_s_apache">9.3. OS X: The installer cannot locate MAMP’s Apache</h3>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_i_get_command_not_found_when_running_a_phusion_passenger_command_through_sudo"></span><h3 data-comment-topic="i-get-command-not-found-when-running-a-phusion-passenger-command-through-sudo-v9z223" data-anchor="_i_get_command_not_found_when_running_a_phusion_passenger_command_through_sudo">9.3. I get "command not found" when running a Phusion Passenger command through sudo</h3>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<strong>Symptoms</strong>
+</dt>
+<dd>
+<p>
+        Phusion Passenger commands can be found as a normal user, but not when run through sudo:
+</p>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>$ passenger-status
+...some output, but no "command not found" error...
+$ passenger-install-apache2-module
+...some output, but no "command not found" error...
+$ sudo passenger-status
+sudo: passenger-status: command not found
+$ sudo passenger-install-apache2-module
+sudo: passenger-install-apache2-module: command not found</pre>
+</div>
+</div>
+</dd>
+<dt class="hdlist1">
+<strong>Cause</strong>
+</dt>
+<dd>
+<p>
+        The operating system looks up commands using <a href="#the_path_env_var">the PATH environment variable</a>. However, sudo resets all environment variables to a default value, dictated by sudo. If Phusion Passenger was installed to a location that is not in the default sudo PATH value, then sudo will not be able to find the Phusion Passenger commands.
+</p>
+<div class="paragraph"><p>In addition, if you installed Phusion Passenger using a Ruby interpreter that was installed through RVM, then you <strong>must</strong> use rvmsudo instead of sudo. As a rule, when you’re an RVM user, always use rvmsudo instead of sudo.</p></div>
+</dd>
+<dt class="hdlist1">
+<strong>Solution</strong>
+</dt>
+<dd>
+<p>
+        Execute the command using its full path. You can use <span class="monospaced">which</span> as a normal user to lookup the full path:
+</p>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>$ which passenger-status
+/somewhere/bin/passenger-status</pre>
+</div>
+</div>
+<div class="paragraph"><p>Next, run full path of the command using either sudo or rvmsudo:</p></div>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>$ sudo /somewhere/bin/passenger-status
+
+# -OR, if you're using RVM:-
+
+$ rvmsudo /somewhere/bin/passenger-status</pre>
+</div>
+</div>
+</dd>
+<dt class="hdlist1">
+<strong>Recommended reading</strong>
+</dt>
+<dd>
+<p>
+        When using sudo, you will probably run into similar "command not found" issues in the future, with components other than Phusion Passenger. We <strong>strongly recommend</strong> you to <a href="#about_environment_variables">learn about environment variables</a> so that you know what to do in the future.
+</p>
+</dd>
+</dl></div>
+</div>
+<div class="sect2">
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_os_x_the_installer_cannot_locate_mamp_8217_s_apache"></span><h3 data-comment-topic="macos-x-the-installer-cannot-locate-mamp-s-apache-or908n" data-anchor="_os_x_the_installer_cannot_locate_mamp_8217_s_apache">9.4. OS X: The installer cannot locate MAMP’s Apache</h3>
 <div class="dlist"><dl>
 <dt class="hdlist1">
 <strong>Symptoms</strong>
@@ -5517,11 +6033,11 @@ No such file or directory at /Applications/MAMP/Library/bin/apxs line 218.</pre>
 </dl></div>
 </div>
 <div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_apache_reports_a_403_forbidden_error"></span><h3 data-comment-topic="apache-reports-a-403-forbidden-error-140tb4p" data-anchor="_apache_reports_a_403_forbidden_error">9.4. Apache reports a "403 Forbidden" error</h3>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_apache_reports_a_403_forbidden_error"></span><h3 data-comment-topic="apache-reports-a-403-forbidden-error-140tb4p" data-anchor="_apache_reports_a_403_forbidden_error">9.5. Apache reports a "403 Forbidden" error</h3>
 <div class="paragraph"><p>See next subsection.</p></div>
 </div>
 <div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_static_assets_such_as_images_and_stylesheets_aren_8217_t_being_displayed"></span><h3 data-comment-topic="static-assets-such-as-images-and-stylesheets-aren-t-being-displayed-uaptpi" data-anchor="_static_assets_such_as_images_and_stylesheets_aren_8217_t_being_displayed">9.5. Static assets such as images and stylesheets aren’t being displayed</h3>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_static_assets_such_as_images_and_stylesheets_aren_8217_t_being_displayed"></span><h3 data-comment-topic="static-assets-such-as-images-and-stylesheets-aren-t-being-displayed-uaptpi" data-anchor="_static_assets_such_as_images_and_stylesheets_aren_8217_t_being_displayed">9.6. Static assets such as images and stylesheets aren’t being displayed</h3>
 <div class="paragraph"><p>Static assets are accelerated, i.e. they are served directly by Apache and do not
 go through the Rails stack. There are two reasons why Apache doesn’t serve static
 assets correctly:</p></div>
@@ -5539,6 +6055,9 @@ Your Apache configuration is too strict, and does not allow HTTP clients to
    AllowOverride None
    Order allow,deny
    Allow from all
+   Options -MultiViews
+   # Uncomment this if you're on Apache &gt;= 2.4:
+   #Require all granted
 &lt;/Directory&gt;</pre>
 </div>
 </div>
@@ -5554,7 +6073,7 @@ The Apache process doesn’t have permission to access your Rails application’
 </ol></div>
 </div>
 <div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_the_apache_error_log_says_that_the_spawn_manager_script_does_not_exist_or_that_it_does_not_have_permission_to_execute_it"></span><h3 data-comment-topic="the-apache-error-log-says-that-the-spawn-manager-script-does-not-exist-or-that-it-does-not-have-permission-to-execute-it-1fmoozk" data-anchor="_the_apache_error_log_says_that_the_spawn_manager_script_does_not_exist_or_that_it_does_not_have_permission_to_execute_it">9.6. The Apache error log says that the spawn manager script does not exist, or that it does not have permission to execute it</h3>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_the_apache_error_log_says_that_the_spawn_manager_script_does_not_exist_or_that_it_does_not_have_permission_to_execute_it"></span><h3 data-comment-topic="the-apache-error-log-says-that-the-spawn-manager-script-does-not-exist-or-that-it-does-not-have-permission-to-execute-it-1fmoozk" data-anchor="_the_apache_error_log_says_that_the_spawn_manager_script_does_not_exist_or_that_it_does_not_have_permission_to_execute_it">9.7. The Apache error log says that the spawn manager script does not exist, or that it does not have permission to execute it</h3>
 <div class="paragraph"><p>If you are sure that the <em>PassengerRoot</em> configuration option is set correctly,
 then this problem is most likely caused by the fact that you’re running Apache
 with SELinux. On Fedora, CentOS and RedHat Enterprise Linux, Apache is locked
@@ -5596,7 +6115,7 @@ If you’ve installed Phusion Passenger via the source tarball, then run the fol
 <div class="paragraph"><p>Once the permissions are fixed, restart Apache.</p></div>
 </div>
 <div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_the_application_thinks_its_not_on_ssl_even_though_it_is"></span><h3 data-comment-topic="the-application-thinks-its-not-on-ssl-even-though-it-is-u9fcp1" data-anchor="_the_application_thinks_its_not_on_ssl_even_though_it_is">9.7. The application thinks its not on SSL even though it is</h3>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_the_application_thinks_its_not_on_ssl_even_though_it_is"></span><h3 data-comment-topic="the-application-thinks-its-not-on-ssl-even-though-it-is-u9fcp1" data-anchor="_the_application_thinks_its_not_on_ssl_even_though_it_is">9.8. The application thinks its not on SSL even though it is</h3>
 <div class="paragraph"><p>Rails and many other frameworks infers whether it’s running on SSL through the CGI
 environment variable <span class="monospaced">HTTPS</span>. Apache always sets this variable when on SSL,
 except when SSL is incorrectly configured.</p></div>
@@ -5636,15 +6155,15 @@ the corrected example:</p></div>
 </div>
 </div>
 <div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_ruby_on_rails_specific_troubleshooting"></span><h3 data-comment-topic="ruby-on-rails-specific-problems-6umss5" data-anchor="_ruby_on_rails_specific_troubleshooting">9.8. Ruby on Rails-specific troubleshooting</h3>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_ruby_on_rails_specific_troubleshooting"></span><h3 data-comment-topic="ruby-on-rails-specific-problems-6umss5" data-anchor="_ruby_on_rails_specific_troubleshooting">9.9. Ruby on Rails-specific troubleshooting</h3>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_the_about_your_application_8217_s_environment_link_does_not_work"></span><h4 data-comment-topic="the-about-your-application-s-environment-link-does-not-work-7k4tlm" data-anchor="_the_about_your_application_8217_s_environment_link_does_not_work">9.8.1. The "About your application’s environment" link does not work</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_the_about_your_application_8217_s_environment_link_does_not_work"></span><h4 data-comment-topic="the-about-your-application-s-environment-link-does-not-work-7k4tlm" data-anchor="_the_about_your_application_8217_s_environment_link_does_not_work">9.9.1. The "About your application’s environment" link does not work</h4>
 <div class="paragraph"><p>The "About your application’s environment" link only works if the application is started in the <em>development</em> environment. Phusion Passenger starts the application in the <em>production</em> environment by default. Please use
 <a href="#RailsEnv">RailsEnv</a>
 to change it.</p></div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_the_rails_application_reports_that_it_8217_s_unable_to_start_because_of_a_permission_error"></span><h4 data-comment-topic="the-rails-application-reports-that-it-s-unable-to-start-because-of-a-permission-error-v53i6s" data-anchor="_the_rails_application_reports_that_it_8217_s_unable_to_start_because_of_a_permission_error">9.8.2. The Rails application reports that it’s unable to start because of a permission error</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_the_rails_application_reports_that_it_8217_s_unable_to_start_because_of_a_permission_error"></span><h4 data-comment-topic="the-rails-application-reports-that-it-s-unable-to-start-because-of-a-permission-error-v53i6s" data-anchor="_the_rails_application_reports_that_it_8217_s_unable_to_start_because_of_a_permission_error">9.9.2. The Rails application reports that it’s unable to start because of a permission error</h4>
 <div class="paragraph"><p>Please check whether your Rails application’s folder has the correct
 permissions. By default, Rails applications are started as the owner of the
 file <span class="monospaced">config.ru</span>, except if the file is owned by root. If the
@@ -5654,7 +6173,7 @@ specified).</p></div>
 <div class="paragraph"><p>Please read <a href="#user_switching">User switching (security)</a> for details.</p></div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_the_rails_application_8217_s_log_file_is_not_being_written_to"></span><h4 data-comment-topic="my-rails-application-s-log-file-is-not-being-written-to-3i747l" data-anchor="_the_rails_application_8217_s_log_file_is_not_being_written_to">9.8.3. The Rails application’s log file is not being written to</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_the_rails_application_8217_s_log_file_is_not_being_written_to"></span><h4 data-comment-topic="my-rails-application-s-log-file-is-not-being-written-to-3i747l" data-anchor="_the_rails_application_8217_s_log_file_is_not_being_written_to">9.9.3. The Rails application’s log file is not being written to</h4>
 <div class="paragraph"><p>There are a couple things that you should be aware of:</p></div>
 <div class="ulist"><ul>
 <li>
@@ -5684,18 +6203,18 @@ following command to give your Rails application folder that context:</p></div>
 </div>
 </div>
 <div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="conflicting_apache_modules"></span><h3 data-comment-topic="conflicting-apache-modules-1uwpixk" data-anchor="conflicting_apache_modules">9.9. Conflicting Apache modules</h3>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="conflicting_apache_modules"></span><h3 data-comment-topic="conflicting-apache-modules-1uwpixk" data-anchor="conflicting_apache_modules">9.10. Conflicting Apache modules</h3>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_mod_userdir"></span><h4 data-comment-topic="mod-userdir-x5e2te" data-anchor="_mod_userdir">9.9.1. mod_userdir</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_mod_userdir"></span><h4 data-comment-topic="mod-userdir-x5e2te" data-anchor="_mod_userdir">9.10.1. mod_userdir</h4>
 <div class="paragraph"><p><em>mod_userdir</em> is not compatible with Phusion Passenger at the moment.</p></div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_multiviews_mod_negotiation"></span><h4 data-comment-topic="multiviews-mod-negotiation--zchfg0" data-anchor="_multiviews_mod_negotiation">9.9.2. MultiViews (mod_negotiation)</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_multiviews_mod_negotiation"></span><h4 data-comment-topic="multiviews-mod-negotiation--zchfg0" data-anchor="_multiviews_mod_negotiation">9.10.2. MultiViews (mod_negotiation)</h4>
 <div class="paragraph"><p>MultiViews is not compatible with Phusion Passenger. You should disable MultiViews
 for all Phusion Passenger hosts.</p></div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_virtualdocumentroot"></span><h4 data-comment-topic="virtualdocumentroot-14cwd7l" data-anchor="_virtualdocumentroot">9.9.3. VirtualDocumentRoot</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_virtualdocumentroot"></span><h4 data-comment-topic="virtualdocumentroot-14cwd7l" data-anchor="_virtualdocumentroot">9.10.3. VirtualDocumentRoot</h4>
 <div class="paragraph"><p>VirtualDocumentRoot is not compatible with Phusion Passenger at the moment.</p></div>
 </div>
 </div>
@@ -5884,25 +6403,12 @@ sessions compared to the others, then there might be a problem:</p></div>
 </div>
 <div class="sect2">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="debugging_frozen"></span><h3 data-comment-topic="debugging-frozen-applications-1qsjqq7" data-anchor="debugging_frozen">10.3. Debugging frozen applications</h3>
-<div class="paragraph"><p>If one of your application instances is frozen (stopped responding), then you
+<div class="paragraph"><p>If one of your application processes is frozen (stopped responding), then you
 can figure out where it is frozen by killing it with <em>SIGABRT</em>. This will cause the
-application to raise an exception, with a backtrace.</p></div>
-<div class="paragraph"><p>The exception (with full backtrace information) is normally logged into the web server
-error log. But if your application or if its web framework has its own exception logging
-routines, then exceptions might be logged into the application’s log files instead.
-This is the case with Ruby on Rails. So if you kill a Ruby on Rails application with
-<em>SIGABRT</em>, please check the application’s <em>production.log</em> first (assuming that you’re
-running it in a <em>production</em> environment). If you don’t see a backtrace there, check
-the web server error log.</p></div>
-<div class="admonitionblock">
-<table><tr>
-<td class="icon">
-<img src="./images/icons/note.png" alt="Note">
-</td>
-<td class="content">It is safe to kill application instances, even in live environments. Phusion Passenger
-will restart killed application instances, as if nothing bad happened.</td>
-</tr></table>
-</div>
+processs to print a backtrace, after which it aborts. The backtrace information is
+logged into the web server error log file.</p></div>
+<div class="paragraph"><p>In case of Ruby applications, you can also send the <em>SIGQUIT</em> signal to have it print
+a backtrace without aborting.</p></div>
 </div>
 <div class="sect2">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_accessing_individual_application_processes"></span><h3 data-comment-topic="accessing-individual-application-processes-1p0j4jb" data-anchor="_accessing_individual_application_processes">10.4. Accessing individual application processes</h3>
@@ -6497,7 +7003,7 @@ Attached process 28303 for app /webapps/foobar.
 </div>
 <div class="sect3">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_blocking_and_concurrency"></span><h4 data-comment-topic="blocking-and-concurrency-cxpbyu" data-anchor="_blocking_and_concurrency">11.9.3. Blocking and concurrency</h4>
-<div class="paragraph"><p>All hooks block. That is, Phusion Passenger waits until your hook command is finished. You should therefore be careful when writing hook scripts: if your script never finishes, so Phusion Passenger does not do that either.</p></div>
+<div class="paragraph"><p>Except when otherwise documented, all hooks block in the background. That is, while your hook command is running, Phusion Passenger can still handle web requests, but the background thread which is running your hook will be blocked and won’t be able to perform any further operations. For example, if you wrote a hook script for the <span class="monospaced">attached_process</span> event, then Phusion Passenger won’t be able to attach further processes until your hook script finishes. You should therefore be careful when writing hook scripts.</p></div>
 <div class="paragraph"><p>If you have a bug in your script and it blocks, then you will be able to see that using the command <span class="monospaced">passenger-status --show=backtraces</span> which prints the backtraces of all threads in the Phusion Passenger HelperAgent. Look for the <span class="monospaced">runSingleHookScript</span> function in the backtrace. The following example shows at line 2 that Phusion Passenger is waiting for the hook script <span class="monospaced">/home/phusion/badscript.sh</span>.</p></div>
 <div class="listingblock">
 <div class="content monospaced">
@@ -6507,7 +7013,7 @@ Attached process 28303 for app /webapps/foobar.
      in 'void Passenger::ApplicationPool2::Group::spawnThreadRealMain(const SpawnerPtr &amp;, const Passenger::ApplicationPool2::Options &amp;, unsigned int)' (Implementation.cpp:878)</pre>
 </div>
 </div>
-<div class="paragraph"><p>Hooks may be called concurrently. For example, while the <span class="monospaced">attached_process</span> hook is being called, a <span class="monospaced">detached_process</span> hook may be called, perhaps even for the same application. It is your responsibility to ensure that your hook scripts are concurrency-safe, e.g. by employing locks and other concurrency control techniques.</p></div>
+<div class="paragraph"><p>Hooks may be called concurrently, because Phusion Passenger sometimes uses multiple background threads. For example, while the <span class="monospaced">attached_process</span> hook is being called, a <span class="monospaced">detached_process</span> hook may be called, perhaps even for the same application. It is your responsibility to ensure that your hook scripts are concurrency-safe, e.g. by employing locks and other concurrency control techniques.</p></div>
 </div>
 <div class="sect3">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_error_handling"></span><h4 data-comment-topic="error-handling-1a1uvod" data-anchor="_error_handling">11.9.4. Error handling</h4>
@@ -6571,9 +7077,63 @@ The administrator configured different resource limits, and Phusion Passenger is
 <p>
 Phusion Passenger itself is shutting down.
 </p>
-<div class="paragraph"><p>Extra environment variables: <span class="monospaced">PASSENGER_PROCESS_PID</span>, <span class="monospaced">PASSENGER_APP_ROOT</span>. Errors in the hook script are ignored.</p></div>
 </li>
 </ul></div>
+<div class="paragraph"><p>Extra environment variables: <span class="monospaced">PASSENGER_PROCESS_PID</span>, <span class="monospaced">PASSENGER_APP_ROOT</span>. Errors in the hook script are ignored.</p></div>
+</dd>
+<dt class="hdlist1">
+<span class="monospaced">spawn_failed</span> (since 4.0.49)
+</dt>
+<dd>
+<p>
+        Called when an application process could not be spawned. This could happen when:
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+The application failing to start. For example: bugs in the application, database problems causing the application to crash, incorrectly installed dependencies.
+</p>
+</li>
+<li>
+<p>
+Operating system-level problems, such as running out of memory.
+</p>
+</li>
+<li>
+<p>
+The application taking too long to start, and hitting Phusion Passenger’s timeout.
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>Extra environment variables:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<span class="monospaced">PASSENGER_APP_ROOT</span>: the path to the application that failed to spawn.
+</p>
+</li>
+<li>
+<p>
+<span class="monospaced">PASSENGER_APP_GROUP_NAME</span>: the configured app group name.
+</p>
+</li>
+<li>
+<p>
+<span class="monospaced">PASSENGER_ERROR_MESSAGE</span>: an error message that describes the problem.
+</p>
+</li>
+<li>
+<p>
+<span class="monospaced">PASSENGER_ERROR_ID</span>: a unique ID for this error event. If you search for this ID in the web server error log files, you should be able to find details about the error.
+</p>
+</li>
+<li>
+<p>
+<span class="monospaced">PASSENGER_APP_ERROR_MESSAGE</span>: output captured from the application at the time the error occurred.
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>This hook does not block because it’s always run in an extra background thread. Errors in the hook script are ignored.</p></div>
 </dd>
 <dt class="hdlist1">
 <span class="monospaced">after_initialize_supergroup</span>
@@ -6598,7 +7158,7 @@ Phusion Passenger itself is shutting down.
 </div>
 <div class="sect2">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="flying_passenger"></span><h3 data-comment-topic="flying-passenger-q916f7" data-anchor="flying_passenger">11.10. Flying Passenger</h3>
-<div class="paragraph"><p><strong>This feature is only available in <a href="https://www.phusionpassenger.com/enterprise">Phusion Passenger Enterprise</a>. It was introduced in version 4.0.6. <a href="https://www.phusionpassenger.com/download">Buy Phusion Passenger Enterprise here.</a></strong></p></div>
+<div class="paragraph"><p><strong>This feature is only available in <a href="https://www.phusionpassenger.com/enterprise">Phusion Passenger Enterprise</a>. It was introduced in version 4.0.45. <a href="https://www.phusionpassenger.com/download">Buy Phusion Passenger Enterprise here.</a></strong></p></div>
 <div class="paragraph"><p>Flying Passenger allows one to decouple Phusion Passenger’s life time from the web server’s life time, so that the web server can be independently restarted from Phusion Passenger, and from any of the application processes served by Phusion Passenger.</p></div>
 <div class="paragraph"><p>Normally, Phusion Passenger starts together with the web server, and shuts down together with the web server. The advantages of this default behavior is that it makes Phusion Passenger easy to administer: one only has to deal with the web server process and can expect all relevant processes to be cleaned up after a web server shut down. However this also brings about a disadvantage: every time one restarts the web server (e.g. to make a minor configuration change), Phusion Passenger and all its application processes also get restarted.</p></div>
 <div class="paragraph"><p>This problem is solved by <em>Flying Passenger</em>, which is an advanced mode of operation in Phusion Passenger that allows the web server to be indepedently restarted from Phusion Passenger. When this mode is enabled:</p></div>
@@ -6621,7 +7181,9 @@ You should beware of the <a href="#flying_passenger_caveats">caveats and limitat
 </ul></div>
 <div class="sect3">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_requirements_2"></span><h4 data-comment-topic="requirements-1ntkin3" data-anchor="_requirements_2">11.10.1. Requirements</h4>
-<div class="paragraph"><p>At this time, this feature is <strong>only available in the Enterprise version of Phusion Passenger for Nginx</strong>. You must have Phusion Passenger for Nginx properly installed.</p></div>
+<div class="paragraph"><p>Before you can use the Flying Passenger feature, you must have Phusion Passenger for
+Apache
+properly installed.</p></div>
 </div>
 <div class="sect3">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_basic_usage"></span><h4 data-comment-topic="basic-usage-joifsk" data-anchor="_basic_usage">11.10.2. Basic usage</h4>
@@ -6637,35 +7199,28 @@ I, [2013-06-14T09:10:13.129017 #77179]  INFO -- : PassengerWatchdog initialized 
 I, [2013-06-14T09:10:13.129127 #77179]  INFO -- : Flying Passenger up and listening on /var/run/flying-passenger.sock!</pre>
 </div>
 </div>
-<div class="paragraph"><p>Now configure Phusion Passenger for Nginx to make use of the Flying Passenger daemon, by setting the <span class="monospaced">passenger_fly_with</span> option to the socket filename:</p></div>
+<div class="paragraph"><p>Now configure the web server to make use of the Flying Passenger daemon,
+by setting the <span class="monospaced">PassengerFlyWith</span> option to the socket filename:</p></div>
 <div class="listingblock">
 <div class="content monospaced">
-<pre>http {
-    ...
-    passenger_fly_with /var/run/flying-passenger.sock;
-    ...
-}</pre>
+<pre>PassengerFlyWith /var/run/flying-passenger.sock</pre>
 </div>
 </div>
-<div class="paragraph"><p>After (re)starting Nginx, Nginx + Flying Passenger is fully operational:</p></div>
+<div class="paragraph"><p>After (re)starting
+Apache, Apache + Flying Passenger is fully operational:</p></div>
 <div class="listingblock">
 <div class="content monospaced">
-<pre>$ sudo /path-to/nginx</pre>
+<pre>$ sudo service apache2 restart</pre>
 </div>
 </div>
+<div class="paragraph"><p>Flying Passenger is fully operational:</p></div>
 <div class="paragraph"><p>You can test it by adding a virtual host for a web app:</p></div>
 <div class="listingblock">
 <div class="content monospaced">
-<pre>http {
-    ...
-
-    server {
-        listen 80;
-        server_name www.foo.local;
-        root /webapps/foo/public;
-        passenger_enabled on;
-    }
-}</pre>
+<pre>&lt;VirtualHost *:80&gt;
+    ServerName www.foo.local
+    DocumentRoot /webapps/foo/public
+&lt;/VirtualHost&gt;</pre>
 </div>
 </div>
 <div class="paragraph"><p>Verify that it works by making an HTTP request to it:</p></div>
@@ -6693,11 +7248,10 @@ Requests in top-level queue : 0
     CPU: 1%      Memory  : 8M      Last used: 2s ago</pre>
 </div>
 </div>
-<div class="paragraph"><p>As you can see, the PID of the application process is <strong>77283</strong>. Now let’s see what happens if we restart Nginx:</p></div>
+<div class="paragraph"><p>As you can see, the PID of the application process is <strong>77283</strong>. Now let’s see what happens if we restart the web server:</p></div>
 <div class="listingblock">
 <div class="content monospaced">
-<pre>$ sudo /path-to/nginx -s stop
-$ sudo /path-to/nginx
+<pre>$ sudo service apache2 restart
 $ sudo passenger-status</pre>
 </div>
 </div>
@@ -6723,8 +7277,12 @@ Requests in top-level queue : 0
 </div>
 <div class="sect3">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="configuring_flying_passenger"></span><h4 data-comment-topic="configuring-flying-passenger-1v35vgg" data-anchor="configuring_flying_passenger">11.10.3. Configuring Flying Passenger</h4>
-<div class="paragraph"><p>Flying Passenger gets <strong>some</strong> configuration from the web server, but not all. In particular, most web server directives that are only valid in the <span class="monospaced">http</span> context, e.g. <a href="#PassengerLogLevel">passenger_log_level</a>, have no effect when using Flying Passenger. Instead, you are supposed to pass these configuration directives through command line options to the Flying Passenger daemon. Configuration directives that have no effect on Flying Passenger are documented as such. You can assume that configuration directives that are not documented as such, work fine on Flying Passenger.</p></div>
-<div class="paragraph"><p>For example, to achieve the same effect as setting passenger_log_level to 2, run the Flying Passenger daemon as follows:</p></div>
+<div class="paragraph"><p>Flying Passenger gets <strong>some</strong> configuration from the web server, but not all. In particular, most web server directives that are only valid in the
+global context, e.g. <a href="#PassengerLogLevel">PassengerLogLevel</a>,
+have no effect when using Flying Passenger. Instead, you are supposed to pass these configuration directives through command line options to the Flying Passenger daemon. Configuration directives that have no effect on Flying Passenger are documented as such. You can assume that configuration directives that are not documented as such, work fine on Flying Passenger.</p></div>
+<div class="paragraph"><p>For example, to achieve the same effect as setting
+<span class="monospaced">PassengerLogLevel</span>
+to 2, run the Flying Passenger daemon as follows:</p></div>
 <div class="listingblock">
 <div class="content monospaced">
 <pre>$ sudo flying-passenger --socket-file=/var/run/flying-passenger.sock --log-level=2</pre>
@@ -6772,21 +7330,19 @@ exec /path-to/flying-passenger \
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="using_flying_passenger_with_mri_18_or_jruby"></span><h4 data-comment-topic="using-flying-passenger-with-mri-1-8-or-jruby-f5tbvs" data-anchor="using_flying_passenger_with_mri_18_or_jruby">11.10.5. Using Flying Passenger with MRI 1.8 or JRuby</h4>
 <div class="paragraph"><p>Using Flying Passenger in combination with MRI Ruby 1.8 or with JRuby requires special attention. This is because the Flying Passenger daemon is written in Ruby, and requires proper <span class="monospaced">Process.spawn</span> support, which neither MRI 1.8 nor JRuby support.</p></div>
 <div class="paragraph"><p>It is however possible to use Flying Passenger with MRI Ruby 1.8 and JRuby. You can’t run the Flying Passenger daemon in MRI 1.8 or JRuby, but you can still run the web applications - hosted under Flying Passenger - in MRI 1.8 or JRuby.</p></div>
-<div class="paragraph"><p>First, edit your Nginx configuration file and specify a Ruby interpreter for your web applications. For example:</p></div>
+<div class="paragraph"><p>First, edit your web server configuration file and specify a Ruby interpreter for your web applications. For example:</p></div>
 <div class="listingblock">
 <div class="content monospaced">
 <pre># Connect to the Flying Passenger daemon on the following socket
-passenger_fly_with /var/run/flying-passenger.sock;
+PassengerFlyWith /var/run/flying-passenger.sock
 ...
 
-server {
-    listen 80;
-    server_name www.foo.com;
-    root /webapps/foo/public;
-    passenger_enabled on;
+&lt;VirtualHost *:80&gt;
+    ServerName www.foo.com
+    DocumentRoot /webapps/foo/public
     # Use JRuby for this web application
-    passenger_ruby /opt/jruby/bin/jruby;
-}</pre>
+    PassengerRuby /opt/jruby/bin/jruby
+&lt;/VirtualHost&gt;</pre>
 </div>
 </div>
 <div class="paragraph"><p>Then you need to install a Ruby 1.9-compatible Ruby interpeter with POSIX spawn support, alongside JRuby/MRI 1.8. Ruby interpreters which can be used for running the Flying Passenger daemon include:</p></div>
@@ -6837,12 +7393,12 @@ $ rvm-exec <span style="color: #993399">1.9</span><span style="color: #990000">.
 <div class="ulist"><ul>
 <li>
 <p>
-The Nginx executable <strong>must</strong> be compiled with the same version of Phusion Passenger as the Flying Passenger daemon. Failing to meet this requirement may result in cryptic errors, or may result in certain features not working, until you’ve fixed the situation. When upgrading Phusion Passenger, you must restart both Nginx and the Flying Passenger daemon.
+The Phusion Passenger module that is loaded into Apache, <strong>must</strong> be of the same version as the Flying Passenger daemon. Failing to meet this requirement may result in cryptic errors, or may result in certain features not working, until you’ve fixed the situation. When upgrading Phusion Passenger, you must restart both Apache and the Flying Passenger daemon.
 </p>
 </li>
 <li>
 <p>
-The <a href="#PassengerRoot">passenger_root</a> directive has no effect. When using Flying Passenger, you are not supposed to set <span class="monospaced">passenger_root</span>.
+The <a href="#PassengerRoot">PassengerRoot</a> directive has no effect. When using Flying Passenger, you are not supposed to set <span class="monospaced">PassengerRoot</span>.
 </p>
 </li>
 <li>
@@ -6852,17 +7408,21 @@ The Flying Passenger daemon is written in Ruby. It requires a Ruby interpreter w
 </li>
 <li>
 <p>
-When you add a new application to the web server configuration, Flying Passenger will automatically pick up the application’s settings and spawn this new application upon the first request to it. However it is not capable of automatically starting the new app before a request has been sent to it (i.e. <a href="#PassengerPreStart">passenger_pre_start</a>-like behavior is not available in this case). As a workaround, you can send an HTTP request to your application after starting the daemon, which forces it to spawn application processes.
+When you add a new application to the web server configuration, Flying Passenger will automatically pick up the application’s settings and spawn this new application upon the first request to it. However it is not capable of automatically starting the new app before a request has been sent to it (i.e.
+<a href="#PassengerPreStart">PassengerPreStart</a>-like
+behavior is not available in this case). As a workaround, you can send an HTTP request to your application after starting the daemon, which forces it to spawn application processes.
 </p>
 </li>
 <li>
 <p>
-When you remove an application from the web server configuration, Flying Passenger will not detect the removal and will not shut down the associated application processes. Killing the application processes will also not help, because Flying Passenger will restart them per the (now-removed, but still in the Flying Passenger daemon’s memory) <a href="#PassengerMinInstances">passenger_min_instances</a> settings. At the moment, there are two ways to get rid of those processes:
+When you remove an application from the web server configuration, Flying Passenger will not detect the removal and will not shut down the associated application processes. Killing the application processes will also not help, because Flying Passenger will restart them per the (now-removed, but still in the Flying Passenger daemon’s memory)
+<a href="#PassengerMinInstances">PassengerMinInstances</a>
+settings. At the moment, there are two ways to get rid of those processes:
 </p>
 <div class="ulist"><ul>
 <li>
 <p>
-Before removing the application from the web server configuration, explicitly set its <span class="monospaced">passenger_min_instances</span> to 0. Next, send a request to it, which will cause the Flying Passenger daemon to take over the new <span class="monospaced">passenger_min_instances 0</span> option. You can then proceed with removing the application from the web server configuration, and restarting the web server. Finally, kill the PIDs associated to those application processes and remove the application configuration.
+Before removing the application from the web server configuration, explicitly set its <span class="monospaced">PassengerMinInstances</span> to 0. Next, send a request to it, which will cause the Flying Passenger daemon to take over the new <span class="monospaced">PassengerMinInstances 0</span> option. You can then proceed with removing the application from the web server configuration, and restarting the web server. Finally, kill the PIDs associated to those application processes and remove the application configuration.
 </p>
 </li>
 <li>
@@ -7237,10 +7797,8 @@ For example, take the following directory structure:</p></div>
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="spawning_methods_explained"></span><h2 data-comment-topic="appendix-c-spawning-methods-explained-owghi9" data-anchor="spawning_methods_explained">15. Appendix C: Spawning methods explained</h2>
 <div class="sectionbody">
 <div class="paragraph"><p>At its core, Phusion Passenger is an HTTP proxy and process manager. It spawns
-Ruby on Rails/Rack/WSGI worker processes (which may also be referred to as
-<em>backend processes</em>), and forwards incoming HTTP request to one of the worker
-processes.</p></div>
-<div class="paragraph"><p>While this may sound simple, there’s not just one way to spawn worker processes.
+application processes and forwards incoming HTTP request to one of them.</p></div>
+<div class="paragraph"><p>While this may sound simple, there’s not just one way to spawn application processes.
 Let’s go over the different spawning methods. For simplicity’s sake, let’s
 assume that we’re only talking about Ruby on Rails applications.</p></div>
 <div class="sect2">
@@ -7248,17 +7806,8 @@ assume that we’re only talking about Ruby on Rails applications.</p></div>
 <div class="paragraph"><p>Phusion Passenger could create a new Ruby process, which will then load the
 Rails application along with the entire Rails framework. This process will then
 enter an request handling main loop.</p></div>
-<div class="paragraph"><p>This is the most straightforward way to spawn worker processes. If you’re
-familiar with the Mongrel application server, then this approach is exactly
-what mongrel_cluster performs: it creates N worker processes, each which loads
-a full copy of the Rails application and the Rails framework in memory. The Thin
-application server employs pretty much the same approach.</p></div>
-<div class="paragraph"><p>Note that Phusion Passenger’s version of direct spawning differs slightly
-from mongrel_cluster. Mongrel_cluster creates entirely new Ruby processes. In
-programmers jargon, mongrel_cluster creates new Ruby processes by forking the
-current process and exec()-ing a new Ruby interpreter. Phusion Passenger on the
-other hand creates processes that reuse the already loaded Ruby interpreter. In
-programmers jargon, Phusion Passenger calls fork(), but not exec().</p></div>
+<div class="paragraph"><p>This is the most straightforward way to spawn processes, and each process contains
+a full copy of the Rails application and the Rails framework in memory.</p></div>
 </div>
 <div class="sect2">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_the_smart_spawning_method"></span><h3 data-comment-topic="the-smart-spawning-method-1cvu9dd" data-anchor="_the_smart_spawning_method">15.2. The smart spawning method</h3>
@@ -7267,92 +7816,75 @@ programmers jargon, Phusion Passenger calls fork(), but not exec().</p></div>
 <td class="icon">
 <img src="./images/icons/note.png" alt="Note">
 </td>
-<td class="content">Smart spawning is supported for all Ruby applications but not for WSGI applications.</td>
+<td class="content">Smart spawning is only supported for Ruby applications. It’s not supported for other languages.</td>
 </tr></table>
 </div>
 <div class="paragraph"><p>While direct spawning works well, it’s not as efficient as it could be
-because each worker process has its own private copy of the Rails application
+because each process has its own private copy of the Rails application
 as well as the Rails framework. This wastes memory as well as startup time.</p></div>
 <div class="paragraph"><p><span class="image">
-<img src="images/direct_spawning.png" alt="Worker processes and direct spawning"></span><br><em>Figure: Worker processes and direct spawning. Each worker process has its
+<img src="images/direct_spawning.png" alt="Application processes and direct spawning"></span><br><em>Figure: Application processes and direct spawning. Each process has its
 own private copy of the application code and Rails framework code.</em></p></div>
-<div class="paragraph"><p>It is possible to make the different worker processes share the memory occupied
+<div class="paragraph"><p>It is possible to make the different processes share the memory occupied
 by application and Rails framework code, by utilizing so-called
 copy-on-write semantics of the virtual memory system on modern operating
 systems. As a side effect, the startup time is also reduced. This is technique
 is exploited by Phusion Passenger’s <em>smart</em> spawn method.</p></div>
+<div class="paragraph"><p>The <em>smart</em> spawn method is similar to Unicorn’s <span class="monospaced">preload_app true</span> feature.</p></div>
 <div class="sect3">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_how_it_works"></span><h4 data-comment-topic="how-it-works-672zja" data-anchor="_how_it_works">15.2.1. How it works</h4>
 <div class="paragraph"><p>When the <em>smart</em> spawn method is being used, Phusion Passenger will first
-create a so-called <em>ApplicationSpawner server</em> process. This process loads the
-entire Rails application along with the Rails framework, by loading
-<em>environment.rb</em>. Then, whenever Phusion Passenger needs a new worker process,
-it will instruct the ApplicationSpawner server to do so. The ApplicationSpawner
-server will create a worker new process
-that reuses the already loaded Rails application/framework. Creating a worker
-process through an already running ApplicationSpawner server is very fast, about
-10 times faster than loading the Rails application/framework from scratch. If
-the Ruby interpreter is copy-on-write friendly (that is, if you’re running
-<a href="#reducing_memory_usage">Ruby Enterprise Edition</a>) then all created worker
-processes will share as much common
-memory as possible. That is, they will all share the same application and Rails
-framework code.</p></div>
+create a so-called <em>preloader</em> process. This process loads the
+entire Rails application along with the Rails framework, by evaluating
+<span class="monospaced">config.ru</span>. Then, whenever Phusion Passenger needs a new application process,
+it will instruct the preloader to create one. The preloader then then spawns
+a child process, which is an exact virtual copy of itself. This child process
+therefore already has the application code and the Rails framework code in memory.</p></div>
+<div class="paragraph"><p>Creating a process like this is very fast, about 10 times faster than loading the
+Rails application/framework from scratch. On top of that, the OS also applies an
+optimization called <em>copy-on-write</em>. This means that all memory that the child
+process hasn’t modified, is shared with the parent process.</p></div>
 <div class="paragraph"><p><span class="image">
-<img src="images/smart.png" alt="images/smart.png"></span><br><em>Figure: Worker processes and the smart spawn method. All worker processes,
-as well as the ApplicationSpawner, share the same application code and Rails
+<img src="images/smart_spawning.png" alt="images/smart_spawning.png"></span><br><em>Figure: Application processes and the smart spawn method. All processes,
+as well as the preloader, share the same application code and Rails
 framework code.</em></p></div>
-<div class="paragraph"><p>The <em>smart</em> method allows different worker processes that belong to the same
-application to share memory.</p></div>
-<div class="paragraph"><p>Notes:</p></div>
-<div class="ulist"><ul>
-<li>
-<p>
-Vendored Rails frameworks cannot be shared by different applications, even if
-  both vendored Rails frameworks are the same version. So for efficiency reasons
-  we don’t recommend vendoring Rails.
-</p>
-</li>
-<li>
-<p>
-ApplicationSpawner servers have an idle timeout just like worker processes.
-  If an ApplicationSpawner/FrameworkSpawner server hasn’t been instructed to do
-  anything for a while, it will be shutdown in order to conserve memory. This
-  idle timeout is configurable.
-</p>
-</li>
-</ul></div>
+<div class="paragraph"><p>However, Ruby can only leverage this copy-on-write optimization if its garbage
+collector is friendly. This is only the case starting from Ruby 2.0.0. Earlier
+versions cannot leverage copy-on-write optimizations.</p></div>
+<div class="paragraph"><p>Note that preloader processes have an idle timeout just like application processes.
+If a preloader hasn’t been instructed to do anything for a while, it will be shutdown
+in order to conserve memory. This idle timeout is configurable.</p></div>
 </div>
 <div class="sect3">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_summary_of_benefits"></span><h4 data-comment-topic="summary-of-benefits-1yrihfb" data-anchor="_summary_of_benefits">15.2.2. Summary of benefits</h4>
-<div class="paragraph"><p>Suppose that Phusion Passenger needs a new worker process for an application
-that uses Rails 2.2.1.</p></div>
-<div class="paragraph"><p>If the <em>smart</em> spawning method is used, and an ApplicationSpawner server
-for this application is already running, then worker process creation time is
-about 10 times faster than direct spawning. This worker process will also
-share application and Rails framework code memory with the ApplicationSpawner
-server and the worker processes that had been spawned by this ApplicationSpawner
-server.</p></div>
+<div class="paragraph"><p>Suppose that Phusion Passenger needs a process for an application
+that uses Rails 4.1.0.</p></div>
+<div class="paragraph"><p>If the <em>smart</em> spawning method is used, and a preloader for this application is
+already running, then process creation time is about 10 times faster than direct
+spawning. This process will also share application and Rails framework code memory
+with the preloader, as well as with other processes that have been spawned by the
+same preloader.</p></div>
 <div class="paragraph"><p>In practice, the smart spawning method could mean a memory saving of about 33%,
-assuming that your Ruby interpreter is <a href="#reducing_memory_usage">copy-on-write friendly</a>.</p></div>
-<div class="paragraph"><p>Of course, smart spawning is not without gotchas. But if you understand the
-gotchas you can easily reap the benefits of smart spawning.</p></div>
+assuming that your Ruby interpreter is copy-on-write friendly.</p></div>
+<div class="paragraph"><p>Of course, smart spawning is not without caveats. But if you understand the
+caveats you can easily reap the benefits of smart spawning.</p></div>
 </div>
 </div>
 <div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_smart_spawning_gotcha_1_unintentional_file_descriptor_sharing"></span><h3 data-comment-topic="smart-spawning-gotcha-1-unintentional-file-descriptor-sharing-z1y55l" data-anchor="_smart_spawning_gotcha_1_unintentional_file_descriptor_sharing">15.3. Smart spawning gotcha #1: unintentional file descriptor sharing</h3>
-<div class="paragraph"><p>Because worker processes are created by forking from an ApplicationSpawner
-server, it will share all file descriptors that are opened by the
-ApplicationSpawner server. (This is part of the semantics of the Unix
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_smart_spawning_caveat_1_unintentional_file_descriptor_sharing"></span><h3 data-comment-topic="smart-spawning-gotcha-1-unintentional-file-descriptor-sharing-z1y55l" data-anchor="_smart_spawning_caveat_1_unintentional_file_descriptor_sharing">15.3. Smart spawning caveat #1: unintentional file descriptor sharing</h3>
+<div class="paragraph"><p>Because application processes are created by forking from a preloader process,
+it will share all file descriptors that are opened by the
+preloader process. (This is part of the semantics of the Unix
 <em>fork()</em> system call. You might want to Google it if you’re not familiar with
 it.) A file descriptor is a handle which can be an opened file, an opened socket
-connection, a pipe, etc. If different worker processes write to such a file
+connection, a pipe, etc. If different application processes write to such a file
 descriptor at the same time, then their write calls will be interleaved, which
 may potentially cause problems.</p></div>
 <div class="paragraph"><p>The problem commonly involves socket connections that are unintentionally being
 shared. You can fix it by closing and reestablishing the connection when Phusion
-Passenger is creating a new worker process. Phusion Passenger provides the API
+Passenger is creating a new application process. Phusion Passenger provides the API
 call <span class="monospaced">PhusionPassenger.on_event(:starting_worker_process)</span> to do so. So you
-could insert the following code in your <em>environment.rb</em>:</p></div>
+could insert the following code in your <em>config.ru</em>:</p></div>
 <div class="listingblock">
 <div class="content">
 <!-- Generator: GNU source-highlight 2.11.1
@@ -7372,63 +7904,62 @@ http://www.gnu.org/software/src-highlite -->
 </div>
 </div>
 <div class="paragraph"><p>Note that Phusion Passenger automatically reestablishes the connection to the
-database upon creating a new worker process, which is why you normally do not
+database upon creating a new application process, which is why you normally do not
 encounter any database issues when using smart spawning mode.</p></div>
 <div class="sect3">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_example_1_memcached_connection_sharing_harmful"></span><h4 data-comment-topic="example-1-memcached-connection-sharing-harmful--c71wqw" data-anchor="_example_1_memcached_connection_sharing_harmful">15.3.1. Example 1: Memcached connection sharing (harmful)</h4>
 <div class="paragraph"><p>Suppose we have a Rails application that connects to a Memcached server in
-<em>environment.rb</em>. This causes the ApplicationSpawner to have a socket connection
+<em>environment.rb</em>. This causes the preloader to have a socket connection
 (file descriptor) to the Memcached server, as shown in the following figure:</p></div>
 <div class="literalblock">
 <div class="content monospaced">
 <pre>+--------------------+
-| ApplicationSpawner |-----------[Memcached server]
+| Preloader          |-----------[Memcached server]
 +--------------------+</pre>
 </div>
 </div>
-<div class="paragraph"><p>Phusion Passenger then proceeds with creating a new Rails worker process, which
+<div class="paragraph"><p>Phusion Passenger then proceeds with creating a new Rails application process, which
 is to process incoming HTTP requests. The result will look like this:</p></div>
 <div class="literalblock">
 <div class="content monospaced">
 <pre>+--------------------+
-| ApplicationSpawner |------+----[Memcached server]
+| Preloader          |------+----[Memcached server]
 +--------------------+      |
                             |
 +--------------------+      |
-| Worker process 1   |-----/
+| App process 1      |-----/
 +--------------------+</pre>
 </div>
 </div>
 <div class="paragraph"><p>Since a <em>fork()</em> makes a (virtual) complete copy of a process, all its file
-descriptors will be copied as well. What we see here is that ApplicationSpawner
-and Worker process 1 both share the same connection to Memcached.</p></div>
-<div class="paragraph"><p>Now supposed that your site gets Slashdotted and Phusion Passenger needs to
-spawn another worker process. It does so by forking ApplicationSpawner. The
-result is now as follows:</p></div>
+descriptors will be copied as well. What we see here is that Preloader
+and App process 1 both share the same connection to Memcached.</p></div>
+<div class="paragraph"><p>Now supposed that your site gets a sudden large surge of traffic, and Phusion Passenger needs to
+spawn another process. It does so by forking Preloader. The result is now as follows:</p></div>
 <div class="literalblock">
 <div class="content monospaced">
 <pre>+--------------------+
-| ApplicationSpawner |------+----[Memcached server]
+| Preloader          |------+----[Memcached server]
 +--------------------+      |
                             |
 +--------------------+      |
-| Worker process 1   |-----/|
+| App process 1      |-----/|
 +--------------------+      |
                             |
 +--------------------+      |
-| Worker process 2   |-----/
+| App process 2      |-----/
 +--------------------+</pre>
 </div>
 </div>
-<div class="paragraph"><p>As you can see, Worker process 1 and Worker process 2 have the same Memcached
+<div class="paragraph"><p>As you can see, App process 1 and App process 2 have the same Memcached
 connection.</p></div>
 <div class="paragraph"><p>Suppose that users Joe and Jane visit your website at the same time. Joe’s
-request is handled by Worker process 1, and Jane’s request is handled by Worker
-process 2. Both worker processes want to fetch something from Memcached. Suppose
+request is handled by App process 1, and Jane’s request is handled by App
+process 2. Both application processes want to fetch something from Memcached. Suppose
 that in order to do that, both handlers need to send a "FETCH" command to Memcached.</p></div>
-<div class="paragraph"><p>But suppose that, after worker process 1 having only sent "FE", a context switch
-occurs, and worker process 2 starts sending a "FETCH" command to Memcached as
-well. If worker process 2 succeeds in sending only one bye, <em>F</em>, then Memcached
+<div class="paragraph"><p>But suppose that, after App process 1 having only sent "FE", a context switch
+occurs, and App process 2 starts sending a "FETCH" command to Memcached as
+well. If App process 2 succeeds in sending only one bye, <em>F</em>, then Memcached
 will receive a command which begins with "FEF", a command that it does not
 recognize. In other words: the data from both handlers get interleaved. And thus
 Memcached is forced to handle this as an error.</p></div>
@@ -7436,23 +7967,23 @@ Memcached is forced to handle this as an error.</p></div>
 <div class="literalblock">
 <div class="content monospaced">
 <pre>+--------------------+
-| ApplicationSpawner |------+----[Memcached server]
+| Preloader          |------+----[Memcached server]
 +--------------------+      |                   |
                             |                   |
 +--------------------+      |                   |
-| Worker process 1   |-----/|                   |
+| App process 1      |-----/|                   |
 +--------------------+      |                   |  &lt;--- created this
                             X                   |       new
                                                 |       connection
                             X &lt;-- closed this   |
 +--------------------+      |     old           |
-| Worker process 2   |-----/      connection    |
+| App process 2      |-----/      connection    |
 +--------------------+                          |
           |                                     |
           +-------------------------------------+</pre>
 </div>
 </div>
-<div class="paragraph"><p>Worker process 2 now has its own, separate communication channel with Memcached.
+<div class="paragraph"><p>App process 2 now has its own, separate communication channel with Memcached.
 The code in <em>environment.rb</em> looks like this:</p></div>
 <div class="listingblock">
 <div class="content">
@@ -7486,11 +8017,11 @@ Memcached example, doesn’t help.</p></div>
 </div>
 </div>
 <div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_smart_spawning_gotcha_2_the_need_to_revive_threads"></span><h3 data-comment-topic="smart-spawning-gotcha-2-the-need-to-revive-threads-1k6cj7d" data-anchor="_smart_spawning_gotcha_2_the_need_to_revive_threads">15.4. Smart spawning gotcha #2: the need to revive threads</h3>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_smart_spawning_caveat_2_the_need_to_revive_threads"></span><h3 data-comment-topic="smart-spawning-gotcha-2-the-need-to-revive-threads-1k6cj7d" data-anchor="_smart_spawning_caveat_2_the_need_to_revive_threads">15.4. Smart spawning caveat #2: the need to revive threads</h3>
 <div class="paragraph"><p>Another part of the <em>fork()</em> system call’s semantics is the fact that threads
 disappear after a fork call. So if you’ve created any threads in environment.rb,
-then those threads will no longer be running in newly created worker process.
-You need to revive them when a new worker process is created. Use the
+then those threads will no longer be running in newly created application process.
+You need to revive them when a new process is created. Use the
 <span class="monospaced">:starting_worker_process</span> event that Phusion Passenger provides, like this:</p></div>
 <div class="listingblock">
 <div class="content">
@@ -7511,30 +8042,11 @@ http://www.gnu.org/software/src-highlite -->
 </div>
 </div>
 </div>
-<div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_smart_spawning_gotcha_3_code_load_order"></span><h3 data-comment-topic="smart-spawning-gotcha-3-code-load-order-nkotiy" data-anchor="_smart_spawning_gotcha_3_code_load_order">15.5. Smart spawning gotcha #3: code load order</h3>
-<div class="paragraph"><p>This gotcha is only applicable to the <em>smart</em> spawn method, not the <em>smart-lv2</em>
-spawn method.</p></div>
-<div class="paragraph"><p>If your application expects the Rails framework to be not loaded during the
-beginning of <em>environment.rb</em>, then it can cause problems when an
-ApplicationSpawner is created from a FrameworkSpawner, which already has the
-Rails framework loaded. The most common case is when applications try to patch
-Rails by dropping a modified file that has the same name as Rails’s own file,
-in a path that comes earlier in the Ruby search path.</p></div>
-<div class="paragraph"><p>For example, suppose that we have an application which has a patched version
-of <em>active_record/base.rb</em> located in <em>RAILS_ROOT/lib/patches</em>, and
-<em>RAILS_ROOT/lib/patches</em> comes first in the Ruby load path. When conservative
-spawning is used, the patched version of <em>base.rb</em> is properly loaded. When
-<em>smart</em> (not <em>smart-lv2</em>) spawning is used, the original <em>base.rb</em> is used
-because it was already loaded, so a subsequent <span class="monospaced">require "active_record/base"</span>
-has no effect.</p></div>
-</div>
 </div>
 </div>
 <div class="sect1">
 <a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="about_environment_variables"></span><h2 data-comment-topic="appendix-d-about-environment-variables-1lebv1u" data-anchor="about_environment_variables">16. Appendix D: About environment variables</h2>
 <div class="sectionbody">
-<div class="paragraph"><p>The Phusion Passenger compilation process can be customized with environment variables.</p></div>
 <div class="paragraph"><p>Environment variables are named values that affect how the system works. For example they tell the system where to look for commands (the <span class="monospaced">PATH</span> variable) or where to look for libraries (<span class="monospaced">LD_LIBRARY_PATH</span>). Their names are often in all-uppercase. Sometimes people refer to an environment variable with a dollar sign <span class="monospaced">$</span> in front, but that’s the same thing: when people say "the $PATH environment variable" they mean "the PATH environment variable". This is because the dollar sign <span class="monospaced">$</span> is a shell syntax for refering to an environment variable, as you will learn later.</p></div>
 <div class="paragraph"><p>Environment variables are set on a <strong>per-process</strong> basis, but they are <strong>inherited</strong> by child processes. This means that if you set environment variables in process A, another already running process B will not see these new environment variables. But if A spawns a child process C, then C will have all environment variables that A had. If you once again change the environment variables in A, then C will not see the changes.</p></div>
 <div class="paragraph"><p>The per-process nature of environment variables some implications. When you set environment variables in your <span class="monospaced">bashrc</span> or other bash startup files…</p></div>
@@ -7646,7 +8158,7 @@ http://www.gnu.org/software/src-highlite -->
 </div>
 </div>
 <div class="sect2">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_the_path_environment_variable"></span><h3 data-comment-topic="the-path-environment-variable-p8e32r" data-anchor="_the_path_environment_variable">16.2. The PATH environment variable</h3>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="the_path_env_var"></span><h3 data-comment-topic="the-path-environment-variable-p8e32r" data-anchor="the_path_env_var">16.2. The PATH environment variable</h3>
 <div class="paragraph"><p>The <span class="monospaced">PATH</span> environment variable dictates where the system looks for command. It is a colon-separated list of directories. If you get a "command not found" error while you know that the command is installed, then setting <span class="monospaced">PATH</span> will help. For example suppose that the command <span class="monospaced">frobnicator</span> is in <span class="monospaced">/opt/local/bin</span>:</p></div>
 <div class="listingblock">
 <div class="content">
@@ -7815,7 +8327,7 @@ echo <span style="color: #FF0000">'export PATH=/usr/local/bin:$PATH'</span> <spa
 </div>
 <div class="paragraph"><p>If you installed Nginx through <a href="#install_on_debian_ubuntu">the Debian or Ubuntu packages</a>, then you can define environment variables in <span class="monospaced">/etc/default/nginx</span>. This is a shell script so you must use the <span class="monospaced">export FOO=bar</span> syntax.</p></div>
 <div class="paragraph"><p>Otherwise, environment variables are best set through the script which starts Nginx. For example, if you installed Nginx from source and you used
-the Nginx init script described in the <a href="http://www.modrails.com/documentation/Users%20guide%20Nginx.html">Phusion Passenger Users Guide, Nginx version</a>,
+the Nginx init script described in the <a href="Users%20guide%20Nginx.html">Phusion Passenger Users Guide, Nginx version</a>,
 then you should edit that script to define the environment variables. Those init scripts are regular shell scripts, so use the <span class="monospaced">export FOO=bar</span> syntax. Just make sure your set your environment variables before the script starts Nginx.</p></div>
 <div class="admonitionblock">
 <table><tr>

@@ -39,4 +39,4 @@ override_dh_install:
 	dh_install --list-missing -O--buildsystem=ruby
 
 override_dh_installchangelogs:
-	dh_installchangelogs NEWS
+	dh_installchangelogs CHANGELOG

@@ -34,9 +34,11 @@
 				{{CONTENT|raw}}
 
 				<dl>
+				<dt>Error ID</dt>
+				<dd>{{ERROR_ID}}</dd>
 				<dt>Application root</dt>
 				<dd>{{APP_ROOT}}</dd>
-				<dt>Environment (value of RAILS_ENV, RACK_ENV, WSGI_ENV and PASSENGER_ENV)</dt>
+				<dt>Environment (value of RAILS_ENV, RACK_ENV, WSGI_ENV, NODE_ENV and PASSENGER_APP_ENV)</dt>
 				<dd>{{ENVIRONMENT}}</dd>
 				{{if IS_RUBY_APP}}
 					<dt>Ruby interpreter command</dt>
@@ -48,9 +50,9 @@
 				<dd><pre>{{ENVVARS|default=Unknown}}</pre></dd>
 				<dt>Ulimits</dt>
 				<dd><pre>{{ULIMIT|default=Unknown}}</pre></dd>
-				{{if SYSMEMORY}}
-					<dt>System memory usage</dt>
-					<dd><pre>{{SYSMEMORY|default=Unknown}}</pre></dd>
+				{{if SYSTEM_METRICS}}
+					<dt>System metrics</dt>
+					<dd><pre>{{SYSTEM_METRICS|default=Unknown}}</pre></dd>
 				{{/if}}
 				{{if RUBY_INFO}}
 					<dt>General Ruby interpreter information</dt>

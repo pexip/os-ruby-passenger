@@ -350,7 +350,7 @@ So '/webapps/wsgiapp' must, at minimum, look like this:
 ----------------------
 /webapps/wsgiapp
   |
-  +-- config.ru
+  +-- passenger_wsgi.py
   |
   +-- public/
   |
@@ -496,6 +496,18 @@ command line:
 touch /webapps/wsgiapp/tmp/restart.txt
 -------------------------------------------
 
+=== Sample `passenger_wsgi.py` for Django
+
+For Django applications, `passenger_wsgi.py` should look like this:
+
+[code,python]
+-------------------------------------------
+import myproject.wsgi
+application = myproject.wsgi.application
+-------------------------------------------
+
+Replace `myproject` with your project's module name.
+
 
 == Deploying a Node.js application
 
@@ -514,10 +526,17 @@ Nevertheless, the system administrator may be interested in changing
 Phusion Passenger's behavior. Phusion Passenger supports the following configuration
 options in the Nginx configuration file:
 
+[[PassengerRoot]]
 === passenger_root <directory> ===
 The location to the Phusion Passenger root directory. This configuration option
 is essential to Phusion Passenger, and allows Phusion Passenger to locate its own
-data files. The correct value is given by the installer.
+data files. If you do not set this option, then Phusion Passenger will disable itself, and Nginx will behave as if Phusion Passenger was never installed. If you set this option to the wrong value, then Phusion Passenger will make Nginx abort with an error.
+
+While installing Phusion Passenger, you have been told to set this option in your Nginx configuration file, and you have been told what value to set it to. So under normal conditions, you don't have ask yourself what value to set for this option. But in case you lost the value (e.g. because you accidentally removed the Nginx configuration file, and you are trying to reconstruct it), or in case you didn't follow the installation instructions correctly, then here's how you can find out the correct value:
+
+ * If you installed Phusion Passenger through <<install_on_debian_ubuntu,our APT repository>>, then follow the instructions in <<inserting_passenger_root_for_apt,Inserting `passenger_root` into nginx.conf>>.
+ * If you installed Phusion Passenger through RubyGems, then the value can be obtained by running `passenger-config --root`.
+ * If you installed Phusion Passenger through the source tarball, then the value is the path to the Phusion Passenger directory. For example, if you extracted the tarball's contents to `/opt/passenger/passenger-x.x.x`, then `passenger_root` must be `/opt/passenger/passenger-x.x.x`.
 
 If you've moved Phusion Passenger to a different directory then you need to update
 this option as well. Please read
@@ -556,6 +575,47 @@ server {
     }
 }
 ----------------------------
+
+[[PassengerBaseURI]]
+==== passenger_base_uri <uri>
+Used to specify that the given URI is an distinct application that should
+be served by Phusion Passenger. Please refer to the following sections for
+more information:
+
+ * <<deploying_rack_to_sub_uri,Deploying Rack to a sub URI>>
+ * <<deploying_wsgi_to_sub_uri,Deploying WSGI to a sub URI>>
+ * <<deploying_rails_to_sub_uri,Deploying Rails 1 and Rails 2 to a sub URI>>
+
+It is allowed to specify this option multiple times. Do this to deploy multiple
+applications in different sub-URIs under the same virtual host.
+
+This option may occur in the following places:
+
+ * In the 'http' configuration block.
+ * In a 'server' configuration block.
+ * In a 'location' configuration block.
+ * In an 'if' configuration scope.
+
+[[PassengerDocumentRoot]]
+==== passenger_document_root <path>
+Used in sub-URI deployment scenarios to tell Phusion Passenger where it
+should look for static files. Please refer to the following sections for
+more information:
+
+ * <<deploying_rack_to_sub_uri,Deploying Rack to a sub URI>>
+ * <<deploying_wsgi_to_sub_uri,Deploying WSGI to a sub URI>>
+ * <<deploying_rails_to_sub_uri,Deploying Rails 1 and Rails 2 to a sub URI>>
+
+This option may occur in the following places:
+
+ * In the 'http' configuration block.
+ * In a 'server' configuration block.
+ * In a 'location' configuration block.
+ * In an 'if' configuration scope.
+
+In each place, it may be specified at most once.
+
+=== Application loading options
 
 [[PassengerRuby]]
 ==== passenger_ruby <filename>
@@ -679,6 +739,7 @@ An alias for <<PassengerAppEnv,passenger_app_env>>.
 ==== passenger_app_root <path/to/root>
 :version: 4.0.0
 include::users_guide_snippets/since_version.txt[]
+
 By default, Phusion Passenger assumes that the application's root directory
 is the parent directory of the 'public' directory. This option allows one to
 specify the application's root independently from the Nginx 'root', which
@@ -706,35 +767,20 @@ server {
 }
 -----------------------------
 
-[[PassengerBaseURI]]
-==== passenger_base_uri <uri>
-Used to specify that the given URI is an distinct application that should
-be served by Phusion Passenger. Please refer to the following sections for
-more information:
+[[PassengerAppType]]
+==== passenger_app_type <name>
+:version: 4.0.25
+include::users_guide_snippets/since_version.txt[]
 
- * <<deploying_rack_to_sub_uri,Deploying Rack to a sub URI>>
- * <<deploying_wsgi_to_sub_uri,Deploying WSGI to a sub URI>>
- * <<deploying_rails_to_sub_uri,Deploying Rails 1 and Rails 2 to a sub URI>>
+By default, Phusion Passenger autodetects the type of the application, e.g. whether it's a Ruby, Python, Node.js or Meteor app. If it's unable to autodetect the type of the application (e.g. because you've specified a custom <<PassengerStartupFile,passenger_startup_file>>) then you can use this option to force Phusion Passenger to recognize the application as a specific type.
 
-It is allowed to specify this option multiple times. Do this to deploy multiple
-applications in different sub-URIs under the same virtual host.
+Allowed values are:
 
-This option may occur in the following places:
-
- * In the 'http' configuration block.
- * In a 'server' configuration block.
- * In a 'location' configuration block.
- * In an 'if' configuration scope.
-
-[[PassengerDocumentRoot]]
-==== passenger_document_root <path>
-Used in sub-URI deployment scenarios to tell Phusion Passenger where it
-should look for static files. Please refer to the following sections for
-more information:
-
- * <<deploying_rack_to_sub_uri,Deploying Rack to a sub URI>>
- * <<deploying_wsgi_to_sub_uri,Deploying WSGI to a sub URI>>
- * <<deploying_rails_to_sub_uri,Deploying Rails 1 and Rails 2 to a sub URI>>
+ * `rack` - Ruby on Rails >= 3.0 and Ruby Rack
+ * `classic-rails` - Ruby on Rails 1.x and 2.0
+ * `wsgi` - Python
+ * `node` - Node.js, or Meteor JS in bundled mode
+ * `meteor` - Meteor JS in non-bundled mode
 
 This option may occur in the following places:
 
@@ -744,6 +790,72 @@ This option may occur in the following places:
  * In an 'if' configuration scope.
 
 In each place, it may be specified at most once.
+
+Example:
+
+-----------------------------
+server {
+    server_name example.com;
+    root /webapps/example.com/public;
+    passenger_enabled on;
+    # Use server.js as the startup file (entry point file) for
+    # your Node.js application, instead of the default app.js
+    passenger_startup_file server.js;
+    passenger_app_type node;
+</VirtualHost>
+-----------------------------
+
+[[PassengerStartupFile]]
+==== passenger_startup_file <filename>
+:version: 4.0.25
+include::users_guide_snippets/since_version.txt[]
+
+This option specifies the startup file that Phusion Passenger should use when loading the application.
+
+Every application has a *startup file* or *entry point file*: a file where the application begins execution. Some languages have widely accepted conventions about how such a file should be called (e.g. Ruby, with its `config.ru`). Other languages have somewhat-accepted conventions (e.g. Node.js, with its `app.js`). In these cases, Phusion Passenger reuses these conventions, and executes applications through those files.
+
+Other languages have no conventions at all, and so Phusion Passenger invents one (e.g. Python WSGI with `passenger_wsgi.py`).
+
+Here's a list of the language-specific conventions that Phusion Passenger accepts:
+
+[options="header"]
+|================================================
+| Language                        | Phusion Passenger convention
+| Ruby on Rails >= 3.0, Ruby Rack | config.ru
+| Ruby on Rails 1.x and 2.x       | config/environment.rb
+| Python                          | passenger_wsgi.py
+| Node.js                         | app.js
+|================================================
+
+But sometimes you might not want to adhere to the convention that Phusion Passenger accepts. For example, on Node.js, you might want to use `server.js` as the startup file instead of the default `app.js`. With this option, you can customize the startup file to any file you like.
+
+Notes:
+
+ * Customizing the startup file affects <<user_switching,user switching>>. After all, if user switching is enabled, the application is executed as the user that owns the startup file.
+ * If you set this option, you **must** also set <<PassengerAppType,passenger_app_type>>, otherwise Phusion Passenger doesn't know what kind of application it is.
+
+This option may occur in the following places:
+
+ * In the 'http' configuration block.
+ * In a 'server' configuration block.
+ * In a 'location' configuration block.
+ * In an 'if' configuration scope.
+
+In each place, it may be specified at most once.
+
+Example:
+
+-----------------------------
+server {
+    server_name example.com;
+    root /webapps/example.com/public;
+    passenger_enabled on;
+    # Use server.js as the startup file (entry point file) for
+    # your Node.js application, instead of the default app.js
+    passenger_startup_file server.js;
+    passenger_app_type node;
+</VirtualHost>
+-----------------------------
 
 [[PassengerSpawnMethod]]
 ==== passenger_spawn_method <string>
@@ -846,7 +958,7 @@ include::users_guide_snippets/enterprise_only.txt[]
 
 Enables or disables resistance against deployment errors.
 
-Suppose you've upgraded your application and you've issues a command to restart it (by touching restart.txt), but the application code contains an error that prevents Phusion Passenger from successfully spawning a process (e.g. a syntax error). Phusion Passenger would normally display an error message in response to this.
+Suppose you've upgraded your application and you've issued a command to restart it (e.g. by touching restart.txt), but the application code contains an error that prevents Phusion Passenger from successfully spawning a process (e.g. a syntax error). Phusion Passenger would normally display an error message in response to this.
 
 By enabling deployment error resistance, Phusion Passenger Enterprise would instead do this:
 
@@ -854,7 +966,7 @@ By enabling deployment error resistance, Phusion Passenger Enterprise would inst
 - It logs the error to the global web server error log file.
 - It sets an internal flag so that no processes for this application will be spawned (even when the current traffic would normally result in more processes being spawned) and no processes will be idle cleaned. Processes *could* still be shutdown because of other events, e.g. because their <<PassengerMemoryLimit,memory limit>> have been reached. You can see whether the flag is set by invoking `passenger-status`. If you see the message "Resisting deployment error" then the flag is set.
 
-This way, visitors will suffer minimally from deployment errors. Phusion Passenger will attempt to restart the application again next time restart.txt is touched.
+This way, visitors will suffer minimally from deployment errors. Phusion Passenger will attempt to restart the application again next time restart.txt is touched, or when you issue the `passenger-config restart-app` command.
 
 Enabling deployment error resistance only works if <<PassengerRollingRestarts,rolling restart>> is also enabled.
 
@@ -866,257 +978,6 @@ This option may occur in the following places:
  * In an 'if' configuration scope.
 
 In each place, it may be specified at most once. The default value is 'off'.
-
-=== Connection handling options ===
-
-==== passenger_ignore_client_abort <on|off> ====
-Normally, when the HTTP client aborts the connection (e.g. when the user clicked on "Stop"
-in the browser), the connection with the application process will be closed too. If the
-application process continues to send its response, then that will result in EPIPE errors
-in the application, which will be printed in the error log if the application doesn't
-handle them gracefully.
-
-If this option is turned on then upon client abort Phusion Passenger will continue to
-read the application process's response while discarding all the read data. This prevents
-EPIPE errors but it'll also mean the backend process will be unavailable for new requests
-until it is done sending its response.
-
-This option may occur in the following places:
-
- * In the 'http' configuration block.
- * In a 'server' configuration block.
- * In a 'location' configuration block.
- * In an 'if' configuration scope.
-
-In each place, it may be specified at most once. The default value is 'off'.
-
-[[passenger_set_cgi_param]]
-==== passenger_set_cgi_param <CGI environment name> <value> ====
-Allows one to define additional CGI environment variables to pass to the web
-application. This is comparable to ngx_http_fastcgi_module's 'fastcgi_param'
-directive, and to ngx_http_proxy_module's 'proxy_set_header' option.
-Nginx variables in the value are interpolated.
-
-These variables passed in the following manner:
-
- * On every request, in the form of a request variable.
- * During application spawning, in the form of a system environment variable that can be looked up through `getenv()`.
-
-Example usage:
-------------------------------
-# Application will see a CGI environment "APP_NAME" with value "my super blog".
-passenger_set_cgi_param APP_NAME "my super blog";
-
-# Nginx variables are interpolated.
-passenger_set_cgi_param EXTRA_REQUEST_METHOD method=$request_method;
-------------------------------
-
-.Use CGI environment names
-[NOTE]
-===============================================
-If you want to set an HTTP header, then you must set it in the CGI environment name
-format, i.e. 'HTTP_*':
-
-------------------------------
-# !!!THIS IS WRONG!!! Don't do this!
-passenger_set_cgi_param X-Forwarded-For 127.0.0.2;
-
-# Instead, write it like this:
-passenger_set_cgi_param HTTP_X_FORWARDED_FOR 127.0.0.2;
-------------------------------
-===============================================
-
-.This configuration option is NOT inherited across contexts
-[WARNING]
-===============================================
-In each new context (e.g. in each new 'location' block), you must re-specify `passenger_set_cgi_param`. Values set in parent contexts have no effect on subcontexts. For example:
-
-------------------------------
-server {
-    ...
-    passenger_set_cgi_param FOO foo;
-
-    location /users {
-        passenger_enabled_on;
-        # !!!THIS IS WRONG!!! The 'FOO' CGI variable will not
-        # be passed URLs beginning with /users because you didn't
-        # re-specify passenger_set_cgi_param.
-    }
-
-    location /apps {
-        passenger_enabled on;
-        # This is correct. Here we re-specify passenger_set_cgi_param,
-        # so the 'FOO' CGI variable will be correctly passed to URLs
-        # starting with /apps.
-        passenger_set_cgi_param FOO foo;
-    }
-}
-------------------------------
-===============================================
-
-This option may occur in the following places:
-
- * In a 'server' configuration block.
- * In a 'location' configuration block.
- * In an 'if' configuration scope.
-
-==== passenger_pass_header <header name> ====
-Some headers generated by backend applications are not forwarded to the HTTP client,
-e.g. 'X-Accel-Redirect' which is directly processed by Nginx and then discarded from
-the final response. This directive allows one to force Nginx to pass those headers
-anyway, similar to how 'proxy_pass_header' works.
-
-For example:
-
-------------------------------
-location / {
-   passenger_pass_header X-Accel-Redirect;
-}
-------------------------------
-
-This option may occur in the following places:
-
- * In the 'http' configuration block.
- * In a 'server' configuration block.
- * In a 'location' configuration block.
- * In an 'if' configuration scope.
-
-==== passenger_buffer_response <on|off> ====
-When turned on, application-generated responses are buffered by Nginx. Buffering will
-happen in memory and also on disk if the response is larger than a certain threshold.
-
-Before we proceed with explaining this configuration option, we want to state the following to avoid confusion. If you use Phusion Passenger for Nginx, there are in fact two response buffering systems active:
-
-1. The Nginx response buffering system. `passenger_buffer_response` turns this on or off.
-2. The Phusion Passenger response buffering system, a.k.a. 'real-time disk-backed response buffering'. This buffering system is always on, regardless of the value of `passenger_buffer_response`.
-
-Response buffering is useful because it protects against slow HTTP clients that do not read responses immediately or quickly enough. Buffering prevents such slow clients from blocking web applications that have limited concurrency. Because Phusion Passenger's response buffering is always turned on, you are always protected. Therefore, `passenger_buffer_response` is off by default, and you never should have to turn it on.
-
-If for whatever reason you want to turn Nginx-level response buffering on, you can do so with this option.
-
-Nginx's response buffering works differently from Phusion Passenger's. Nginx's buffering system buffers the entire response before attempting to send it to the client, while Phusion Passenger's attempts to send the data to the client immediately. Therefore, if you turn on `passenger_buffer_response`, you may interfere with applications that want to stream responses to the client.
-
-How does response buffering - whether it's done by Nginx or by Phusion Passenger - exactly protect against slow clients?
-Consider an HTTP client that's on a dial-up modem link, and your
-application process generates a 2 MB response. If the response is buffered
-then your application process will be blocked until the entire 2 MB has been
-sent out to the HTTP client. This disallows your application process to do any useful
-work in the mean time. By buffering responses, Phusion Passenger or Nginx will read
-the application response as quickly as possible and will take care of forwarding the data
-to slow clients.
-
-So keep in mind that enabling `passenger_buffering_response` will make streaming responses
-impossible. Consider for example this piece of Rails code:
-
---------------------------------
-render :text => lambda { |response, output|
-    10.times do |i|
-        output.write("entry #{i}\n")
-        output.flush
-        sleep 1
-    end
-}
---------------------------------
-
-...or this piece of Rack code:
-
---------------------------------
-class Response
-    def each
-        10.times do |i|
-            yield("entry #{i}\n")
-            sleep 1
-        end
-    end
-end
-
-app = lambda do |env|
-    [200, { "Content-Type" => "text/plain" }, Response.new]
-end
---------------------------------
-
-When `passenger_buffer_response` is turned on, Nginx will wait until
-the application is done sending the entire response before forwarding it
-to the client. The client will not receive anything for 10 seconds,
-after which it receives the entire response at once.
-When `passenger_buffer_response` is turned off, it works as expected: the client
-receives an "entry X" message every second for 10 seconds.
-
-This option may occur in the following places:
-
- * In the 'http' configuration block.
- * In a 'server' configuration block.
- * In a 'location' configuration block.
- * In an 'if' configuration scope.
-
-In each place, it may be specified at most once. The default value is 'off'.
-
-==== passenger_buffer_size ====
-==== passenger_buffers ====
-==== passenger_busy_buffer_size ====
-These options have the same effect as proxy_module's similarly named options.
-They can be used to modify the maximum allowed HTTP header size.
-
-[[passenger_intercept_errors]]
-==== passenger_intercept_errors <on|off> ====
-:version: 4.0.15
-include::users_guide_snippets/since_version.txt[]
-
-Decides if Nginx will intercept responses with HTTP status codes of 400 and higher.
-
-By default, all responses are sent as-is from the application or from the Phusion Passenger core. If you turn this option on then Nginx will be able to handle such responses using the Nginx `error_page` option. Responses with status codes that do not match an `error_page` option are sent as-is.
-
-This option may occur in the following places:
-
- * In the 'http' configuration block.
- * In a 'server' configuration block.
- * In a 'location' configuration block.
- * In an 'if' configuration scope.
-
-In each place, it may be specified at most once. The default value is 'off'.
-
-[[passenger_max_request_queue_size]]
-==== passenger_max_request_queue_size <number> ====
-:version: 4.0.15
-include::users_guide_snippets/since_version.txt[]
-
-When all application processes are already handling their maximum number of concurrent requests, Phusion Passenger will queue all incoming requests. This option specifies the maximum size for that queue. If the queue is already at this specified limit, then Phusion Passenger will immediately send a "503 Service Unavailable" error to any incoming requests. You may use <<passenger_request_queue_overflow_status_code,passenger_request_queue_overflow_status_code>> to customize the response status.
-
-A value of 0 means that the queue is unbounded.
-
-link:http://stackoverflow.com/questions/20402801/what-is-optimal-value-for-phusion-passenger-passengermaxrequestqueuesize[This article on StackOverflow] explains how the request queue works, what it means for the queue to grow or become full, why that is bad, and what you can do about it.
-
-You may combine this option with <<passenger_intercept_errors,passenger_intercept_errors>> and `error_page` to set a custom error page whenever the queue is full. In the following example, Nginx will serve /error503.html whenever the queue is full:
-
----------------------------------
-passenger_intercept_errors on;
-error_page 503 /error503.html;
----------------------------------
-
-This option may occur in the following places:
-
- * In the 'http' configuration block.
- * In a 'server' configuration block.
- * In a 'location' configuration block.
- * In an 'if' configuration scope.
-
-In each place, it may be specified at most once. The default value is '100'.
-
-[[passenger_request_queue_overflow_status_code]]
-==== passenger_request_queue_overflow_status_code <code> ====
-:version: 4.0.15
-include::users_guide_snippets/since_version.txt[]
-
-This option allows you to customize the HTTP status code that is sent back when the request queue is full. See <<passenger_max_request_queue_size,passenger_max_request_queue_size>> for more information.
-
-This option may occur in the following places:
-
- * In the 'http' configuration block.
- * In a 'server' configuration block.
- * In a 'location' configuration block.
- * In an 'if' configuration scope.
-
-In each place, it may be specified at most once. The default value is '503'.
 
 === Security options ===
 [[PassengerUserSwitching]]
@@ -1216,11 +1077,13 @@ In each place, it may be specified at most once. The default value is 'on'.
 ==== passenger_friendly_error_pages <on|off> ====
 Phusion Passenger can display friendly error pages whenever an application fails
 to start. This friendly error page presents the startup error message, some
-suggestions for solving the problem, and a backtrace. This feature is very useful
-during application development and useful for less experienced system administrators,
-but the page might reveal potentially sensitive information, depending on the
-application. Experienced system administrators who are using Phusion Passenger
-on serious production servers should consider turning this feature off.
+suggestions for solving the problem, a backtrace and a dump of the environment variables.
+This feature is very useful during application development and useful for less experienced
+system administrators, but the page might reveal potentially sensitive information,
+depending on the application. For this reason, friendly error pages are turned off by default when
+<<PassengerAppEnv,passenger_app_env (and its aliases such as rails_env and rack_env)>>
+is set to 'staging' or 'production', but enabled by default otherwise. You can use
+this option to explicitly enable or disable this feature.
 
 This option may occur in the following places:
 
@@ -1229,7 +1092,7 @@ This option may occur in the following places:
  * In a 'location' configuration block.
  * In an 'if' configuration scope.
 
-In each place, it may be specified at most once. The default value is 'on'.
+In each place, it may be specified at most once. The default value depends on <<PassengerAppEnv,passenger_app_env (and its aliases such as rails_env and rack_env)>>, as documented above.
 
 === Resource control and optimization options ===
 [[PassengerMaxPoolSize]]
@@ -1380,19 +1243,19 @@ The default value is '300'.
 include::users_guide_snippets/alternative_for_flying_passenger.txt[]
 
 ==== passenger_max_preloader_idle_time <integer> ====
-The ApplicationSpawner server (explained in <<spawning_methods_explained,Spawning
+The preloader process (explained in <<spawning_methods_explained,Spawning
 methods explained>>) has an idle timeout, just like the backend processes spawned by
 Phusion Passenger do. That is, it will automatically shutdown if it hasn't done
 anything for a given period.
 
-This option allows you to set the ApplicationSpawner server's idle timeout, in
+This option allows you to set the prealoader's idle timeout, in
 seconds. A value of '0' means that it should never idle timeout.
 
-Setting a higher value will mean that the ApplicationSpawner server is kept around
+Setting a higher value will mean that the preloader is kept around
 longer, which may slightly increase memory usage. But as long as the
-ApplicationSpawner server is running, the time to spawn a Ruby on Rails backend
+preloader is running, the time to spawn a Ruby on Rails backend
 process only takes about 10% of the time that is normally needed, assuming that
-you're using the 'smart' or 'smart-lv2' <<RailsSpawnMethod,spawning method>>. So if your
+you're using the 'smart' <<PassengerSpawnMethod,spawning method>>. So if your
 system has enough memory, is it recommended that you set this option to a high
 value or to '0'.
 
@@ -1694,7 +1557,7 @@ passenger_pre_start http://myblog.com/;    # <----- WRONG! Missing "/store" part
 Application processes started with passenger_pre_start are
 also subject to the idle timeout rules as specified by
 <<PassengerPoolIdleTime,passenger_pool_idle_time>>! That means that by default,
-the pre-started application processes for foo.com are bar.com are shut down
+the pre-started application processes for foo.com and bar.com are shut down
 after a few minutes of inactivity. If you don't want that to happen, then
 you should combine passenger_pre_start with
 <<PassengerMinInstances,passenger_min_instances>>, like this:
@@ -1774,6 +1637,305 @@ the request ending up at a different web server in the cluster.
 ===== Does passenger_pre_start support https:// URLs? =====
 
 Yes. And it does not perform any certificate validation.
+
+
+=== Connection handling options ===
+
+[[passenger_set_cgi_param]]
+==== passenger_set_cgi_param <CGI environment name> <value> ====
+Allows one to define additional CGI environment variables to pass to the web
+application. This is comparable to ngx_http_fastcgi_module's 'fastcgi_param'
+directive, and to ngx_http_proxy_module's 'proxy_set_header' option.
+Nginx variables in the value are interpolated.
+
+These variables passed in the following manner:
+
+ * On every request, in the form of a request variable.
+ * During application spawning, in the form of a system environment variable that can be looked up through `getenv()`.
+
+Example usage:
+------------------------------
+# Application will see a CGI environment "APP_NAME" with value "my super blog".
+passenger_set_cgi_param APP_NAME "my super blog";
+
+# Nginx variables are interpolated.
+passenger_set_cgi_param EXTRA_REQUEST_METHOD method=$request_method;
+------------------------------
+
+.Use CGI environment names
+[NOTE]
+===============================================
+If you want to set an HTTP header, then you must set it in the CGI environment name
+format, i.e. 'HTTP_*':
+
+------------------------------
+# !!!THIS IS WRONG!!! Don't do this!
+passenger_set_cgi_param X-Forwarded-For 127.0.0.2;
+
+# Instead, write it like this:
+passenger_set_cgi_param HTTP_X_FORWARDED_FOR 127.0.0.2;
+------------------------------
+===============================================
+
+.This configuration option is NOT inherited across contexts
+[WARNING]
+===============================================
+In each new context (e.g. in each new 'location' block), you must re-specify `passenger_set_cgi_param`. Values set in parent contexts have no effect on subcontexts. For example:
+
+------------------------------
+server {
+    ...
+    passenger_set_cgi_param FOO foo;
+
+    location /users {
+        passenger_enabled_on;
+        # !!!THIS IS WRONG!!! The 'FOO' CGI variable will not
+        # be passed URLs beginning with /users because you didn't
+        # re-specify passenger_set_cgi_param.
+    }
+
+    location /apps {
+        passenger_enabled on;
+        # This is correct. Here we re-specify passenger_set_cgi_param,
+        # so the 'FOO' CGI variable will be correctly passed to URLs
+        # starting with /apps.
+        passenger_set_cgi_param FOO foo;
+    }
+}
+------------------------------
+===============================================
+
+This option may occur in the following places:
+
+ * In a 'server' configuration block.
+ * In a 'location' configuration block.
+ * In an 'if' configuration scope.
+
+[[passenger_max_request_queue_size]]
+==== passenger_max_request_queue_size <number> ====
+:version: 4.0.15
+include::users_guide_snippets/since_version.txt[]
+
+When all application processes are already handling their maximum number of concurrent requests, Phusion Passenger will queue all incoming requests. This option specifies the maximum size for that queue. If the queue is already at this specified limit, then Phusion Passenger will immediately send a "503 Service Unavailable" error to any incoming requests. You may use <<passenger_request_queue_overflow_status_code,passenger_request_queue_overflow_status_code>> to customize the response status.
+
+A value of 0 means that the queue is unbounded.
+
+link:http://stackoverflow.com/questions/20402801/what-is-optimal-value-for-phusion-passenger-passengermaxrequestqueuesize[This article on StackOverflow] explains how the request queue works, what it means for the queue to grow or become full, why that is bad, and what you can do about it.
+
+You may combine this option with <<passenger_intercept_errors,passenger_intercept_errors>> and `error_page` to set a custom error page whenever the queue is full. In the following example, Nginx will serve /error503.html whenever the queue is full:
+
+---------------------------------
+passenger_intercept_errors on;
+error_page 503 /error503.html;
+---------------------------------
+
+This option may occur in the following places:
+
+ * In the 'http' configuration block.
+ * In a 'server' configuration block.
+ * In a 'location' configuration block.
+ * In an 'if' configuration scope.
+
+In each place, it may be specified at most once. The default value is '100'.
+
+[[passenger_request_queue_overflow_status_code]]
+==== passenger_request_queue_overflow_status_code <code> ====
+:version: 4.0.15
+include::users_guide_snippets/since_version.txt[]
+
+This option allows you to customize the HTTP status code that is sent back when the request queue is full. See <<passenger_max_request_queue_size,passenger_max_request_queue_size>> for more information.
+
+This option may occur in the following places:
+
+ * In the 'http' configuration block.
+ * In a 'server' configuration block.
+ * In a 'location' configuration block.
+ * In an 'if' configuration scope.
+
+In each place, it may be specified at most once. The default value is '503'.
+
+[[PassengerStickySessions]]
+==== passenger_sticky_sessions <on|off>
+:version: 4.0.45
+include::users_guide_snippets/since_version.txt[]
+
+When sticky sessions are enabled, all requests that a client sends will be routed to the same originating application process, whenever possible. When sticky sessions are disabled, requests may be distributed over multiple processes, and may not necessarily be routed to the originating process, in order to balance traffic over multiple CPU cores. Because of this, sticky sessions should only be enabled in specific circumstances.
+
+For applications that store important state inside the process's own memory -- that is, as opposed to storing state in a distributed data store, such as the database or Redis -- sticky sessions *should* be enabled. This is because otherwise, some requests could be routed to a different process, which stores different state data. Because processes don't share memory with each other, there's no way for one process to know about the state in another process, and then things can go wrong.
+
+One prominent example is the popular link:http://sockjs.org/[SockJS library], which is capable of emulating WebSockets through long polling. This is implemented through two HTTP endpoints, `/SESSION_ID/xhr_stream` (a long polling end point which sends data from the server to the client), and `/SESSION_ID/xhr_send` (a normal POST endpoint which is used for sending data from the client to the server). SockJS correlates the two requests with each other through a session identifier. At the same time, in its default configuration, it stores all known session identifiers in an in-memory data structure. It is therefore important that a particular `/SESSION_ID/xhr_send` request is sent to the same process where the corresponding `/SESSION_ID/xhr_stream` request originates from; otherwise, SockJS cannot correlate the two requests, and an error occurs.
+
+So prominent examples where sticky sessions should (or even *must*) be enabled, include:
+
+ * Applications that use the SockJS library (unless configured with a distributed data store)
+ * Applications that use the Socket.io library (unless configured with a distributed data store)
+ * Applications that use the faye-websocket gem (unless configured with a distributed data store)
+ * Meteor JS applications (because Meteor uses SockJS)
+
+Sticky sessions work through the use of a special cookie, whose name can be customized with <<PassengerStickySessionsCookieName,passenger_sticky_sessions_cookie_name>>. Phusion Passenger puts an identifier in this cookie, which tells Phusion Passenger what the originating process is. Next time the client sends a request, Phusion Passenger reads this cookie and uses the value in the cookie to route the request back to the originating process. If the originating process no longer exists (e.g. because it has crashed or restarted) then Phusion Passenger will route the request to some other process, and reset the cookie.
+
+If you have a load balancer in front end of Phusion Passenger + Nginx, then you must configure sticky sessions on that load balancer too. Otherwise, the load balancer could route the request to a different server.
+
+This option may occur in the following places:
+
+ * In the `http` configuration block.
+ * In a `server` configuration block.
+ * In a `location` configuration block.
+ * In an `if` configuration scope.
+
+In each place, it may be specified at most once. The default value is `off`.
+
+[[PassengerStickySessionsCookieName]]
+==== passenger_sticky_sessions_cookie_name
+:version: 4.0.45
+include::users_guide_snippets/since_version.txt[]
+
+Sets the name of the <<PassengerStickySessions,sticky sessions>> cookie.
+
+This option may occur in the following places:
+
+ * In the `http` configuration block.
+ * In a `server` configuration block.
+ * In a `location` configuration block.
+ * In an `if` configuration scope.
+
+In each place, it may be specified at most once. The default value is `_passenger_route`.
+
+==== passenger_ignore_client_abort <on|off> ====
+Normally, when the HTTP client aborts the connection (e.g. when the user clicked on "Stop"
+in the browser), the connection with the application process will be closed too. If the
+application process continues to send its response, then that will result in EPIPE errors
+in the application, which will be printed in the error log if the application doesn't
+handle them gracefully.
+
+If this option is turned on then upon client abort Phusion Passenger will continue to
+read the application process's response while discarding all the read data. This prevents
+EPIPE errors but it'll also mean the backend process will be unavailable for new requests
+until it is done sending its response.
+
+This option may occur in the following places:
+
+ * In the 'http' configuration block.
+ * In a 'server' configuration block.
+ * In a 'location' configuration block.
+ * In an 'if' configuration scope.
+
+In each place, it may be specified at most once. The default value is 'off'.
+
+[[passenger_intercept_errors]]
+==== passenger_intercept_errors <on|off> ====
+:version: 4.0.15
+include::users_guide_snippets/since_version.txt[]
+
+Decides if Nginx will intercept responses with HTTP status codes of 400 and higher.
+
+By default, all responses are sent as-is from the application or from the Phusion Passenger core. If you turn this option on then Nginx will be able to handle such responses using the Nginx `error_page` option. Responses with status codes that do not match an `error_page` option are sent as-is.
+
+This option may occur in the following places:
+
+ * In the 'http' configuration block.
+ * In a 'server' configuration block.
+ * In a 'location' configuration block.
+ * In an 'if' configuration scope.
+
+In each place, it may be specified at most once. The default value is 'off'.
+
+==== passenger_pass_header <header name> ====
+Some headers generated by backend applications are not forwarded to the HTTP client,
+e.g. 'X-Accel-Redirect' which is directly processed by Nginx and then discarded from
+the final response. This directive allows one to force Nginx to pass those headers
+anyway, similar to how 'proxy_pass_header' works.
+
+For example:
+
+------------------------------
+location / {
+   passenger_pass_header X-Accel-Redirect;
+}
+------------------------------
+
+This option may occur in the following places:
+
+ * In the 'http' configuration block.
+ * In a 'server' configuration block.
+ * In a 'location' configuration block.
+ * In an 'if' configuration scope.
+
+==== passenger_buffer_response <on|off> ====
+When turned on, application-generated responses are buffered by Nginx. Buffering will
+happen in memory and also on disk if the response is larger than a certain threshold.
+
+Before we proceed with explaining this configuration option, we want to state the following to avoid confusion. If you use Phusion Passenger for Nginx, there are in fact two response buffering systems active:
+
+1. The Nginx response buffering system. `passenger_buffer_response` turns this on or off.
+2. The Phusion Passenger response buffering system, a.k.a. 'real-time disk-backed response buffering'. This buffering system is always on, regardless of the value of `passenger_buffer_response`.
+
+Response buffering is useful because it protects against slow HTTP clients that do not read responses immediately or quickly enough. Buffering prevents such slow clients from blocking web applications that have limited concurrency. Because Phusion Passenger's response buffering is always turned on, you are always protected. Therefore, `passenger_buffer_response` is off by default, and you never should have to turn it on.
+
+If for whatever reason you want to turn Nginx-level response buffering on, you can do so with this option.
+
+Nginx's response buffering works differently from Phusion Passenger's. Nginx's buffering system buffers the entire response before attempting to send it to the client, while Phusion Passenger's attempts to send the data to the client immediately. Therefore, if you turn on `passenger_buffer_response`, you may interfere with applications that want to stream responses to the client.
+
+How does response buffering - whether it's done by Nginx or by Phusion Passenger - exactly protect against slow clients?
+Consider an HTTP client that's on a dial-up modem link, and your
+application process generates a 2 MB response. If the response is not buffered
+then your application process will be blocked until the entire 2 MB has been
+sent out to the HTTP client. This disallows your application process to do any useful
+work in the mean time. By buffering responses, Phusion Passenger or Nginx will read
+the application response as quickly as possible and will take care of forwarding the data
+to slow clients.
+
+So keep in mind that enabling `passenger_buffering_response` will make streaming responses
+impossible. Consider for example this piece of Rails code:
+
+--------------------------------
+render :text => lambda { |response, output|
+    10.times do |i|
+        output.write("entry #{i}\n")
+        output.flush
+        sleep 1
+    end
+}
+--------------------------------
+
+...or this piece of Rack code:
+
+--------------------------------
+class Response
+    def each
+        10.times do |i|
+            yield("entry #{i}\n")
+            sleep 1
+        end
+    end
+end
+
+app = lambda do |env|
+    [200, { "Content-Type" => "text/plain" }, Response.new]
+end
+--------------------------------
+
+When `passenger_buffer_response` is turned on, Nginx will wait until
+the application is done sending the entire response before forwarding it
+to the client. The client will not receive anything for 10 seconds,
+after which it receives the entire response at once.
+When `passenger_buffer_response` is turned off, it works as expected: the client
+receives an "entry X" message every second for 10 seconds.
+
+This option may occur in the following places:
+
+ * In the 'http' configuration block.
+ * In a 'server' configuration block.
+ * In a 'location' configuration block.
+ * In an 'if' configuration scope.
+
+In each place, it may be specified at most once. The default value is 'off'.
+
+==== passenger_buffer_size ====
+==== passenger_buffers ====
+==== passenger_busy_buffer_size ====
+These options have the same effect as proxy_module's similarly named options.
+They can be used to modify the maximum allowed HTTP header size.
 
 
 === Logging and debugging options ===

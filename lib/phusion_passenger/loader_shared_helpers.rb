@@ -25,6 +25,7 @@
 PhusionPassenger.require_passenger_lib 'constants'
 PhusionPassenger.require_passenger_lib 'public_api'
 PhusionPassenger.require_passenger_lib 'debug_logging'
+PhusionPassenger.require_passenger_lib 'utils/shellwords'
 
 module PhusionPassenger
 
@@ -40,7 +41,7 @@ module LoaderSharedHelpers
 		dump_ruby_environment
 		check_rvm_using_wrapper_script(options)
 		return sanitize_spawn_options(options)
-7	end
+	end
 
 	def check_rvm_using_wrapper_script(options)
 		ruby = options["ruby"]
@@ -68,7 +69,7 @@ module LoaderSharedHelpers
 	def to_boolean(value)
 		return !(value.nil? || value == false || value == "false")
 	end
-	
+
 	def sanitize_spawn_options(options)
 		defaults = {
 			"app_type"         => "rack",
@@ -85,14 +86,14 @@ module LoaderSharedHelpers
 		# in this case.
 		options["debugger"]     = to_boolean(options["debugger"])
 		options["spawn_method"] = "direct" if options["debugger"]
-		
+
 		return options
 	end
 
 	def dump_all_information
 		dump_ruby_environment
 		dump_envvars
-		dump_system_memory_stats
+		dump_system_metrics
 	end
 
 	def dump_ruby_environment
@@ -127,6 +128,11 @@ module LoaderSharedHelpers
 			if defined?(Gem)
 				File.open("#{dir}/ruby_info", "a") do |f|
 					f.puts "RubyGems version = #{Gem::VERSION}"
+					if Gem.respond_to?(:path)
+						f.puts "RubyGems paths = #{Gem.path.inspect}"
+					else
+						f.puts "RubyGems paths = unknown; incompatible RubyGems API"
+					end
 				end
 				File.open("#{dir}/activated_gems", "wb") do |f|
 					if Gem.respond_to?(:loaded_specs)
@@ -155,16 +161,28 @@ module LoaderSharedHelpers
 		# Don't care.
 	end
 
-	def dump_system_memory_stats
+	def dump_system_metrics
 		if dir = ENV['PASSENGER_DEBUG_DIR']
-			File.open("#{dir}/sysmemory", "wb") do |f|
-				f.write(`"#{PhusionPassenger.helper_scripts_dir}/system-memory-stats.py"`)
+			# When invoked through Passenger Standalone, we want passenger-config
+			# to use the HelperAgent in the Passsenger Standalone buildout directory,
+			# because the one in the source root may not exist.
+			command = [
+				"env",
+				"PASSENGER_LOCATION_CONFIGURATION_FILE=#{PhusionPassenger.source_root}",
+				"#{PhusionPassenger.bin_dir}/passenger-config",
+				"system-metrics"
+			]
+			contents = `#{Shellwords.join(command)}`
+			if $? && $?.exitstatus == 0
+				File.open("#{dir}/system_metrics", "wb") do |f|
+					f.write(contents)
+				end
 			end
 		end
 	rescue SystemCallError
 		# Don't care.
 	end
-	
+
 	# Prepare an application process using rules for the given spawn options.
 	# This method is to be called before loading the application code.
 	#
@@ -177,11 +195,11 @@ module LoaderSharedHelpers
 	def before_loading_app_code_step1(startup_file, options)
 		DebugLogging.log_level = options["log_level"] if options["log_level"]
 
-		# Instantiate the analytics logger if requested. Can be nil.
-		PhusionPassenger.require_passenger_lib 'analytics_logger'
-		options["analytics_logger"] = AnalyticsLogger.new_from_options(options)
+		# Instantiate the Union Station core if requested. Can be nil.
+		PhusionPassenger.require_passenger_lib 'union_station/core'
+		options["union_station_core"] = UnionStation::Core.new_from_options(options)
 	end
-	
+
 	def run_load_path_setup_code(options)
 		# rack-preloader.rb depends on the 'rack' library, but the app
 		# might want us to use a bundled version instead of a
@@ -202,17 +220,17 @@ module LoaderSharedHelpers
 		#   These apps call Bundler.setup in their preinitializer.rb.
 		#
 		# So the strategy is as follows:
-		
+
 		# Our strategy might be completely unsuitable for the app or the
 		# developer is using something other than Bundler, so we let the user
 		# manually specify a load path setup file.
 		if options["load_path_setup_file"]
 			require File.expand_path(options["load_path_setup_file"])
-		
+
 		# The app developer may also override our strategy with this magic file.
 		elsif File.exist?('config/setup_load_paths.rb')
 			require File.expand_path('config/setup_load_paths')
-		
+
 		# Older versions of Bundler use .bundle/environment.rb as the Bundler
 		# environment lock file. This has been replaced by Gemfile.lock in later
 		# versions, but we still support the older mechanism.
@@ -223,7 +241,7 @@ module LoaderSharedHelpers
 			running_bundler(options) do
 				require File.expand_path('.bundle/environment')
 			end
-		
+
 		# If the legacy Bundler environment file doesn't exist then there are two
 		# possibilities:
 		# 1. Bundler is not used, in which case we don't have to do anything.
@@ -245,17 +263,17 @@ module LoaderSharedHelpers
 				require 'bundler/setup'
 			end
 		end
-		
-		
+
+
 		# !!! NOTE !!!
 		# If the app is using Bundler then any dependencies required past this
 		# point must be specified in the Gemfile. Like ruby-debug if debugging is on...
 	end
-	
+
 	def before_loading_app_code_step2(options)
 		# Do nothing.
 	end
-	
+
 	# This method is to be called after loading the application code but
 	# before forking a worker process.
 	def after_loading_app_code(options)
@@ -265,7 +283,7 @@ module LoaderSharedHelpers
 			require 'rails/version'
 		end
 	end
-	
+
 	def create_socket_address(protocol, address)
 		if protocol == 'unix'
 			return "unix:#{address}"
@@ -275,7 +293,7 @@ module LoaderSharedHelpers
 			raise ArgumentError, "Unknown protocol '#{protocol}'"
 		end
 	end
-	
+
 	def advertise_readiness
 		# https://code.google.com/p/phusion-passenger/issues/detail?id=1039
 		puts
@@ -289,7 +307,7 @@ module LoaderSharedHelpers
 			output.puts "!> socket: #{name};#{options[:address]};#{options[:protocol]};#{concurrency}"
 		end
 	end
-	
+
 	# To be called before the request handler main loop is entered, but after the app
 	# startup file has been loaded. This function will fire off necessary events
 	# and perform necessary preparation tasks.
@@ -307,10 +325,10 @@ module LoaderSharedHelpers
 			$0 = options["process_title"] + ": " + options["app_group_name"]
 		end
 
-		if forked && options["analytics_logger"]
-			options["analytics_logger"].clear_connection
+		if forked && options["union_station_core"]
+			options["union_station_core"].clear_connection
 		end
-		
+
 		# If we were forked from a preloader process then clear or
 		# re-establish ActiveRecord database connections. This prevents
 		# child processes from concurrently accessing the same
@@ -325,7 +343,7 @@ module LoaderSharedHelpers
 				ActiveRecord::Base.establish_connection
 			end
 		end
-		
+
 		# Fire off events.
 		PhusionPassenger.call_event(:starting_worker_process, forked)
 		if options["pool_account_username"] && options["pool_account_password_base64"]
@@ -336,7 +354,7 @@ module LoaderSharedHelpers
 			PhusionPassenger.call_event(:credentials, nil, nil)
 		end
 	end
-	
+
 	# To be called after the request handler main loop is exited. This function
 	# will fire off necessary events perform necessary cleanup tasks.
 	def after_handling_requests

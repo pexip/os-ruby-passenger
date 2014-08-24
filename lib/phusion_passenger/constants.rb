@@ -22,8 +22,10 @@
 #  THE SOFTWARE.
 
 module PhusionPassenger
-	PASSENGER_ANALYTICS_WEB_LOG = "PASSENGER_ANALYTICS_WEB_LOG".freeze
+	UNION_STATION_CORE          = "UNION_STATION_CORE".freeze
+	UNION_STATION_REQUEST_TRANSACTION = "UNION_STATION_REQUEST_TRANSACTION".freeze
 	PASSENGER_TXN_ID            = "PASSENGER_TXN_ID".freeze
+	PASSENGER_APP_GROUP_NAME    = "PASSENGER_APP_GROUP_NAME".freeze
 	PASSENGER_UNION_STATION_KEY = "UNION_STATION_KEY".freeze
 	RACK_HIJACK_IO              = "rack.hijack_io".freeze
 
@@ -41,6 +43,7 @@ module PhusionPassenger
 		DEFAULT_START_TIMEOUT = 90_000
 		DEFAULT_WEB_APP_USER = "nobody"
 		DEFAULT_CONCURRENCY_MODEL = "process"
+		DEFAULT_STICKY_SESSIONS_COOKIE_NAME = "_passenger_route"
 		DEFAULT_THREAD_COUNT = 1
 		DEFAULT_ANALYTICS_LOG_USER = DEFAULT_WEB_APP_USER
 		DEFAULT_ANALYTICS_LOG_GROUP = ""
@@ -67,12 +70,12 @@ module PhusionPassenger
 		# Misc
 		FEEDBACK_FD = 3
 		PROGRAM_NAME = "Phusion Passenger"
-		INDEX_DOC_URL       = "http://www.modrails.com/documentation/Users%20guide.html"
-		APACHE2_DOC_URL     = "http://www.modrails.com/documentation/Users%20guide%20Apache.html"
-		NGINX_DOC_URL       = "http://www.modrails.com/documentation/Users%20guide%20Nginx.html"
-		STANDALONE_DOC_URL  = "http://www.modrails.com/documentation/Users%20guide%20Standalone.html"
-		SUPPORT_URL         = "http://www.phusionpassenger.com/support"
-		ENTERPRISE_URL      = "http://www.phusionpassenger.com/enterprise"
+		INDEX_DOC_URL       = "https://www.phusionpassenger.com/documentation/Users%20guide.html"
+		APACHE2_DOC_URL     = "https://www.phusionpassenger.com/documentation/Users%20guide%20Apache.html"
+		NGINX_DOC_URL       = "https://www.phusionpassenger.com/documentation/Users%20guide%20Nginx.html"
+		STANDALONE_DOC_URL  = "https://www.phusionpassenger.com/documentation/Users%20guide%20Standalone.html"
+		SUPPORT_URL         = "https://www.phusionpassenger.com/documentation_and_support"
+		ENTERPRISE_URL      = "https://www.phusionpassenger.com/enterprise"
 		DEB_MAIN_PACKAGE          = "passenger"
 		DEB_DEV_PACKAGE           = "passenger-dev"
 		DEB_APACHE_MODULE_PACKAGE = "libapache2-mod-passenger"

@@ -67,16 +67,16 @@ class Group: public boost::enable_shared_from_this<Group> {
 public:
 	friend class Pool;
 	friend class SuperGroup;
-	
+
 	struct GetAction {
 		GetCallback callback;
 		SessionPtr session;
 	};
-	
+
 	struct DisableWaiter {
 		ProcessPtr process;
 		DisableCallback callback;
-		
+
 		DisableWaiter(const ProcessPtr &_process, const DisableCallback &_callback)
 			: process(_process),
 			  callback(_callback)
@@ -92,7 +92,7 @@ public:
 			  finished(_finished)
 			{ }
 	};
-	
+
 	/**
 	 * Protects `lifeStatus`.
 	 */
@@ -102,7 +102,7 @@ public:
 	 *
 	 * Do not access directly, always use `isAlive()`/`getLifeStatus()` or
 	 * through `lifetimeSyncher`.
-	 * 
+	 *
 	 * Invariant:
 	 *    if lifeStatus != ALIVE:
 	 *       enabledCount == 0
@@ -181,8 +181,8 @@ public:
 	boost::condition_variable detachedProcessesCheckerCond;
 	Callback shutdownCallback;
 	GroupPtr selfPointer;
-	
-	
+
+
 	static void _onSessionInitiateFailure(Session *session) {
 		ProcessPtr process = session->getProcess();
 		assert(process != NULL);
@@ -194,8 +194,9 @@ public:
 		assert(process != NULL);
 		process->getGroup()->onSessionClose(process, session);
 	}
-	
+
 	static string generateSecret(const SuperGroupPtr &superGroup);
+	static string generateUuid(const SuperGroupPtr &superGroup);
 	void onSessionInitiateFailure(const ProcessPtr &process, Session *session);
 	void onSessionClose(const ProcessPtr &process, Session *session);
 
@@ -231,7 +232,7 @@ public:
 
 	void verifyInvariants() const {
 		// !a || b: logical equivalent of a IMPLIES b.
-		
+
 		assert(enabledCount >= 0);
 		assert(disablingCount >= 0);
 		assert(disabledCount >= 0);
@@ -245,7 +246,7 @@ public:
 		assert(!( !getWaitlist.empty() ) || ( enabledProcesses.empty() || verifyNoRequestsOnGetWaitlistAreRoutable() ));
 		assert(!( enabledProcesses.empty() && !m_spawning && !restarting() && !poolAtFullCapacity() ) || ( getWaitlist.empty() ));
 		assert(!( !getWaitlist.empty() ) || ( !enabledProcesses.empty() || m_spawning || restarting() || poolAtFullCapacity() ));
-		
+
 		// Verify disableWaitlist invariants.
 		assert((int) disableWaitlist.size() >= disablingCount);
 
@@ -319,7 +320,7 @@ public:
 		return true;
 	}
 	#endif
-	
+
 	/**
 	 * Sets options for this Group. Called at creation time and at restart time.
 	 */
@@ -328,8 +329,9 @@ public:
 		options.persist(newOptions);
 		options.clearPerRequestFields();
 		options.groupSecret = secret;
+		options.groupUuid   = uuid;
 	}
-	
+
 	/**
 	 * Merges some of the new options from the latest get() request into this Group.
 	 */
@@ -339,7 +341,7 @@ public:
 		options.statThrottleRate = other.statThrottleRate;
 		options.maxPreloaderIdleTime = other.maxPreloaderIdleTime;
 	}
-	
+
 	static void runAllActions(const vector<Callback> &actions) {
 		vector<Callback>::const_iterator it, end = actions.end();
 		for (it = actions.begin(); it != end; it++) {
@@ -425,7 +427,9 @@ public:
 			&& (newOptions.maxRequestQueueSize == 0
 			    || getWaitlist.size() < newOptions.maxRequestQueueSize)))
 		{
-			getWaitlist.push_back(GetWaiter(newOptions.copyAndPersist().clearLogger(), callback));
+			getWaitlist.push_back(GetWaiter(
+				newOptions.copyAndPersist().detachFromUnionStationTransaction(),
+				callback));
 			return true;
 		} else {
 			P_WARN("Request queue is full. Returning an error");
@@ -554,7 +558,7 @@ public:
 			it->callback(it->session, ExceptionPtr());
 		}
 	}
-	
+
 	void assignSessionsToGetWaiters(vector<Callback> &postLockActions) {
 		unsigned int i = 0;
 		bool done = false;
@@ -594,7 +598,7 @@ public:
 		}
 		clearDisableWaitlist(DR_ERROR, postLockActions);
 	}
-	
+
 	void removeFromDisableWaitlist(const ProcessPtr &p, DisableResult result,
 		vector<Callback> &postLockActions)
 	{
@@ -655,7 +659,7 @@ public:
 		}
 		selfPointer.reset();
 	}
-	
+
 public:
 	Options options;
 	/** This name uniquely identifies this Group within its Pool. It can also be used as the display name. */
@@ -664,8 +668,13 @@ public:
 	 * intra-group process communication.
 	 */
 	const string secret;
+	/** A UUID that's generated on Group initialization, and changes every time
+	 * the Group receives a restart command. Allows Union Station to track app
+	 * restarts. This information is public.
+	 */
+	string uuid;
 	ComponentInfo componentInfo;
-	
+
 	/**
 	 * Processes are categorized as enabled, disabling or disabled.
 	 *
@@ -741,35 +750,35 @@ public:
 	 *    process.pqHandle == NULL
 	 */
 	ProcessList detachedProcesses;
-	
+
 	/**
 	 * get() requests for this group that cannot be immediately satisfied are
 	 * put on this wait list, which must be processed as soon as the necessary
 	 * resources have become free.
-	 * 
+	 *
 	 * ### Invariant 1 (safety)
-	 * 
+	 *
 	 * If requests are queued in the getWaitlist, then that's because there are
 	 * no processes that can serve them.
-	 * 
+	 *
 	 *    if getWaitlist is non-empty:
 	 *       enabledProcesses.empty() || (no request in getWaitlist is routeable)
 	 *
 	 * Here, "routeable" is defined as `route(options).process != NULL`.
-	 * 
+	 *
 	 * ### Invariant 2 (progress)
 	 *
 	 * The only reason why there are no enabled processes, while at the same time we're
 	 * not spawning or waiting for pool capacity, is because there is nothing to do.
-	 * 
+	 *
 	 *    if enabledProcesses.empty() && !m_spawning && !restarting() && !poolAtFullCapacity():
 	 *       getWaitlist is empty
-	 * 
+	 *
 	 * Equivalently:
 	 * If requests are queued in the getWaitlist, then either we have processes that can process
 	 * them (some time in the future), or we're actively trying to spawn processes, unless we're
 	 * unable to do that because of resource limits.
-	 * 
+	 *
 	 *    if getWaitlist is non-empty:
 	 *       !enabledProcesses.empty() || m_spawning || restarting() || poolAtFullCapacity()
 	 */
@@ -783,7 +792,7 @@ public:
 	 *    disableWaitlist.size() >= disablingCount
 	 */
 	deque<DisableWaiter> disableWaitlist;
-	
+
 	/**
 	 * Invariant:
 	 *    (lifeStatus == ALIVE) == (spawner != NULL)
@@ -838,19 +847,19 @@ public:
 	SuperGroupPtr getSuperGroup() const {
 		return superGroup.lock();
 	}
-	
+
 	void setSuperGroup(const SuperGroupPtr &superGroup) {
 		assert(this->superGroup.lock() == NULL);
 		this->superGroup = superGroup;
 	}
-	
+
 	/**
 	 * Thread-safe.
 	 * @pre getLifeState() != SHUT_DOWN
 	 * @post result != NULL
 	 */
 	PoolPtr getPool() const;
-	
+
 	// Thread-safe.
 	bool isAlive() const {
 		boost::lock_guard<boost::mutex> lock(lifetimeSyncher);
@@ -898,9 +907,9 @@ public:
 				}
 			}
 		}
-		
+
 		if (OXT_UNLIKELY(newOptions.noop)) {
-			ProcessPtr process = boost::make_shared<Process>(SafeLibevPtr(),
+			ProcessPtr process = boost::make_shared<Process>(
 				0, string(), string(),
 				FileDescriptor(), FileDescriptor(),
 				SocketListPtr(), 0, 0);
@@ -909,7 +918,7 @@ public:
 			process->setGroup(shared_from_this());
 			return boost::make_shared<Session>(process, (Socket *) NULL);
 		}
-		
+
 		if (OXT_UNLIKELY(enabledCount == 0)) {
 			/* We don't have any processes yet, but they're on the way.
 			 *
@@ -970,6 +979,7 @@ public:
 	 * afterwards if necessary, e.g. by calling `assignSessionsToGetWaiters()`.
 	 */
 	AttachResult attach(const ProcessPtr &process, vector<Callback> &postLockActions) {
+		TRACE_POINT();
 		assert(process->getGroup() == NULL || process->getGroup().get() == this);
 		assert(process->isAlive());
 		assert(isAlive());
@@ -1030,9 +1040,15 @@ public:
 	 * that method over this one.
 	 */
 	void detach(const ProcessPtr &process, vector<Callback> &postLockActions) {
+		TRACE_POINT();
 		assert(process->getGroup().get() == this);
 		assert(process->isAlive());
 		assert(isAlive());
+
+		if (process->enabled == Process::DETACHED) {
+			P_DEBUG("Detaching process " << process->inspect() << ", which was already being detached");
+			return;
+		}
 
 		const ProcessPtr p = process; // Keep an extra reference just in case.
 		P_DEBUG("Detaching process " << process->inspect());
@@ -1046,6 +1062,7 @@ public:
 				removeFromDisableWaitlist(process, DR_NOOP, postLockActions);
 			}
 		} else {
+			assert(process->enabled == Process::DISABLED);
 			assert(!disabledProcesses.empty());
 			removeProcessFromList(process, disabledProcesses);
 		}
@@ -1055,7 +1072,7 @@ public:
 
 		postLockActions.push_back(boost::bind(&Group::runDetachHooks, this, process));
 	}
-	
+
 	/**
 	 * Detaches all processes from this Group. This function doesn't touch
 	 * getWaitlist so be sure to fix its invariants afterwards if necessary.
@@ -1074,7 +1091,7 @@ public:
 		foreach (ProcessPtr process, disabledProcesses) {
 			addProcessToList(process, detachedProcesses);
 		}
-		
+
 		enabledProcesses.clear();
 		disablingProcesses.clear();
 		disabledProcesses.clear();
@@ -1085,7 +1102,7 @@ public:
 		clearDisableWaitlist(DR_NOOP, postLockActions);
 		startCheckingDetachedProcesses(false);
 	}
-	
+
 	/**
 	 * Marks the given process as enabled. This function doesn't touch getWaitlist
 	 * so be sure to fix its invariants afterwards if necessary.
@@ -1108,7 +1125,7 @@ public:
 			P_DEBUG("Enabling ENABLED process " << process->inspect());
 		}
 	}
-	
+
 	/**
 	 * Marks the given process as disabled. Returns DR_SUCCESS, DR_DEFERRED
 	 * or DR_NOOP. If the result is DR_DEFERRED, then the callback will be
@@ -1269,7 +1286,7 @@ public:
 				(unsigned long long) options.getMaxPreloaderIdleTime() * 1000000; */
 		return false;
 	}
-	
+
 	/** Whether a new process should be spawned for this group. */
 	bool shouldSpawn() const;
 	/** Whether a new process should be spawned for this group in the
@@ -1286,7 +1303,7 @@ public:
 			&& !processUpperLimitsReached()
 			&& !poolAtFullCapacity();
 	}
-	
+
 	bool needsRestart(const Options &options) {
 		if (m_restarting) {
 			return false;
@@ -1314,6 +1331,7 @@ public:
 		stream << "<app_root>" << escapeForXml(options.appRoot) << "</app_root>";
 		stream << "<app_type>" << escapeForXml(options.appType) << "</app_type>";
 		stream << "<environment>" << escapeForXml(options.environment) << "</environment>";
+		stream << "<uuid>" << toString(uuid) << "</uuid>";
 		stream << "<enabled_process_count>" << enabledCount << "</enabled_process_count>";
 		stream << "<disabling_process_count>" << disablingCount << "</disabling_process_count>";
 		stream << "<disabled_process_count>" << disabledCount << "</disabled_process_count>";
@@ -1349,7 +1367,7 @@ public:
 		stream << "</options>";
 
 		stream << "<processes>";
-		
+
 		for (it = enabledProcesses.begin(); it != enabledProcesses.end(); it++) {
 			stream << "<process>";
 			(*it)->inspectXml(stream, includeSecrets);

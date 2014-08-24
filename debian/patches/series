@@ -1,4 +1,3 @@
 fix_install_path.patch
-no_jsoncpp.patch
+system_jsoncpp.patch
 bin_load_path.patch
-CVE-2014-1832.patch

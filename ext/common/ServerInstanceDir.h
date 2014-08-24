@@ -1,6 +1,6 @@
 /*
  *  Phusion Passenger - https://www.phusionpassenger.com/
- *  Copyright (c) 2010-2013 Phusion
+ *  Copyright (c) 2010-2014 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
  *
@@ -64,17 +64,17 @@ public:
 	class Generation: public noncopyable {
 	private:
 		friend class ServerInstanceDir;
-		
+
 		string path;
 		unsigned int number;
 		bool owner;
-		
+
 		Generation(const string &serverInstanceDir, unsigned int number) {
 			path = serverInstanceDir + "/generation-" + toString(number);
 			this->number = number;
 			owner = false;
 		}
-		
+
 		void create(bool userSwitching, const string &defaultUser,
 		            const string &defaultGroup, uid_t webServerWorkerUid,
 		            gid_t webServerWorkerGid)
@@ -84,7 +84,7 @@ public:
 			struct passwd *defaultUserEntry;
 			uid_t defaultUid;
 			gid_t defaultGid;
-			
+
 			defaultUserEntry = getpwnam(defaultUser.c_str());
 			if (defaultUserEntry == NULL) {
 				throw NonExistentUserException("Default user '" + defaultUser +
@@ -96,26 +96,26 @@ public:
 				throw NonExistentGroupException("Default group '" + defaultGroup +
 					"' does not exist.");
 			}
-			
+
 			/* We set a very tight permission here: no read or write access for
 			 * anybody except the owner. The individual files and subdirectories
 			 * decide for themselves whether they're readable by anybody.
 			 */
 			makeDirTree(path, "u=rwx,g=x,o=x");
-			
+
 			/* Write structure version file. */
 			string structureVersionFile = path + "/structure_version.txt";
 			createFile(structureVersionFile,
 				toString(SERVER_INSTANCE_DIR_GENERATION_STRUCTURE_MAJOR_VERSION) + "." +
 				toString(SERVER_INSTANCE_DIR_GENERATION_STRUCTURE_MINOR_VERSION),
 				S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-			
+
 			string passengerVersionFile = path + "/passenger_version.txt";
 			createFile(passengerVersionFile,
 				PASSENGER_VERSION "\n",
 				S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-			
-			
+
+
 			/* We want the upload buffer directory to be only writable by the web
 			 * server's worker processs. Other users may not have any access to this
 			 * directory.
@@ -126,7 +126,7 @@ public:
 			} else {
 				makeDirTree(path + "/buffered_uploads", "u=rwx,g=,o=");
 			}
-			
+
 			/* The HelperAgent must be able to connect to an application. */
 			if (runningAsRoot) {
 				if (userSwitching) {
@@ -153,10 +153,10 @@ public:
 				 */
 				makeDirTree(path + "/backends", "u=rwx,g=,o=");
 			}
-			
+
 			owner = true;
 		}
-	
+
 	public:
 		~Generation() {
 			destroy();
@@ -167,35 +167,38 @@ public:
 				removeDirTree(path);
 			}
 		}
-		
+
 		unsigned int getNumber() const {
 			return number;
 		}
-		
+
 		// The 'const strng &' here is on purpose. The AgentsStarter C
 		// functions return the string pointer directly.
 		const string &getPath() const {
 			return path;
 		}
-		
+
 		void detach() {
 			owner = false;
 		}
 	};
-	
+
 	typedef boost::shared_ptr<Generation> GenerationPtr;
-	
+
 private:
 	string path;
 	bool owner;
-	
+
 	friend class Generation;
-	
+
 	void initialize(const string &path, bool owner) {
 		TRACE_POINT();
+		struct stat buf;
+		int ret;
+
 		this->path  = path;
 		this->owner = owner;
-		
+
 		/* Create the server instance directory. We only need to write to this
 		 * directory for these reasons:
 		 * 1. Initial population of structure files (structure_version.txt, instance.pid).
@@ -212,18 +215,25 @@ private:
 		 * rights though, because we want admin tools to be able to list the available
 		 * generations no matter what user they're running as.
 		 */
+
+		do {
+			ret = lstat(path.c_str(), &buf);
+		} while (ret == -1 && errno == EAGAIN);
 		if (owner) {
-			switch (getFileTypeNoFollowSymlinks(path)) {
-			case FT_NONEXISTANT:
+			if (ret == 0) {
+				if (S_ISDIR(buf.st_mode)) {
+					verifyDirectoryPermissions(path, buf);
+				} else {
+					throw RuntimeException("'" + path + "' already exists, and is not a directory");
+				}
+			} else if (errno == ENOENT) {
 				createDirectory(path);
-				break;
-			case FT_DIRECTORY:
-				verifyDirectoryPermissions(path);
-				break;
-			default:
-				throw RuntimeException("'" + path + "' already exists, and is not a directory");
+			} else {
+				int e = errno;
+				throw FileSystemException("Cannot lstat '" + path + "'",
+					e, path);
 			}
-		} else if (getFileType(path) != FT_DIRECTORY) {
+		} else if (!S_ISDIR(buf.st_mode)) {
 			throw RuntimeException("Server instance directory '" + path +
 				"' does not exist");
 		}
@@ -259,14 +269,10 @@ private:
 	 * so that an attacker cannot pre-create a directory with too liberal
 	 * permissions.
 	 */
-	void verifyDirectoryPermissions(const string &path) {
+	void verifyDirectoryPermissions(const string &path, struct stat &buf) {
 		TRACE_POINT();
-		struct stat buf;
 
-		if (stat(path.c_str(), &buf) == -1) {
-			int e = errno;
-			throw FileSystemException("Cannot stat() " + path, e, path);
-		} else if (buf.st_mode != (S_IFDIR | parseModeString("u=rwx,g=rx,o=rx"))) {
+		if (buf.st_mode != (S_IFDIR | parseModeString("u=rwx,g=rx,o=rx"))) {
 			throw RuntimeException("Tried to reuse existing server instance directory " +
 				path + ", but it has wrong permissions");
 		} else if (buf.st_uid != geteuid() || buf.st_gid != getegid()) {
@@ -282,7 +288,7 @@ private:
 				path + ", but it has wrong owner and group");
 		}
 	}
-	
+
 	bool isDirectory(const string &dir, struct dirent *entry) const {
 		#ifdef DT_DIR
 			if (entry->d_type == DT_DIR) {
@@ -297,12 +303,12 @@ private:
 		path.append(entry->d_name);
 		return getFileType(path) == FT_DIRECTORY;
 	}
-	
+
 public:
 	ServerInstanceDir(const string &path, bool owner = true) {
 		initialize(path, owner);
 	}
-	
+
 	~ServerInstanceDir() {
 		destroy();
 	}
@@ -324,17 +330,17 @@ public:
 			}
 		}
 	}
-	
+
 	// The 'const strng &' here is on purpose. The AgentsStarter C
 	// functions return the string pointer directly.
 	const string &getPath() const {
 		return path;
 	}
-	
+
 	void detach() {
 		owner = false;
 	}
-	
+
 	GenerationPtr newGeneration(bool userSwitching, const string &defaultUser,
 	                            const string &defaultGroup, uid_t webServerWorkerUid,
 	                            gid_t webServerWorkerGid)
@@ -346,24 +352,24 @@ public:
 		} else {
 			newNumber = 0;
 		}
-		
+
 		GenerationPtr generation(new Generation(path, newNumber));
 		generation->create(userSwitching, defaultUser, defaultGroup,
 			webServerWorkerUid, webServerWorkerGid);
 		return generation;
 	}
-	
+
 	GenerationPtr getGeneration(unsigned int number) const {
 		// Must not used boost::make_shared() here because Watchdog.cpp
 		// deletes the raw pointer in cleanupAgentsInBackground().
 		return ptr(new Generation(path, number));
 	}
-	
+
 	GenerationPtr getNewestGeneration() const {
 		DIR *dir = opendir(path.c_str());
 		struct dirent *entry;
 		int result = -1;
-		
+
 		if (dir == NULL) {
 			int e = errno;
 			throw FileSystemException("Cannot open directory " + path,
@@ -380,7 +386,7 @@ public:
 			}
 		}
 		closedir(dir);
-		
+
 		if (result == -1) {
 			return GenerationPtr();
 		} else {

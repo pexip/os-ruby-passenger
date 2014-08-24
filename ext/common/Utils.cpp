@@ -25,7 +25,9 @@
 
 #include <oxt/system_calls.hpp>
 #include <boost/thread.hpp>
+#include <boost/shared_array.hpp>
 
+#include <algorithm>
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -38,6 +40,8 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <dirent.h>
+#include <pwd.h>
+#include <grp.h>
 #include <limits.h>
 #include <unistd.h>
 #include <string.h>
@@ -55,6 +59,7 @@
 #include <Utils/Base64.h>
 #include <Utils/CachedFileStat.hpp>
 #include <Utils/StrIntUtils.h>
+#include <Utils/IOUtils.h>
 #include <Utils/HttpHeaderBufferer.h>
 
 #ifndef HOST_NAME_MAX
@@ -86,12 +91,12 @@ namespace {
 	struct FileGuard {
 		string filename;
 		bool committed;
-		
+
 		FileGuard(const string &filename) {
 			this->filename = filename;
 			committed = false;
 		}
-		
+
 		~FileGuard() {
 			if (!committed) {
 				int ret;
@@ -100,7 +105,7 @@ namespace {
 				} while (ret == -1 && errno == EINTR);
 			}
 		}
-		
+
 		void commit() {
 			committed = true;
 		}
@@ -116,7 +121,7 @@ FileType
 getFileType(const StaticString &filename, CachedFileStat *cstat, unsigned int throttleRate) {
 	struct stat buf;
 	int ret;
-	
+
 	if (cstat != NULL) {
 		ret = cstat->stat(filename, &buf, throttleRate);
 	} else {
@@ -143,42 +148,13 @@ getFileType(const StaticString &filename, CachedFileStat *cstat, unsigned int th
 	}
 }
 
-FileType
-getFileTypeNoFollowSymlinks(const StaticString &filename) {
-	struct stat buf;
-	int ret;
-	
-	ret = lstat(filename.c_str(), &buf);
-	if (ret == 0) {
-		if (S_ISREG(buf.st_mode)) {
-			return FT_REGULAR;
-		} else if (S_ISDIR(buf.st_mode)) {
-			return FT_DIRECTORY;
-		} else if (S_ISLNK(buf.st_mode)) {
-			return FT_SYMLINK;
-		} else {
-			return FT_OTHER;
-		}
-	} else {
-		if (errno == ENOENT) {
-			return FT_NONEXISTANT;
-		} else {
-			int e = errno;
-			string message("Cannot lstat '");
-			message.append(filename);
-			message.append("'");
-			throw FileSystemException(message, e, filename);
-		}
-	}
-}
-
 void
 createFile(const string &filename, const StaticString &contents, mode_t permissions, uid_t owner,
 	gid_t group, bool overwrite)
 {
 	FileDescriptor fd;
 	int ret, e, options;
-	
+
 	options = O_WRONLY | O_CREAT | O_TRUNC;
 	if (!overwrite) {
 		options |= O_EXCL;
@@ -188,7 +164,7 @@ createFile(const string &filename, const StaticString &contents, mode_t permissi
 	} while (fd == -1 && errno == EINTR);
 	if (fd != -1) {
 		FileGuard guard(filename);
-		
+
 		// The file permission may not be as expected because of the active
 		// umask, so fchmod() it here to ensure correct permissions.
 		do {
@@ -199,7 +175,7 @@ createFile(const string &filename, const StaticString &contents, mode_t permissi
 			throw FileSystemException("Cannot set permissions on " + filename,
 				e, filename);
 		}
-		
+
 		if (owner != USER_NOT_GIVEN && group != GROUP_NOT_GIVEN) {
 			if (owner == USER_NOT_GIVEN) {
 				owner = (uid_t) -1; // Don't let fchown change file owner.
@@ -216,7 +192,7 @@ createFile(const string &filename, const StaticString &contents, mode_t permissi
 					e, filename);
 			}
 		}
-		
+
 		try {
 			writeExact(fd, contents);
 			fd.close();
@@ -244,7 +220,7 @@ canonicalizePath(const string &path) {
 		if (tmp == NULL) {
 			int e = errno;
 			string message;
-			
+
 			message = "Cannot resolve the path '";
 			message.append(path);
 			message.append("'");
@@ -259,7 +235,7 @@ canonicalizePath(const string &path) {
 		if (realpath(path.c_str(), tmp) == NULL) {
 			int e = errno;
 			string message;
-			
+
 			message = "Cannot resolve the path '";
 			message.append(path);
 			message.append("'");
@@ -274,7 +250,7 @@ string
 resolveSymlink(const StaticString &path) {
 	char buf[PATH_MAX];
 	ssize_t size;
-	
+
 	size = readlink(path.c_str(), buf, sizeof(buf) - 1);
 	if (size == -1) {
 		if (errno == EINVAL) {
@@ -367,15 +343,15 @@ extractBaseName(const StaticString &path) {
 }
 
 string
-escapeForXml(const string &input) {
-	string result(input);
+escapeForXml(const StaticString &input) {
+	string result(input.data(), input.size());
 	string::size_type input_pos = 0;
 	string::size_type input_end_pos = input.size();
 	string::size_type result_pos = 0;
-	
+
 	while (input_pos < input_end_pos) {
 		const unsigned char ch = input[input_pos];
-		
+
 		if ((ch >= 'A' && ch <= 'z')
 		 || (ch >= '0' && ch <= '9')
 		 || ch == '/' || ch == ' ' || ch == '_' || ch == '.'
@@ -387,7 +363,7 @@ escapeForXml(const string &input) {
 			// Not an ASCII character; escape it.
 			char escapedCharacter[sizeof("&#255;") + 1];
 			int size;
-			
+
 			size = snprintf(escapedCharacter,
 				sizeof(escapedCharacter) - 1,
 				"&#%d;",
@@ -396,34 +372,36 @@ escapeForXml(const string &input) {
 				throw std::bad_alloc();
 			}
 			escapedCharacter[sizeof(escapedCharacter) - 1] = '\0';
-			
+
 			result.replace(result_pos, 1, escapedCharacter, size);
 			result_pos += size;
 		}
 		input_pos++;
 	}
-	
+
 	return result;
 }
 
 string
 getProcessUsername() {
 	struct passwd pwd, *result;
-	char strings[1024];
-	int ret;
-	
+	long bufSize;
+	shared_array<char> strings;
+
+	// _SC_GETPW_R_SIZE_MAX is not a maximum:
+	// http://tomlee.co/2012/10/problems-with-large-linux-unix-groups-and-getgrgid_r-getgrnam_r/
+	bufSize = std::max<long>(1024 * 128, sysconf(_SC_GETPW_R_SIZE_MAX));
+	strings.reset(new char[bufSize]);
+
 	result = (struct passwd *) NULL;
-	do {
-		ret = getpwuid_r(getuid(), &pwd, strings, sizeof(strings), &result);
-	} while (ret == -1 && errno == EINTR);
-	if (ret == -1) {
+	if (getpwuid_r(getuid(), &pwd, strings.get(), bufSize, &result) != 0) {
 		result = (struct passwd *) NULL;
 	}
-	
+
 	if (result == (struct passwd *) NULL || result->pw_name == NULL || result->pw_name[0] == '\0') {
-		snprintf(strings, sizeof(strings), "UID %lld", (long long) getuid());
-		strings[sizeof(strings) - 1] = '\0';
-		return strings;
+		snprintf(strings.get(), bufSize, "UID %lld", (long long) getuid());
+		strings.get()[bufSize - 1] = '\0';
+		return strings.get();
 	} else {
 		return result->pw_name;
 	}
@@ -431,10 +409,21 @@ getProcessUsername() {
 
 string
 getGroupName(gid_t gid) {
-	struct group *groupEntry;
+	struct group grp, *groupEntry;
+	long bufSize;
+	shared_array<char> strings;
 
-	groupEntry = getgrgid(gid);
-	if (groupEntry == NULL) {
+	// _SC_GETGR_R_SIZE_MAX is not a maximum:
+	// http://tomlee.co/2012/10/problems-with-large-linux-unix-groups-and-getgrgid_r-getgrnam_r/
+	bufSize = std::max<long>(1024 * 128, sysconf(_SC_GETGR_R_SIZE_MAX));
+	strings.reset(new char[bufSize]);
+
+	groupEntry = (struct group *) NULL;
+	if (getgrgid_r(gid, &grp, strings.get(), bufSize, &groupEntry) != 0) {
+		groupEntry = (struct group *) NULL;
+	}
+
+	if (groupEntry == (struct group *) NULL) {
 		return toString(gid);
 	} else {
 		return groupEntry->gr_name;
@@ -443,10 +432,21 @@ getGroupName(gid_t gid) {
 
 gid_t
 lookupGid(const string &groupName) {
-	struct group *groupEntry;
+	struct group grp, *groupEntry;
+	long bufSize;
+	shared_array<char> strings;
 
-	groupEntry = getgrnam(groupName.c_str());
-	if (groupEntry == NULL) {
+	// _SC_GETGR_R_SIZE_MAX is not a maximum:
+	// http://tomlee.co/2012/10/problems-with-large-linux-unix-groups-and-getgrgid_r-getgrnam_r/
+	bufSize = std::max<long>(1024 * 128, sysconf(_SC_GETGR_R_SIZE_MAX));
+	strings.reset(new char[bufSize]);
+
+	groupEntry = (struct group *) NULL;
+	if (getgrnam_r(groupName.c_str(), &grp, strings.get(), bufSize, &groupEntry) != 0) {
+		groupEntry = (struct group *) NULL;
+	}
+
+	if (groupEntry == (struct group *) NULL) {
 		if (looksLikePositiveNumber(groupName)) {
 			return atoi(groupName);
 		} else {
@@ -462,17 +462,17 @@ parseModeString(const StaticString &mode) {
 	mode_t modeBits = 0;
 	vector<string> clauses;
 	vector<string>::iterator it;
-	
+
 	split(mode, ',', clauses);
 	for (it = clauses.begin(); it != clauses.end(); it++) {
 		const string &clause = *it;
-		
+
 		if (clause.empty()) {
 			continue;
 		} else if (clause.size() < 2 || (clause[0] != '+' && clause[1] != '=')) {
 			throw InvalidModeStringException("Invalid mode clause specification '" + clause + "'");
 		}
-		
+
 		switch (clause[0]) {
 		case 'u':
 			for (string::size_type i = 2; i < clause.size(); i++) {
@@ -559,7 +559,7 @@ parseModeString(const StaticString &mode) {
 				"' in mode clause specification '" + clause + "'");
 		}
 	}
-	
+
 	return modeBits;
 }
 
@@ -643,13 +643,13 @@ makeDirTree(const string &path, const StaticString &mode, uid_t owner, gid_t gro
 	string current = path;
 	mode_t modeBits;
 	int ret;
-	
+
 	if (stat(path.c_str(), &buf) == 0) {
 		return;
 	}
-	
+
 	modeBits = parseModeString(mode);
-	
+
 	/* Create a list of parent paths that don't exist. For example, given
 	 * path == "/a/b/c/d/e" and that only /a exists, the list will become
 	 * as follows:
@@ -662,11 +662,11 @@ makeDirTree(const string &path, const StaticString &mode, uid_t owner, gid_t gro
 		paths.push_back(current);
 		current = extractDirName(current);
 	}
-	
+
 	/* Now traverse the list in reverse order and create directories that don't exist. */
 	for (rit = paths.rbegin(); rit != paths.rend(); rit++) {
 		current = *rit;
-		
+
 		do {
 			ret = mkdir(current.c_str(), modeBits);
 		} while (ret == -1 && errno == EINTR);
@@ -680,12 +680,12 @@ makeDirTree(const string &path, const StaticString &mode, uid_t owner, gid_t gro
 					e, current);
 			}
 		}
-		
+
 		/* Chmod in order to override the umask. */
 		do {
 			ret = chmod(current.c_str(), modeBits);
 		} while (ret == -1 && errno == EINTR);
-		
+
 		if (owner != USER_NOT_GIVEN && group != GROUP_NOT_GIVEN) {
 			if (owner == USER_NOT_GIVEN) {
 				owner = (uid_t) -1; // Don't let chown change file owner.
@@ -699,7 +699,7 @@ makeDirTree(const string &path, const StaticString &mode, uid_t owner, gid_t gro
 			if (ret == -1) {
 				char message[1024];
 				int e = errno;
-				
+
 				snprintf(message, sizeof(message) - 1,
 					"Cannot change the directory '%s' its UID to %lld and GID to %lld",
 					current.c_str(), (long long) owner, (long long) group);
@@ -774,32 +774,32 @@ prestartWebApps(const ResourceLocator &locator, const string &ruby,
 	 * executing the prespawning scripts.
 	 */
 	syscalls::sleep(2);
-	
+
 	this_thread::disable_interruption di;
 	this_thread::disable_syscall_interruption dsi;
 	vector<string>::const_iterator it;
 	string prespawnScript = locator.getHelperScriptsDir() + "/prespawn";
-	
+
 	it = prestartURLs.begin();
 	while (it != prestartURLs.end() && !this_thread::interruption_requested()) {
 		if (it->empty()) {
 			it++;
 			continue;
 		}
-		
+
 		pid_t pid;
-		
+
 		pid = fork();
 		if (pid == 0) {
 			long max_fds, i;
 			int e;
-			
+
 			// Close all unnecessary file descriptors.
 			max_fds = sysconf(_SC_OPEN_MAX);
 			for (i = 3; i < max_fds; i++) {
 				syscalls::close(i);
 			}
-			
+
 			execlp(ruby.c_str(),
 				ruby.c_str(),
 				prespawnScript.c_str(),
@@ -824,7 +824,7 @@ prestartWebApps(const ResourceLocator &locator, const string &ruby,
 				throw;
 			}
 		}
-		
+
 		this_thread::restore_interruption si(di);
 		this_thread::restore_syscall_interruption ssi(dsi);
 		syscalls::sleep(1);
@@ -917,14 +917,6 @@ getSignalName(int sig) {
 
 void
 resetSignalHandlersAndMask() {
-	sigset_t signal_set;
-	int ret;
-	
-	sigemptyset(&signal_set);
-	do {
-		ret = sigprocmask(SIG_SETMASK, &signal_set, NULL);
-	} while (ret == -1 && errno == EINTR);
-	
 	struct sigaction action;
 	action.sa_handler = SIG_DFL;
 	action.sa_flags   = SA_RESTART;
@@ -955,6 +947,21 @@ resetSignalHandlersAndMask() {
 	#endif
 	sigaction(SIGUSR1, &action, NULL);
 	sigaction(SIGUSR2, &action, NULL);
+
+	// We reset the signal mask after resetting the signal handlers,
+	// because prior to calling resetSignalHandlersAndMask(), the
+	// process might be blocked on some signals. We want those signals
+	// to be processed after installing the new signal handlers
+	// so that bugs like https://github.com/phusion/passenger/pull/97
+	// can be prevented.
+
+	sigset_t signal_set;
+	int ret;
+
+	sigemptyset(&signal_set);
+	do {
+		ret = sigprocmask(SIG_SETMASK, &signal_set, NULL);
+	} while (ret == -1 && errno == EINTR);
 }
 
 void
@@ -1016,6 +1023,74 @@ runShellCommand(const StaticString &command) {
 	}
 }
 
+string
+runCommandAndCaptureOutput(const char **command) {
+	pid_t pid;
+	int e;
+	Pipe p;
+
+	p = createPipe();
+
+	this_thread::disable_syscall_interruption dsi;
+	pid = syscalls::fork();
+	if (pid == 0) {
+		// Make ps nicer, we want to have as little impact on the rest
+		// of the system as possible while collecting the metrics.
+		int prio = getpriority(PRIO_PROCESS, getpid());
+		prio++;
+		if (prio > 20) {
+			prio = 20;
+		}
+		setpriority(PRIO_PROCESS, getpid(), prio);
+
+		dup2(p[1], 1);
+		close(p[0]);
+		close(p[1]);
+		closeAllFileDescriptors(2);
+		execvp(command[0], (char * const *) command);
+		_exit(1);
+	} else if (pid == -1) {
+		e = errno;
+		throw SystemException("Cannot fork() a new process", e);
+	} else {
+		bool done = false;
+		string result;
+
+		p[1].close();
+		while (!done) {
+			char buf[1024 * 4];
+			ssize_t ret;
+
+			try {
+				this_thread::restore_syscall_interruption rsi(dsi);
+				ret = syscalls::read(p[0], buf, sizeof(buf));
+			} catch (const thread_interrupted &) {
+				syscalls::kill(SIGKILL, pid);
+				syscalls::waitpid(pid, NULL, 0);
+				throw;
+			}
+			if (ret == -1) {
+				e = errno;
+				syscalls::kill(SIGKILL, pid);
+				syscalls::waitpid(pid, NULL, 0);
+				throw SystemException(string("Cannot read output from the '") +
+					command[1] + "' command", e);
+			}
+			done = ret == 0;
+			result.append(buf, ret);
+		}
+		p[0].close();
+		syscalls::waitpid(pid, NULL, 0);
+
+		if (result.empty()) {
+			throw RuntimeException(string("The '") + command[1] +
+				"' command failed");
+		} else {
+			return result;
+		}
+	}
+}
+
 #ifdef __APPLE__
 	// http://www.opensource.apple.com/source/Libc/Libc-825.26/sys/fork.c
 	// This bypasses atfork handlers.
@@ -1043,7 +1118,7 @@ asyncFork() {
 static int
 getFileDescriptorLimit() {
 	long long sysconfResult = sysconf(_SC_OPEN_MAX);
-	
+
 	struct rlimit rl;
 	long long rlimitResult;
 	if (getrlimit(RLIMIT_NOFILE, &rl) == -1) {
@@ -1051,15 +1126,19 @@ getFileDescriptorLimit() {
 	} else {
 		rlimitResult = (long long) rl.rlim_max;
 	}
-	
+
 	long result;
-	if (sysconfResult > rlimitResult) {
+	// OS X 10.9 returns LLONG_MAX. It doesn't make sense
+	// to use that result so we limit ourselves to the
+	// sysconf result.
+	if (rlimitResult >= INT_MAX || sysconfResult > rlimitResult) {
 		result = sysconfResult;
 	} else {
 		result = rlimitResult;
 	}
+
 	if (result < 0) {
-		// Both calls returned errors.
+		// Unable to query the file descriptor limit.
 		result = 9999;
 	} else if (result < 2) {
 		// The calls reported broken values.
@@ -1072,10 +1151,10 @@ getFileDescriptorLimit() {
 // descriptor that the process is currently using.
 // See also http://stackoverflow.com/questions/899038/getting-the-highest-allocated-file-descriptor
 static int
-getHighestFileDescriptor() {
+getHighestFileDescriptor(bool asyncSignalSafe) {
 #if defined(F_MAXFD)
 	int ret;
-	
+
 	do {
 		ret = fcntl(0, F_MAXFD);
 	} while (ret == -1 && errno == EINTR);
@@ -1083,17 +1162,17 @@ getHighestFileDescriptor() {
 		ret = getFileDescriptorLimit();
 	}
 	return ret;
-	
+
 #else
 	int p[2], ret, flags;
 	pid_t pid = -1;
 	int result = -1;
-	
+
 	/* Since opendir() may not be async signal safe and thus may lock up
 	 * or crash, we use it in a child process which we kill if we notice
 	 * that things are going wrong.
 	 */
-	
+
 	// Make a pipe.
 	p[0] = p[1] = -1;
 	do {
@@ -1102,7 +1181,7 @@ getHighestFileDescriptor() {
 	if (ret == -1) {
 		goto done;
 	}
-	
+
 	// Make the read side non-blocking.
 	do {
 		flags = fcntl(p[0], F_GETFL);
@@ -1116,16 +1195,22 @@ getHighestFileDescriptor() {
 	if (ret == -1) {
 		goto done;
 	}
-	
-	do {
-		pid = asyncFork();
-	} while (pid == -1 && errno == EINTR);
-	
+
+	if (asyncSignalSafe) {
+		do {
+			pid = asyncFork();
+		} while (pid == -1 && errno == EINTR);
+	} else {
+		do {
+			pid = fork();
+		} while (pid == -1 && errno == EINTR);
+	}
+
 	if (pid == 0) {
 		// Don't close p[0] here or it might affect the result.
-		
+
 		resetSignalHandlersAndMask();
-		
+
 		struct sigaction action;
 		action.sa_handler = _exit;
 		action.sa_flags   = SA_RESTART;
@@ -1136,7 +1221,7 @@ getHighestFileDescriptor() {
 		sigaction(SIGILL, &action, NULL);
 		sigaction(SIGFPE, &action, NULL);
 		sigaction(SIGABRT, &action, NULL);
-		
+
 		DIR *dir = NULL;
 		#ifdef __APPLE__
 			/* /dev/fd can always be trusted on OS X. */
@@ -1163,14 +1248,14 @@ getHighestFileDescriptor() {
 				_exit(1);
 			}
 		}
-		
+
 		struct dirent *ent;
 		union {
 			int highest;
 			char data[sizeof(int)];
 		} u;
 		u.highest = -1;
-		
+
 		while ((ent = readdir(dir)) != NULL) {
 			if (ent->d_name[0] != '.') {
 				int number = atoi(ent->d_name);
@@ -1191,14 +1276,14 @@ getHighestFileDescriptor() {
 		}
 		closedir(dir);
 		_exit(0);
-		
+
 	} else if (pid == -1) {
 		goto done;
-		
+
 	} else {
 		close(p[1]); // Do not retry on EINTR: http://news.ycombinator.com/item?id=3363819
 		p[1] = -1;
-		
+
 		union {
 			int highest;
 			char data[sizeof(int)];
@@ -1207,7 +1292,7 @@ getHighestFileDescriptor() {
 		struct pollfd pfd;
 		pfd.fd = p[0];
 		pfd.events = POLLIN;
-		
+
 		do {
 			do {
 				// The child process must finish within 30 ms, otherwise
@@ -1217,7 +1302,7 @@ getHighestFileDescriptor() {
 			if (ret <= 0) {
 				goto done;
 			}
-			
+
 			do {
 				ret = read(p[0], u.data + bytesRead, sizeof(int) - bytesRead);
 			} while (ret == -1 && ret == EINTR);
@@ -1231,7 +1316,7 @@ getHighestFileDescriptor() {
 				bytesRead += ret;
 			}
 		} while (bytesRead < (ssize_t) sizeof(int));
-		
+
 		result = u.highest;
 		goto done;
 	}
@@ -1252,7 +1337,7 @@ done:
 			ret = waitpid(pid, NULL, 0);
 		} while (ret == -1 && errno == EINTR);
 	}
-	
+
 	if (result == -1) {
 		result = getFileDescriptorLimit();
 	}
@@ -1261,7 +1346,7 @@ done:
 }
 
 void
-closeAllFileDescriptors(int lastToKeepOpen) {
+closeAllFileDescriptors(int lastToKeepOpen, bool asyncSignalSafe) {
 	#if defined(F_CLOSEM)
 		int ret;
 		do {
@@ -1274,8 +1359,8 @@ closeAllFileDescriptors(int lastToKeepOpen) {
 		closefrom(lastToKeepOpen + 1);
 		return;
 	#endif
-	
-	for (int i = getHighestFileDescriptor(); i > lastToKeepOpen; i--) {
+
+	for (int i = getHighestFileDescriptor(asyncSignalSafe); i > lastToKeepOpen; i--) {
 		/* Even though we normally shouldn't retry on EINTR
 		 * (http://news.ycombinator.com/item?id=3363819)
 		 * it's okay to do that here because because this function
