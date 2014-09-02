@@ -60,6 +60,7 @@ dependencies = [
 	'ext/common/agents/HelperAgent/RequestHandler.h',
 	'ext/common/agents/HelperAgent/RequestHandler.cpp',
 	'ext/common/agents/HelperAgent/ScgiRequestParser.h',
+	'ext/common/agents/HelperAgent/SystemMetricsTool.cpp',
 	'ext/common/Constants.h',
 	'ext/common/StaticString.h',
 	'ext/common/Account.h',
@@ -69,6 +70,7 @@ dependencies = [
 	'ext/common/Logging.h',
 	'ext/common/ResourceLocator.h',
 	'ext/common/Utils/ProcessMetricsCollector.h',
+	'ext/common/Utils/SystemMetricsCollector.h',
 	'ext/common/Utils/VariantMap.h',
 	'ext/common/ApplicationPool2/Pool.h',
 	'ext/common/ApplicationPool2/Common.h',
@@ -82,6 +84,7 @@ dependencies = [
 	'ext/common/ApplicationPool2/SpawnerFactory.h',
 	'ext/common/ApplicationPool2/SmartSpawner.h',
 	'ext/common/ApplicationPool2/DirectSpawner.h',
+	'ext/common/ApplicationPool2/ErrorRenderer.h',
 	LIBBOOST_OXT,
 	helper_agent_libs.link_objects,
 	LIBEV_TARGET,
@@ -108,7 +111,7 @@ file AGENT_OUTPUT_DIR + 'PassengerHelperAgent' => dependencies do
 end
 
 logging_agent_libs = COMMON_LIBRARY.only(:base, :logging_agent, 'AgentsBase.o',
-	'Utils/Base64.o', 'Utils/MD5.o')
+	'Utils/Base64.o', 'Utils/MD5.o', 'Utils/jsoncpp.o')
 dependencies = [
 	'ext/common/agents/LoggingAgent/Main.cpp',
 	'ext/common/agents/LoggingAgent/AdminController.h',
@@ -150,7 +153,8 @@ file AGENT_OUTPUT_DIR + 'PassengerLoggingAgent' => dependencies do
 		"#{EXTRA_CXX_LDFLAGS}")
 end
 
-spawn_preparer_libs = COMMON_LIBRARY.only('Utils/Base64.o')
+spawn_preparer_libs = COMMON_LIBRARY.only('Utils/Base64.o', 'Utils/SystemTime.o',
+	'Utils/StrIntUtils.o', 'Utils/IOUtils.o')
 dependencies = [
 	'ext/common/agents/SpawnPreparer.cpp',
 	spawn_preparer_libs.link_objects,

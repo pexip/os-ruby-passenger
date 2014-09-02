@@ -54,7 +54,6 @@ class TerminalChoiceMenu
 		@choices = choices.map { |choice| Choice.create(choice) }
 		@pointer = 0
 		@index   = index_choices
-		initialize_terminal_control
 	end
 
 	def display_choices
@@ -110,6 +109,9 @@ private
 		when " "
 			process_toggle
 			return false
+		when "!"
+			process_disable_utf8
+			return false
 		when "\r"
 			return true
 		else
@@ -132,6 +134,10 @@ private
 		@choices[@pointer].toggle!
 	end
 
+	def process_disable_utf8
+		ENV['UTF8_MENUS'] = '0'
+	end
+
 	def render_to_string
 		str = ""
 		@choices.each_with_index do |choice, i|
@@ -144,11 +150,11 @@ private
 	end
 
 	def render_pointer(index)
-		return @pointer == index ? "‣" : " "
+		return @pointer == index ? maybe_utf8("‣", ">") : " "
 	end
 
 	def render_checkbox(checked)
-		return checked ? "⬢" : "⬡"
+		return checked ? maybe_utf8("⬢", "(*)") : maybe_utf8("⬡", "( )")
 	end
 
 	def display(str)
@@ -161,6 +167,14 @@ private
 		display("\r")
 		(number_of_lines - 1).times do
 			display(move_up)
+		end
+	end
+
+	def maybe_utf8(utf8, plain)
+		if ENV['UTF8_MENUS'] == '0'
+			return plain
+		else
+			return utf8
 		end
 	end
 
@@ -187,27 +201,22 @@ private
 		require 'readline'
 		java_import 'jline.console.ConsoleReader'
 
-		def initialize_terminal_control
+		def raw_no_echo_mode
 			input = STDIN.to_inputstream
 			output = STDOUT.to_outputstream
 			@console = ConsoleReader.new(input, output)
 			@console.set_history_enabled(false)
 			@console.set_bell_enabled(true)
 			@console.set_pagination_enabled(false)
-		end
-
-		def raw_no_echo_mode
 			@terminal_state = @console.getEchoCharacter
-            @console.setEchoCharacter(0)
+			@console.setEchoCharacter(0)
 		end
 
 		def restore_mode
 			@console.setEchoCharacter(@terminal_state)
+			@console.get_terminal.restore
 		end
 	else
-		def initialize_terminal_control
-		end
-
 		def raw_no_echo_mode
 			@terminal_state = `stty -g`
 			system("stty raw -echo -icanon isig")

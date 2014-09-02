@@ -14,7 +14,7 @@
 
 1. Support information	=>	support-information-zkewk3
 
-1.1. Supported operating systems	=>	supported-operating-systems-rhbg35
+1.1. Supported operating systems and languages	=>	supported-operating-systems-rhbg35
 
 1.2. Where to get support	=>	where-to-get-support-f3pbrb
 
@@ -120,6 +120,8 @@
 
 5.4. Redeploying (restarting the WSGI application)	=>	redeploying-restarting-the-wsgi-application--na7pmf
 
+5.5. Sample passenger_wsgi.py for Django	=>	sample-passenger-wsgi-py-for-django-slb9m8
+
 6. Deploying a Node.js application	=>	deploying-a-node-js-application-882ecy
 
 7. Deploying a Meteor application	=>	deploying-a-meteor-application-mxfmir
@@ -134,33 +136,37 @@
 
 8.3.1. PassengerEnabled <on|off>	=>	passengerenabled-on-off--74rzth
 
-8.3.2. PassengerRuby <filename>	=>	passengerruby-filename--1r3fv73
+8.3.2. PassengerBaseURI <uri>	=>	passengerbaseuri-uri--97i9mm
 
-8.3.3. PassengerPython <filename>	=>	passengerpython-filename--1ssesv3
+8.4. Application loading options	=>	application-loading-options-1uedd4o
 
-8.3.4. PassengerNodejs <filename>	=>	passengernodejs-filename--2mjb1j
+8.4.1. PassengerRuby <filename>	=>	passengerruby-filename--1r3fv73
 
-8.3.5. PassengerAppEnv <string>	=>	passengerappenv-string--s3ojlc
+8.4.2. PassengerPython <filename>	=>	passengerpython-filename--1ssesv3
 
-8.3.6. RailsEnv <string>	=>	railsenv-string--1b0xxvu
+8.4.3. PassengerNodejs <filename>	=>	passengernodejs-filename--2mjb1j
 
-8.3.7. RackEnv <string>	=>	rackenv-string--vve9py
+8.4.4. PassengerAppEnv <string>	=>	passengerappenv-string--s3ojlc
 
-8.3.8. PassengerAppRoot <path/to/root>	=>	passengerapproot-path-to-root--uf24yd
+8.4.5. RailsEnv <string>	=>	railsenv-string--1b0xxvu
 
-8.3.9. PassengerBaseURI <uri>	=>	passengerbaseuri-uri--97i9mm
+8.4.6. RackEnv <string>	=>	rackenv-string--vve9py
 
-8.3.10. PassengerRestartDir <directory>	=>	passengerrestartdir-directory--1fmhmv0
+8.4.7. PassengerAppRoot <path/to/root>	=>	passengerapproot-path-to-root--uf24yd
 
-8.3.11. PassengerRollingRestarts <on|off>	=>	passengerrollingrestarts
+8.4.8. PassengerAppType <name>	=>	passengerapptype-name--62jzqf
 
-8.3.12. PassengerResistDeploymentErrors <on|off>	=>	passengerresistdeploymenterrors
+8.4.9. PassengerStartupFile <filename>	=>	passengerstartupfile-filename--14vhvn9
 
-8.4. Process spawning options	=>	process-spawning-options-v2vscm
+8.4.10. PassengerRestartDir <directory>	=>	passengerrestartdir-directory--1fmhmv0
 
-8.4.1. PassengerSpawnMethod <string>	=>	passengerspawnmethod-string--sodg2y
+8.4.11. PassengerSpawnMethod <string>	=>	passengerspawnmethod-string--sodg2y
 
-8.4.2. PassengerLoadShellEnvvars <on|off>	=>	passengerloadshellenvvars-on-off--1290yz1
+8.4.12. PassengerLoadShellEnvvars <on|off>	=>	passengerloadshellenvvars-on-off--1290yz1
+
+8.4.13. PassengerRollingRestarts <on|off>	=>	passengerrollingrestarts
+
+8.4.14. PassengerResistDeploymentErrors <on|off>	=>	passengerresistdeploymenterrors
 
 8.5. Security options	=>	security-options-1pb75ho
 
@@ -218,6 +224,10 @@
 
 8.7.4. PassengerMaxRequestQueueSize <number>	=>	passenger-max-request-queue-size-number--1f1uocd
 
+8.7.5. PassengerStickySessions <on|off>	=>	passengerstickysessions-on-off--fx1jkt
+
+8.7.6. PassengerStickySessionsCookieName	=>	passenger-sticky-sessions-cookie-name-stktkx
+
 8.8. Compatibility options	=>	compatibility-options-8jve5a
 
 8.8.1. PassengerResolveSymlinksInDocumentRoot <on|off>	=>	passengerresolvesymlinksindocumentroot-on-off--1r0qcp8
@@ -264,31 +274,33 @@
 
 9.2. Why does the first request take a long time?	=>	why-does-the-first-request-take-a-long-time--12mg452
 
-9.3. OS X: The installer cannot locate MAMP’s Apache	=>	macos-x-the-installer-cannot-locate-mamp-s-apache-or908n
+9.3. I get "command not found" when running a Phusion Passenger command through sudo	=>	i-get-command-not-found-when-running-a-phusion-passenger-command-through-sudo-v9z223
 
-9.4. Apache reports a "403 Forbidden" error	=>	apache-reports-a-403-forbidden-error-140tb4p
+9.4. OS X: The installer cannot locate MAMP’s Apache	=>	macos-x-the-installer-cannot-locate-mamp-s-apache-or908n
 
-9.5. Static assets such as images and stylesheets aren’t being displayed	=>	static-assets-such-as-images-and-stylesheets-aren-t-being-displayed-uaptpi
+9.5. Apache reports a "403 Forbidden" error	=>	apache-reports-a-403-forbidden-error-140tb4p
 
-9.6. The Apache error log says that the spawn manager script does not exist, or that it does not have permission to execute it	=>	the-apache-error-log-says-that-the-spawn-manager-script-does-not-exist-or-that-it-does-not-have-permission-to-execute-it-1fmoozk
+9.6. Static assets such as images and stylesheets aren’t being displayed	=>	static-assets-such-as-images-and-stylesheets-aren-t-being-displayed-uaptpi
 
-9.7. The application thinks its not on SSL even though it is	=>	the-application-thinks-its-not-on-ssl-even-though-it-is-u9fcp1
+9.7. The Apache error log says that the spawn manager script does not exist, or that it does not have permission to execute it	=>	the-apache-error-log-says-that-the-spawn-manager-script-does-not-exist-or-that-it-does-not-have-permission-to-execute-it-1fmoozk
 
-9.8. Ruby on Rails-specific troubleshooting	=>	ruby-on-rails-specific-problems-6umss5
+9.8. The application thinks its not on SSL even though it is	=>	the-application-thinks-its-not-on-ssl-even-though-it-is-u9fcp1
 
-9.8.1. The "About your application’s environment" link does not work	=>	the-about-your-application-s-environment-link-does-not-work-7k4tlm
+9.9. Ruby on Rails-specific troubleshooting	=>	ruby-on-rails-specific-problems-6umss5
 
-9.8.2. The Rails application reports that it’s unable to start because of a permission error	=>	the-rails-application-reports-that-it-s-unable-to-start-because-of-a-permission-error-v53i6s
+9.9.1. The "About your application’s environment" link does not work	=>	the-about-your-application-s-environment-link-does-not-work-7k4tlm
 
-9.8.3. The Rails application’s log file is not being written to	=>	my-rails-application-s-log-file-is-not-being-written-to-3i747l
+9.9.2. The Rails application reports that it’s unable to start because of a permission error	=>	the-rails-application-reports-that-it-s-unable-to-start-because-of-a-permission-error-v53i6s
 
-9.9. Conflicting Apache modules	=>	conflicting-apache-modules-1uwpixk
+9.9.3. The Rails application’s log file is not being written to	=>	my-rails-application-s-log-file-is-not-being-written-to-3i747l
 
-9.9.1. mod_userdir	=>	mod-userdir-x5e2te
+9.10. Conflicting Apache modules	=>	conflicting-apache-modules-1uwpixk
 
-9.9.2. MultiViews (mod_negotiation)	=>	multiviews-mod-negotiation--zchfg0
+9.10.1. mod_userdir	=>	mod-userdir-x5e2te
 
-9.9.3. VirtualDocumentRoot	=>	virtualdocumentroot-14cwd7l
+9.10.2. MultiViews (mod_negotiation)	=>	multiviews-mod-negotiation--zchfg0
+
+9.10.3. VirtualDocumentRoot	=>	virtualdocumentroot-14cwd7l
 
 10. Analysis and system maintenance	=>	analysis-and-system-maintenance-qvkwzr
 
@@ -396,15 +408,13 @@
 
 15.2.2. Summary of benefits	=>	summary-of-benefits-1yrihfb
 
-15.3. Smart spawning gotcha #1: unintentional file descriptor sharing	=>	smart-spawning-gotcha-1-unintentional-file-descriptor-sharing-z1y55l
+15.3. Smart spawning caveat #1: unintentional file descriptor sharing	=>	smart-spawning-gotcha-1-unintentional-file-descriptor-sharing-z1y55l
 
 15.3.1. Example 1: Memcached connection sharing (harmful)	=>	example-1-memcached-connection-sharing-harmful--c71wqw
 
 15.3.2. Example 2: Log file sharing (not harmful)	=>	example-2-log-file-sharing-not-harmful--1p2yuol
 
-15.4. Smart spawning gotcha #2: the need to revive threads	=>	smart-spawning-gotcha-2-the-need-to-revive-threads-1k6cj7d
-
-15.5. Smart spawning gotcha #3: code load order	=>	smart-spawning-gotcha-3-code-load-order-nkotiy
+15.4. Smart spawning caveat #2: the need to revive threads	=>	smart-spawning-gotcha-2-the-need-to-revive-threads-1k6cj7d
 
 16. Appendix D: About environment variables	=>	appendix-d-about-environment-variables-1lebv1u
 

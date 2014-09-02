@@ -1,5 +1,5 @@
 #  Phusion Passenger - https://www.phusionpassenger.com/
-#  Copyright (c) 2010-2013 Phusion
+#  Copyright (c) 2010-2014 Phusion
 #
 #  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
 #
@@ -145,7 +145,7 @@ public
 		return string_env('CC', default_cc)
 	end
 	memoize :cc
-	
+
 	def self.cxx
 		return string_env('CXX', default_cxx)
 	end
@@ -203,7 +203,7 @@ public
 	memoize :cc_is_sun_studio?
 
 	def self.cxx_is_sun_studio?
-		`#{cxx} -V 2>&1` =~ /Sun C/ || `#{cc} -flags 2>&1` =~ /Sun C/
+		`#{cxx} -V 2>&1` =~ /Sun C/ || `#{cxx} -flags 2>&1` =~ /Sun C/
 	end
 	memoize :cxx_is_sun_studio?
 
@@ -248,58 +248,63 @@ public
 		create_temp_file("passenger-compile-check.#{extension}") do |filename, f|
 			f.puts(source)
 			f.close
-			begin
-				command = create_compiler_command(language,
-					"-c '#{filename}' -o '#{filename}.o'",
-					flags)
-				return run_compiler(description, command, filename, source)
-			ensure
-				File.unlink("#{filename}.o") rescue nil
-			end
+			command = create_compiler_command(language,
+				"-c '#{filename}' -o '#{filename}.o'",
+				flags)
+			return run_compiler(description, command, filename, source)
 		end
 	end
-	
+
+	# Like try_compile, but designed for checking whether a warning flag is
+	# supported. Compilers sometimes do not error out upon encountering an
+	# unsupported warning flag, but merely print a warning. This method checks
+	# for that too.
+	def self.try_compile_with_warning_flag(description, language, source, flags = nil)
+		extension = detect_language_extension(language)
+		create_temp_file("passenger-compile-check.#{extension}") do |filename, f|
+			f.puts(source)
+			f.close
+			command = create_compiler_command(language,
+				"-c '#{filename}' -o '#{filename}.o'",
+				flags)
+			result = run_compiler(description, command, filename, source, true)
+			return result && result[:result] && result[:output] !~ /unknown warning option/i
+		end
+	end
+
 	def self.try_link(description, language, source, flags = nil)
 		extension = detect_language_extension(language)
 		create_temp_file("passenger-link-check.#{extension}") do |filename, f|
 			f.puts(source)
 			f.close
-			begin
-				command = create_compiler_command(language,
-					"'#{filename}' -o '#{filename}.out'",
-					flags, true)
-				return run_compiler(description, command, filename, source)
-			ensure
-				File.unlink("#{filename}.out") rescue nil
-			end
+			command = create_compiler_command(language,
+				"'#{filename}' -o '#{filename}.out'",
+				flags, true)
+			return run_compiler(description, command, filename, source)
 		end
 	end
-	
+
 	def self.try_compile_and_run(description, language, source, flags = nil)
 		extension = detect_language_extension(language)
 		create_temp_file("passenger-run-check.#{extension}", tmpexedir) do |filename, f|
 			f.puts(source)
 			f.close
-			begin
-				command = create_compiler_command(language,
-					"'#{filename}' -o '#{filename}.out'",
-					flags, true)
-				if run_compiler(description, command, filename, source)
-					log("Running #{filename}.out")
-					begin
-						output = `'#{filename}.out' 2>&1`
-					rescue SystemCallError => e
-						log("Command failed: #{e}")
-						return false
-					end
-					status = $?.exitstatus
-					log("Command exited with status #{status}. Output:\n--------------\n#{output}\n--------------")
-					return status == 0
-				else
+			command = create_compiler_command(language,
+				"'#{filename}' -o '#{filename}.out'",
+				flags, true)
+			if run_compiler(description, command, filename, source)
+				log("Running #{filename}.out")
+				begin
+					output = `'#{filename}.out' 2>&1`
+				rescue SystemCallError => e
+					log("Command failed: #{e}")
 					return false
 				end
-			ensure
-				File.unlink("#{filename}.out") rescue nil
+				status = $?.exitstatus
+				log("Command exited with status #{status}. Output:\n--------------\n#{output}\n--------------")
+				return status == 0
+			else
+				return false
 			end
 		end
 	end
@@ -310,7 +315,7 @@ public
 		return try_compile("Checking for C compiler '-arch' support",
 			:c, '', "-arch #{arch}")
 	end
-	
+
 	def self.cc_supports_visibility_flag?
 		return false if os_name =~ /aix/
 		return try_compile("Checking for C compiler '-fvisibility' support",
@@ -324,31 +329,42 @@ public
 			:cxx, '', '-fvisibility=hidden')
 	end
 	memoize :cxx_supports_visibility_flag?, true
-	
+
 	def self.cc_supports_wno_attributes_flag?
-		return try_compile("Checking for C compiler '-Wno-attributes' support",
+		return try_compile_with_warning_flag(
+			"Checking for C compiler '-Wno-attributes' support",
 			:c, '', '-Wno-attributes')
 	end
 	memoize :cc_supports_wno_attributes_flag?, true
 
 	def self.cxx_supports_wno_attributes_flag?
-		return try_compile("Checking for C++ compiler '-Wno-attributes' support",
+		return try_compile_with_warning_flag(
+			"Checking for C++ compiler '-Wno-attributes' support",
 			:cxx, '', '-Wno-attributes')
 	end
 	memoize :cxx_supports_wno_attributes_flag?, true
 
 	def self.cc_supports_wno_missing_field_initializers_flag?
-		return try_compile("Checking for C compiler '-Wno-missing-field-initializers' support",
+		return try_compile_with_warning_flag(
+			"Checking for C compiler '-Wno-missing-field-initializers' support",
 			:c, '', '-Wno-missing-field-initializers')
 	end
 	memoize :cc_supports_wno_missing_field_initializers_flag?, true
 
 	def self.cxx_supports_wno_missing_field_initializers_flag?
-		return try_compile("Checking for C++ compiler '-Wno-missing-field-initializers' support",
+		return try_compile_with_warning_flag(
+			"Checking for C++ compiler '-Wno-missing-field-initializers' support",
 			:cxx, '', '-Wno-missing-field-initializers')
 	end
 	memoize :cxx_supports_wno_missing_field_initializers_flag?, true
-	
+
+	def self.cxx_supports_wno_unused_local_typedefs_flag?
+		return try_compile_with_warning_flag(
+			"Checking for C++ compiler '-Wno-unused-local-typedefs' support",
+			:cxx, '', '-Wno-unused-local-typedefs')
+	end
+	memoize :cxx_supports_wno_unused_local_typedefs_flag?, true
+
 	def self.cc_supports_no_tls_direct_seg_refs_option?
 		return try_compile("Checking for C compiler '-mno-tls-direct-seg-refs' support",
 			:c, '', '-mno-tls-direct-seg-refs')
@@ -362,7 +378,8 @@ public
 	memoize :cxx_supports_no_tls_direct_seg_refs_option?, true
 
 	def self.compiler_supports_wno_ambiguous_member_template?
-		result = try_compile("Checking for C++ compiler '-Wno-ambiguous-member-template' support",
+		result = try_compile_with_warning_flag(
+			"Checking for C++ compiler '-Wno-ambiguous-member-template' support",
 			:cxx, '', '-Wno-ambiguous-member-template')
 		return false if !result
 
@@ -425,7 +442,7 @@ public
 		end
 	end
 	memoize :cxx_visibility_flag_generates_warnings?, true
-	
+
 	def self.adress_sanitizer_flag
 		if cc_is_clang?
 			if `#{cc} --help` =~ /-fsanitize=/
@@ -470,7 +487,7 @@ public
 			:c, "int main() { return 0; }\n", '-lmath')
 	end
 	memoize :has_math_library?, true
-	
+
 	def self.has_alloca_h?
 		return try_compile("Checking for alloca.h",
 			:c, '#include <alloca.h>')
@@ -485,7 +502,7 @@ public
 		})
 	end
 	memoize :has_accept4?, true
-	
+
 	# C compiler flags that should be passed in order to enable debugging information.
 	def self.debugging_cflags
 		# According to OpenBSD's pthreads man page, pthreads do not work
@@ -532,7 +549,7 @@ public
 		end
 	end
 	memoize :electric_fence_ldflags
-	
+
 	def self.export_dynamic_flags
 		if os_name == "linux"
 			return '-rdynamic'
@@ -569,7 +586,7 @@ public
 		end
 	end
 	memoize :gnu_make, true
-	
+
 	def self.xcode_select_version
 		if find_command('xcode-select')
 			`xcode-select --version` =~ /version (.+)\./

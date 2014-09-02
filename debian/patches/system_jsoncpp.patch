@@ -1,0 +1,151 @@
+Description: Use the system jsoncpp library.
+Author: Felix Geyer <fgeyer@debian.org>
+Last-Update: 2014-08-24
+
+--- a/build/agents.rb
++++ b/build/agents.rb
+@@ -105,6 +105,7 @@ file AGENT_OUTPUT_DIR + 'PassengerHelperAgent' => dependencies do
+ 		"#{EXTRA_PRE_CXX_LDFLAGS} " <<
+ 		"#{LIBEV_LIBS} " <<
+ 		"#{LIBEIO_LIBS} " <<
++		"-ljsoncpp " <<  
+ 		"#{PlatformInfo.portability_cxx_ldflags} " <<
+ 		"#{AGENT_LDFLAGS} " <<
+ 		"#{EXTRA_CXX_LDFLAGS}")
+@@ -111,7 +111,7 @@ file AGENT_OUTPUT_DIR + 'PassengerHelperAgent' => dependencies do
+ end
+ 
+ logging_agent_libs = COMMON_LIBRARY.only(:base, :logging_agent, 'AgentsBase.o',
+-	'Utils/Base64.o', 'Utils/MD5.o', 'Utils/jsoncpp.o')
++	'Utils/Base64.o', 'Utils/MD5.o')
+ dependencies = [
+ 	'ext/common/agents/LoggingAgent/Main.cpp',
+ 	'ext/common/agents/LoggingAgent/AdminController.h',
+@@ -139,6 +139,7 @@ file AGENT_OUTPUT_DIR + 'PassengerLoggingAgent' => dependencies do
+ 		"#{AGENT_CFLAGS} #{LIBEV_CFLAGS} " <<
+ 		"#{PlatformInfo.curl_flags} " <<
+ 		"#{PlatformInfo.zlib_flags} " <<
++		"-I/usr/include/jsoncpp " <<
+ 		"#{EXTRA_CXXFLAGS}")
+ 	create_executable("#{AGENT_OUTPUT_DIR}PassengerLoggingAgent",
+ 		"#{AGENT_OUTPUT_DIR}PassengerLoggingAgent.o",
+@@ -148,6 +149,7 @@ file AGENT_OUTPUT_DIR + 'PassengerLoggingAgent' => dependencies do
+ 		"#{LIBEV_LIBS} " <<
+ 		"#{PlatformInfo.curl_libs} " <<
+ 		"#{PlatformInfo.zlib_libs} " <<
++		"-ljsoncpp " <<
+ 		"#{PlatformInfo.portability_cxx_ldflags} " <<
+ 		"#{AGENT_LDFLAGS} " <<
+ 		"#{EXTRA_CXX_LDFLAGS}")
+--- a/ext/common/Utils/JsonUtils.h
++++ b/ext/common/Utils/JsonUtils.h
+@@ -27,7 +27,7 @@
+ 
+ #include <string>
+ #include <StaticString.h>
+-#include <Utils/json.h>
++#include <json/json.h>
+ #include <Utils/StrIntUtils.h>
+ 
+ namespace Passenger {
+--- a/ext/common/agents/LoggingAgent/RemoteSender.h
++++ b/ext/common/agents/LoggingAgent/RemoteSender.h
+@@ -45,7 +45,7 @@
+ #include <Utils/SystemTime.h>
+ #include <Utils/ScopeGuard.h>
+ #include <Utils/Base64.h>
+-#include <Utils/json.h>
++#include <json/json.h>
+ #include <Utils/Curl.h>
+ 
+ namespace Passenger {
+--- a/lib/phusion_passenger/common_library.rb
++++ b/lib/phusion_passenger/common_library.rb
+@@ -101,7 +101,7 @@ class CommonLibraryBuilder
+ 	end
+ 
+ 	def define_tasks(extra_compiler_flags = nil)
+-		flags =  "-Iext -Iext/common #{LIBEV_CFLAGS} #{extra_compiler_flags} "
++		flags =  "-Iext -Iext/common #{LIBEV_CFLAGS} -I/usr/include/jsoncpp #{extra_compiler_flags} "
+ 		cflags = (flags + EXTRA_CFLAGS).strip
+ 		cxxflags = (flags + EXTRA_CXXFLAGS).strip
+ 
+@@ -439,13 +439,6 @@ COMMON_LIBRARY = CommonLibraryBuilder.new do
+ 			Utils/fib.h
+ 			Utils/fibpriv.h
+ 		)
+-	define_component 'Utils/jsoncpp.o',
+-		:source   => 'Utils/jsoncpp.cpp',
+-		:category => :other,
+-		:deps     => %w(
+-			Utils/json.h
+-			Utils/json-forwards.h
+-		)
+ 
+ 	#'BCrypt.o' => %w(
+ 	#	BCrypt.cpp
+--- a/test/cxx/ApplicationPool2/DirectSpawnerTest.cpp
++++ b/test/cxx/ApplicationPool2/DirectSpawnerTest.cpp
+@@ -1,6 +1,6 @@
+ #include <TestSupport.h>
+ #include <ApplicationPool2/DirectSpawner.h>
+-#include <Utils/json.h>
++#include <json/json.h>
+ #include <fcntl.h>
+ 
+ using namespace Passenger;
+--- a/test/cxx/ApplicationPool2/PoolTest.cpp
++++ b/test/cxx/ApplicationPool2/PoolTest.cpp
+@@ -2,7 +2,7 @@
+ #include <ApplicationPool2/Pool.h>
+ #include <Utils/IOUtils.h>
+ #include <Utils/StrIntUtils.h>
+-#include <Utils/json.h>
++#include <json/json.h>
+ #include <MessageReadersWriters.h>
+ #include <map>
+ #include <vector>
+--- a/test/cxx/ApplicationPool2/SmartSpawnerTest.cpp
++++ b/test/cxx/ApplicationPool2/SmartSpawnerTest.cpp
+@@ -1,7 +1,7 @@
+ #include <TestSupport.h>
+ #include <ApplicationPool2/SmartSpawner.h>
+ #include <Logging.h>
+-#include <Utils/json.h>
++#include <json/json.h>
+ #include <unistd.h>
+ #include <climits>
+ #include <signal.h>
+--- a/test/cxx/CxxTestMain.cpp
++++ b/test/cxx/CxxTestMain.cpp
+@@ -16,7 +16,7 @@
+ #include <Utils.h>
+ #include <Utils/IOUtils.h>
+ #include <Utils/StrIntUtils.h>
+-#include <Utils/json.h>
++#include <json/json.h>
+ 
+ using namespace std;
+ 
+--- a/test/cxx/RequestHandlerTest.cpp
++++ b/test/cxx/RequestHandlerTest.cpp
+@@ -3,7 +3,7 @@
+ #include <agents/HelperAgent/RequestHandler.cpp>
+ #include <agents/HelperAgent/AgentOptions.h>
+ #include <ApplicationPool2/Pool.h>
+-#include <Utils/json.h>
++#include <json/json.h>
+ #include <Utils/IOUtils.h>
+ #include <Utils/StrIntUtils.h>
+ #include <Utils/Timer.h>
+--- a/test/cxx/TestSupport.cpp
++++ b/test/cxx/TestSupport.cpp
+@@ -8,7 +8,7 @@
+ #include <BackgroundEventLoop.cpp>
+ #include <Utils/IOUtils.h>
+ #include <Utils/ScopeGuard.h>
+-#include <Utils/json.h>
++#include <json/json.h>
+ 
+ namespace TestSupport {
+ 

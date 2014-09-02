@@ -22,6 +22,7 @@
 #  THE SOFTWARE.
 require 'optparse'
 PhusionPassenger.require_passenger_lib 'constants'
+PhusionPassenger.require_passenger_lib 'utils'
 PhusionPassenger.require_passenger_lib 'standalone/utils'
 
 module PhusionPassenger
@@ -31,26 +32,25 @@ class Command
 	DEFAULT_OPTIONS = {
 		:address       => '0.0.0.0',
 		:port          => 3000,
-		:environment   => ENV['RAILS_ENV'] || ENV['RACK_ENV'] || 'development',
+		:environment   => ENV['RAILS_ENV'] || ENV['RACK_ENV'] || ENV['NODE_ENV'] || ENV['PASSENGER_APP_ENV'] || 'development',
 		:max_pool_size => 6,
 		:min_instances => 1,
 		:spawn_method  => Kernel.respond_to?(:fork) ? 'smart' : 'direct',
 		:concurrency_model => DEFAULT_CONCURRENCY_MODEL,
 		:thread_count  => DEFAULT_THREAD_COUNT,
-		:nginx_version => PREFERRED_NGINX_VERSION,
-		:friendly_error_pages => true
+		:nginx_version => PREFERRED_NGINX_VERSION
 	}.freeze
-	
+
 	include Utils
-	
+
 	def self.show_in_command_list
 		return true
 	end
-	
+
 	def self.description
 		return nil
 	end
-	
+
 	def initialize(args)
 		@args = args.dup
 		@original_args = args.dup
@@ -69,53 +69,63 @@ private
 					too_old = true
 				end
 				if too_old
+					PhusionPassenger.require_passenger_lib 'platform_info/ruby'
+					gem_command = PlatformInfo.gem_command(:sudo => true)
 					error "Your version of daemon_controller is too old. " <<
 					      "You must install 1.1.0 or later. Please upgrade:\n\n" <<
-					      
-					      " sudo gem uninstall FooBarWidget-daemon_controller\n" <<
-					      " sudo gem install daemon_controller"
+
+					      " #{gem_command} uninstall FooBarWidget-daemon_controller\n" <<
+					      " #{gem_command} install daemon_controller",
+					      :wrap => false
 					exit 1
 				end
 			rescue LoadError
+				PhusionPassenger.require_passenger_lib 'platform_info/ruby'
+				gem_command = PlatformInfo.gem_command(:sudo => true)
 				error "Please install daemon_controller first:\n\n" <<
-				      " sudo gem install daemon_controller"
+				      " #{gem_command} install daemon_controller"
 				exit 1
 			end
 		end
 	end
-	
+
 	def require_erb
 		require 'erb' unless defined?(ERB)
 	end
-	
+
+	def require_etc
+		require 'etc' unless defined?(Etc)
+	end
+
 	def require_optparse
 		require 'optparse' unless defined?(OptionParser)
 	end
-	
+
 	def require_app_finder
 		PhusionPassenger.require_passenger_lib 'standalone/app_finder' unless defined?(AppFinder)
 	end
-	
+
 	def debugging?
 		return ENV['PASSENGER_DEBUG'] && !ENV['PASSENGER_DEBUG'].empty?
 	end
-	
+
 	def parse_options!(command_name, description = nil)
+		require_etc
 		help = false
-		
-		global_config_file = File.join(ENV['HOME'], USER_NAMESPACE_DIRNAME, "standalone", "config")
+
+		home_dir = PhusionPassenger::Utils.home_dir
+		global_config_file = File.join(home_dir, USER_NAMESPACE_DIRNAME, "standalone", "config")
 		if File.exist?(global_config_file)
 			PhusionPassenger.require_passenger_lib 'standalone/config_file' unless defined?(ConfigFile)
 			global_options = ConfigFile.new(:global_config, global_config_file).options
 			@options.merge!(global_options)
 		end
-		
+
 		require_optparse
 		parser = OptionParser.new do |opts|
 			opts.banner = "Usage: passenger #{command_name} [options]"
 			opts.separator description if description
 			opts.separator " "
-			opts.separator "Options:"
 			yield opts
 			opts.on("-h", "--help", "Show this help message") do
 				help = true
@@ -127,16 +137,27 @@ private
 			exit 0
 		end
 	end
-	
-	def error(message)
+
+	def error(message, options = {})
+		wrap = options.fetch(:wrap, true)
 		if message =~ /\n/
-			STDERR.puts("*** ERROR ***\n" << wrap_desc(message, 80, 0))
+			if wrap
+				processed_message = wrap_desc(message, 80, 0)
+			else
+				processed_message = message
+			end
+			STDERR.puts("*** ERROR ***\n" << processed_message)
 		else
-			STDERR.puts(wrap_desc("*** ERROR: #{message}", 80, 0))
+			if wrap
+				processed_message = wrap_desc("*** ERROR: #{message}", 80, 0)
+			else
+				processed_message = "*** ERROR: #{message}"
+			end
+			STDERR.puts(processed_message)
 		end
 		@plugin.call_hook(:error, message) if @plugin
 	end
-	
+
 	# Word wrap the given option description text so that it is formatted
 	# nicely in the --help output.
 	def wrap_desc(description_text, max_width = 43, newline_prefix_size = 37)
@@ -152,7 +173,7 @@ private
 			FileUtils.mkdir_p(dir)
 		end
 	end
-	
+
 	def determine_various_resource_locations(create_subdirs = true)
 		require_app_finder
 		if @options[:socket_file]
@@ -179,7 +200,7 @@ private
 			@options[:log_file] ||= File.expand_path(File.join(@args[0], log_basename))
 		end
 	end
-	
+
 	def write_nginx_config_file
 		PhusionPassenger.require_passenger_lib 'platform_info/ruby'
 		PhusionPassenger.require_passenger_lib 'utils/tmpio'
@@ -199,7 +220,7 @@ private
 			PhusionPassenger::REQUIRED_LOCATIONS_INI_FIELDS +
 			PhusionPassenger::OPTIONAL_LOCATIONS_INI_FIELDS -
 			[:agents_dir, :lib_dir]
-		
+
 		File.open(location_config_filename, 'w') do |f|
 			f.puts '[locations]'
 			f.puts "natively_packaged=#{PhusionPassenger.natively_packaged?}"
@@ -214,20 +235,31 @@ private
 			end
 		end
 		puts File.read(location_config_filename) if debugging?
-		
+
 		File.open(@config_filename, 'w') do |f|
 			f.chmod(0644)
-			template_filename = File.join(PhusionPassenger.resources_dir,
-				"templates", "standalone", "config.erb")
 			require_erb
-			erb = ERB.new(File.read(template_filename))
+			erb = ERB.new(File.read(nginx_config_template_filename), nil, "-")
 			current_user = Etc.getpwuid(Process.uid).name
-			
+
 			# The template requires some helper methods which are defined in start_command.rb.
 			output = erb.result(binding)
 			f.write(output)
 			puts output if debugging?
 		end
+	end
+
+	def nginx_config_template_filename
+		if @options[:nginx_config_template]
+			return @options[:nginx_config_template]
+		else
+			return File.join(PhusionPassenger.resources_dir,
+				"templates", "standalone", "config.erb")
+		end
+	end
+
+	def boolean_config_value(val)
+		return val ? "on" : "off"
 	end
 
 	def serialize_strset(*items)
@@ -239,7 +271,7 @@ private
 		end
 		return [items.join(null)].pack('m*').gsub("\n", "").strip
 	end
-	
+
 	def determine_nginx_start_command
 		if @options[:nginx_bin]
 			nginx_bin = @options[:nginx_bin]
@@ -248,7 +280,7 @@ private
 		end
 		return "#{nginx_bin} -c '#{@config_filename}' -p '#{@temp_dir}/'"
 	end
-	
+
 	# Returns the port on which to ping Nginx.
 	def nginx_ping_port
 		if @options[:ping_port]
@@ -257,7 +289,7 @@ private
 			return @options[:port]
 		end
 	end
-	
+
 	def create_nginx_controller(extra_options = {})
 		require_daemon_controller
 		require 'socket' unless defined?(UNIXSocket)

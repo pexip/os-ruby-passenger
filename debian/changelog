@@ -1,3 +1,21 @@
+ruby-passenger (4.0.49-1pexip1) pexip; urgency=medium
+
+  * New upstream release.
+
+ -- John-Mark Bell <jmb@pexip.com>  Tue, 02 Sep 2014 22:35:47 +0100
+
+ruby-passenger (4.0.49-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Drop CVE-2014-1832.patch, fixed upstream.
+  * Make ruby-passenger use the system jsoncpp library.
+    - Rename no_jsoncpp.patch to system_jsoncpp.patch.
+    - Add libjsoncpp-dev to build-depends.
+  * Install the ruby native extension sources to allow building it for custom
+    ruby interpreters. (Closes: #758885)
+
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 24 Aug 2014 22:45:24 +0200
+
 ruby-passenger (4.0.37-3pexip1) pexip; urgency=medium
 
   * Prepare Pexip packaging

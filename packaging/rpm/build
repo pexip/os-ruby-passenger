@@ -1,0 +1,170 @@
+#!/bin/bash
+set -e
+
+SELFROOT=`dirname "$0"`
+SELFROOT=`cd "$SELFROOT" && pwd`
+SELFROOT_ON_DOCKER_HOST="$SELFROOT"
+TEMPDIR=
+
+PASSENGER_DIR=
+OUTPUT_DIR=
+DISTROS='el6'
+ARCHS='i386,x86_64'
+LOCAL_BUILD=false
+CONCURRENCY=1
+TASK=rpm:all
+CLEAN=false
+CACHE_DIR=
+VERBOSE=false
+
+function usage()
+{
+  echo "Usage: ./build [OPTIONS]"
+  echo "Build RPMs for multiple distributions and architectures."
+  echo
+  echo "Required options:"
+  echo "  -p PATH         Path to a project"
+  echo
+  echo "  -P PATH         Path to Phusion Passenger source directory"
+  echo "  -o PATH         Directory to save build output to"
+  echo "  -c PATH         Directory to store cache files to"
+  echo
+  echo "Optional options:"
+  echo "  -d DISTROS      Distributions to build for (default: $DISTROS)"
+  echo "  -a ARCHS        Architectures to build for (default: $ARCHS)"
+  echo "  -L              Build for local distribution and architecture"
+  echo "  -j CONCURRENCY  Build concurrency (default: $CONCURRENCY)"
+  echo
+  echo "  -t TASK         Build using specific Rake task (default: $TASK)"
+  echo "  -T              List all Rake tasks (note: list depends on other options)"
+  echo
+  echo "  -l              Clean output directory before building RPMs"
+  echo "  -k VERSION      Pretend as if the Passenger version number is the specified one"
+  echo "  -S              Directory to passenger_rpm_automation on the Docker host"
+  echo "  -V              Verbose output"
+}
+
+function parse_options()
+{
+  local OPTIND=1
+  local opt
+  while getopts "p:P:o:d:a:Lj:t:Tlk:c:S:Vh" opt; do
+    case "$opt" in
+    p)
+      PASSENGER_DIR="$OPTARG/git"
+      CACHE_DIR="$OPTARG/cache"
+      OUTPUT_DIR="$OPTARG/build"
+      ;;
+    P)
+      PASSENGER_DIR="$OPTARG"
+      ;;
+    o)
+      OUTPUT_DIR="$OPTARG"
+      ;;
+    d)
+      DISTROS="$OPTARG"
+      ;;
+    a)
+      ARCHS="$OPTARG"
+      ;;
+    L)
+      LOCAL_BUILD=true
+      ;;
+    j)
+      CONCURRENCY="$OPTARG"
+      ;;
+    t)
+      TASK="$OPTARG"
+      ;;
+    T)
+      TASK="-T"
+      ;;
+    l)
+      CLEAN=true
+      ;;
+    k)
+      FORCE_PASSENGER_VERSION="$OPTARG"
+      ;;
+    c)
+      CACHE_DIR="$OPTARG"
+      ;;
+    S)
+      SELFROOT_ON_DOCKER_HOST="$OPTARG"
+      ;;
+    V)
+      VERBOSE=true
+      ;;
+    h)
+      usage
+      exit
+      ;;
+    *)
+      return 1
+      ;;
+    esac
+  done
+
+  if [[ "$PASSENGER_DIR" = "" ]]; then
+    echo "Please specify a project using -p, or a path to the Phusion Passenger source directory using -P."
+    exit 1
+  fi
+  if [[ "$TASK" != "-T" ]]; then
+    if [[ "$OUTPUT_DIR" = "" ]]; then
+      echo "Please specify a project using -p, or an output directory using -o."
+      exit 1
+    fi
+    if [[ "$CACHE_DIR" = "" ]]; then
+      echo "Please specify a project using -p, or a cache directory using -c."
+      exit 1
+    fi
+  fi
+}
+
+function verbose_run()
+{
+  if $VERBOSE; then
+    echo "$ $@"
+  fi
+  "$@"
+}
+
+function cleanup()
+{
+  local pids=`jobs -p`
+  set +e
+  if [[ "$pids" != "" ]]; then
+    kill $pids >/dev/null 2>/dev/null
+  fi
+}
+
+trap cleanup EXIT
+parse_options "$@"
+APP_UID=`id -u`
+APP_GID=`id -g`
+
+if $LOCAL_BUILD; then
+  DISTROS=`"$SELFROOT/internal/get_distro_id"`
+  ARCHS=`"$SELFROOT/internal/get_distro_arch"`
+  echo "Building for local system: $DISTROS-$ARCHS"
+fi
+
+if [[ "$SELFROOT_ON_DOCKER_HOST" = "$SELFROOT" ]]; then
+  verbose_run mkdir -p "$OUTPUT_DIR"
+fi
+
+verbose_run exec docker run --rm --privileged \
+  -v "$SELFROOT_ON_DOCKER_HOST:/system:ro" \
+  -v "$PASSENGER_DIR:/passenger" \
+  -v "$OUTPUT_DIR:/output" \
+  -v "$CACHE_DIR:/cache" \
+  -e "APP_UID=$APP_UID" \
+  -e "APP_GID=$APP_GID" \
+  -e "CONCURRENCY=$CONCURRENCY" \
+  -e "DISTROS=$DISTROS" \
+  -e "ARCHS=$ARCHS" \
+  -e "TASK=$TASK" \
+  -e "CLEAN=$CLEAN" \
+  -e "FORCE_PASSENGER_VERSION=$FORCE_PASSENGER_VERSION" \
+  -e "VERBOSE=$VERBOSE" \
+  phusion/passenger_rpm_automation \
+  /system/internal/exec_build

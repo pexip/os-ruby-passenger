@@ -7,7 +7,8 @@ XBCS-Original-Uploaders: Filipe Lautert <filipe@debian.org>, Micah Anderson <mic
  Felix Geyer <fgeyer@debian.org>
 Build-Depends: debhelper (>= 7.0.50~), gem2deb (>= 0.2.12~), apache2 (>= 2.4),
  apache2-dev (>= 2.4), libapr1-dev, doxygen, asciidoc (>= 8.2), graphviz, rake,
- source-highlight, libcurl4-openssl-dev, libev-dev, dh-autoreconf, ruby-mizuho
+ source-highlight, libcurl4-openssl-dev, libev-dev, dh-autoreconf, ruby-mizuho,
+ libjsoncpp-dev
 Standards-Version: 3.9.5
 Homepage: https://www.phusionpassenger.com/
 Vcs-Git: git://anonscm.debian.org/pkg-ruby-extras/ruby-passenger.git

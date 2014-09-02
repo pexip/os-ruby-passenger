@@ -10,15 +10,13 @@ namespace tut {
 	struct ApplicationPool2_DirectSpawnerTest {
 		ServerInstanceDirPtr serverInstanceDir;
 		ServerInstanceDir::GenerationPtr generation;
-		BackgroundEventLoop bg;
 		ProcessPtr process;
 		PipeWatcher::DataCallback gatherOutput;
 		string gatheredOutput;
 		boost::mutex gatheredOutputSyncher;
-		
+
 		ApplicationPool2_DirectSpawnerTest() {
 			createServerInstanceDirAndGeneration(serverInstanceDir, generation);
-			bg.start();
 			PipeWatcher::onData = PipeWatcher::DataCallback();
 			gatherOutput = boost::bind(&ApplicationPool2_DirectSpawnerTest::_gatherOutput, this, _1, _2);
 			setLogLevel(LVL_ERROR); // TODO: change to LVL_WARN
@@ -31,12 +29,12 @@ namespace tut {
 			unlink("stub/wsgi/passenger_wsgi.pyc");
 			PipeWatcher::onData = PipeWatcher::DataCallback();
 		}
-		
+
 		boost::shared_ptr<DirectSpawner> createSpawner(const Options &options) {
-			return boost::make_shared<DirectSpawner>(bg.safe,
-				*resourceLocator, generation);
+			return boost::make_shared<DirectSpawner>(
+				generation, make_shared<SpawnerConfig>(*resourceLocator));
 		}
-		
+
 		Options createOptions() {
 			Options options;
 			options.spawnMethod = "direct";
@@ -51,9 +49,9 @@ namespace tut {
 	};
 
 	DEFINE_TEST_GROUP_WITH_LIMIT(ApplicationPool2_DirectSpawnerTest, 90);
-	
+
 	#include "SpawnerTestCases.cpp"
-	
+
 	TEST_METHOD(80) {
 		// If the application didn't start within the timeout
 		// then whatever was written to stderr is used as the
@@ -63,9 +61,10 @@ namespace tut {
 		options.startCommand = "perl\t" "-e\t" "print STDERR \"hello world\\n\"; sleep(60)";
 		options.startupFile  = ".";
 		options.startTimeout = 300;
-		
-		DirectSpawner spawner(bg.safe, *resourceLocator, generation);
-		
+
+		DirectSpawner spawner(generation, make_shared<SpawnerConfig>(*resourceLocator));
+		setLogLevel(LVL_CRIT);
+
 		try {
 			process = spawner.spawn(options);
 			process->requiresShutdown = false;
@@ -76,7 +75,7 @@ namespace tut {
 			ensure(e.getErrorPage().find("hello world\n") != string::npos);
 		}
 	}
-	
+
 	TEST_METHOD(81) {
 		// If the application crashed during startup without returning
 		// a proper error response, then its stderr output is used
@@ -85,9 +84,10 @@ namespace tut {
 		options.appRoot      = "stub";
 		options.startCommand = "perl\t" "-e\t" "print STDERR \"hello world\\n\"";
 		options.startupFile  = ".";
-		
-		DirectSpawner spawner(bg.safe, *resourceLocator, generation);
-		
+
+		DirectSpawner spawner(generation, make_shared<SpawnerConfig>(*resourceLocator));
+		setLogLevel(LVL_CRIT);
+
 		try {
 			process = spawner.spawn(options);
 			process->requiresShutdown = false;
@@ -111,7 +111,7 @@ namespace tut {
 		process = spawner->spawn(options);
 		process->requiresShutdown = false;
 		ensure_equals(process->sockets->size(), 1u);
-		
+
 		Connection conn = process->sockets->front().checkoutConnection();
 		ScopeGuard guard(boost::bind(checkin, process, &conn));
 		writeExact(conn.fd, "ping\n");
