@@ -41,6 +41,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string>
+#include <sstream>
+#include <Utils/SystemMetricsCollector.h>
 #include <Utils/Base64.h>
 
 using namespace std;
@@ -71,7 +73,7 @@ setGivenEnvVars(const char *envvarsData) {
 	string envvars = Base64::decode(envvarsData);
 	const char *key = envvars.data();
 	const char *end = envvars.data() + envvars.size();
-	
+
 	while (key < end) {
 		const char *keyEnd = (const char *) memchr(key, '\0', end - key);
 		if (keyEnd != NULL) {
@@ -148,42 +150,28 @@ dumpInformation() {
 		fclose(f);
 	}
 
-	f = fopen((dir + "/ulimit").c_str(), "w");
-	if (f != NULL) {
-		pid_t pid = fork();
-		if (pid == 0) {
-			dup2(fileno(f), 1);
-			execlp("ulimit", "ulimit", "-a", (char *) 0);
-			_exit(1);
-		} else if (pid == -1) {
-			int e = errno;
-			fprintf(stderr, "Error: cannot fork a new process: %s (errno=%d)\n",
-				strerror(e), e);
-		} else {
-			waitpid(pid, NULL, 0);
-		}
-		fclose(f);
+	SystemMetrics metrics;
+	bool collected = false;
+	try {
+		SystemMetricsCollector collector;
+		collector.collect(metrics);
+		usleep(50000); // Correct collect CPU metrics.
+		collector.collect(metrics);
+		collected = true;
+	} catch (const RuntimeException &e) {
+		fprintf(stderr, "Warning: %s\n", e.what());
 	}
-
-	#ifdef __linux__
-		// TODO: call helper-scripts/system-memory-stats.py
-		f = fopen((dir + "/sysmemory").c_str(), "w");
+	if (collected) {
+		f = fopen((dir + "/system_metrics").c_str(), "w");
 		if (f != NULL) {
-			pid_t pid = fork();
-			if (pid == 0) {
-				dup2(fileno(f), 1);
-				execlp("free", "free", "-m", (char *) 0);
-				_exit(1);
-			} else if (pid == -1) {
-				int e = errno;
-				fprintf(stderr, "Error: cannot fork a new process: %s (errno=%d)\n",
-					strerror(e), e);
-			} else {
-				waitpid(pid, NULL, 0);
-			}
+			stringstream stream;
+			metrics.toDescription(stream);
+			string info = stream.str();
+
+			fwrite(info.data(), 1, info.size(), f);
 			fclose(f);
 		}
-	#endif
+	}
 }
 
 // Usage: SpawnPreparer <working directory> <envvars> <executable> <exec args...>
@@ -193,16 +181,16 @@ main(int argc, char *argv[]) {
 		fprintf(stderr, "Too few arguments.\n");
 		exit(1);
 	}
-	
+
 	const char *workingDir = argv[1];
 	const char *envvars = argv[2];
 	const char *executable = argv[3];
 	char **execArgs = &argv[4];
-	
+
 	changeWorkingDir(workingDir);
 	setGivenEnvVars(envvars);
 	dumpInformation();
-	
+
 	// Print a newline just in case whatever executed us printed data
 	// without a newline. Otherwise the next process's "!> I have control"
 	// command will not be properly recognized.

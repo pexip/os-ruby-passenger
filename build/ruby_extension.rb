@@ -1,5 +1,5 @@
 #  Phusion Passenger - https://www.phusionpassenger.com/
-#  Copyright (c) 2010-2013 Phusion
+#  Copyright (c) 2010-2014 Phusion
 #
 #  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
 #
@@ -35,27 +35,27 @@ else
 	output_dir  = RUBY_EXTENSION_OUTPUT_DIR
 	output_name = "passenger_native_support.#{LIBEXT}"
 	source_dir  = "ext/ruby"
-	NATIVE_SUPPORT_TARGET = "#{output_dir}/#{output_name}"
+	NATIVE_SUPPORT_TARGET = File.join(output_dir, output_name)
 
-	task :native_support => "#{output_dir}/#{output_name}"
+	task :native_support => NATIVE_SUPPORT_TARGET
 	task :clean => 'native_support:clean'
 
 	dependencies = [
-		"#{output_dir}/Makefile",
+		File.join(output_dir, "Makefile"),
 		"#{source_dir}/passenger_native_support.c"
 	]
-	file("#{output_dir}/#{output_name}" => dependencies) do
+	file(NATIVE_SUPPORT_TARGET => dependencies) do
 		sh "mkdir -p '#{output_dir}'" if !File.exist?(output_dir)
 		sh "cd '#{output_dir}' && make"
 	end
 
-	file "#{output_dir}/Makefile" => "#{source_dir}/extconf.rb" do
+	file(File.join(output_dir, "Makefile") => "#{source_dir}/extconf.rb") do
 		sh "mkdir -p '#{output_dir}'" if !File.exist?(output_dir)
 		extconf_rb = File.expand_path("#{source_dir}/extconf.rb")
 		sh "cd '#{output_dir}' && #{PlatformInfo.ruby_command} '#{extconf_rb}'"
 	end
 
 	task 'native_support:clean' do
-		sh "echo rm -rf #{output_dir}"
+		sh "rm -rf #{output_dir}"
 	end
 end

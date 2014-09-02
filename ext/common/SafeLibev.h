@@ -1,6 +1,6 @@
 /*
  *  Phusion Passenger - https://www.phusionpassenger.com/
- *  Copyright (c) 2010, 2011, 2012 Phusion
+ *  Copyright (c) 2010-2014 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
  *
@@ -29,11 +29,11 @@
 #include <vector>
 #include <list>
 #include <memory>
-#include <climits>
 #include <boost/thread.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
+#include <oxt/thread.hpp>
 
 namespace Passenger {
 
@@ -46,27 +46,33 @@ using namespace boost;
  */
 class SafeLibev {
 private:
+	// 2^28-1. Command IDs are 28-bit so that we can pack DataSource's state and
+	// its planId in 32-bits total.
+	static const unsigned int MAX_COMMAND_ID = 268435455;
+
 	typedef boost::function<void ()> Callback;
 
 	struct Command {
-		int id;
 		Callback callback;
+		unsigned int id: 31;
+		bool canceled: 1;
 
 		Command(unsigned int _id, const Callback &_callback)
-			: id(_id),
-			  callback(_callback)
+			: callback(_callback),
+			  id(_id),
+			  canceled(false)
 			{ }
 	};
 
 	struct ev_loop *loop;
 	pthread_t loopThread;
 	ev_async async;
-	
+
 	boost::mutex syncher;
 	boost::condition_variable cond;
 	vector<Command> commands;
 	unsigned int nextCommandId;
-	
+
 	static void asyncHandler(EV_P_ ev_async *w, int revents) {
 		SafeLibev *self = (SafeLibev *) w->data;
 		self->runCommands();
@@ -82,13 +88,15 @@ private:
 		vector<Command> commands = this->commands;
 		this->commands.clear();
 		l.unlock();
-		
+
 		vector<Command>::const_iterator it, end = commands.end();
 		for (it = commands.begin(); it != end; it++) {
-			it->callback();
+			if (!it->canceled) {
+				it->callback();
+			}
 		}
 	}
-	
+
 	template<typename Watcher>
 	void startWatcherAndNotify(Watcher *watcher, bool *done) {
 		watcher->set(loop);
@@ -97,7 +105,7 @@ private:
 		*done = true;
 		cond.notify_all();
 	}
-	
+
 	template<typename Watcher>
 	void stopWatcherAndNotify(Watcher *watcher, bool *done) {
 		watcher->stop();
@@ -105,7 +113,7 @@ private:
 		*done = true;
 		cond.notify_all();
 	}
-	
+
 	void runAndNotify(const Callback *callback, bool *done) {
 		(*callback)();
 		boost::unique_lock<boost::mutex> l(syncher);
@@ -114,26 +122,26 @@ private:
 	}
 
 	void incNextCommandId() {
-		if (nextCommandId == INT_MAX) {
-			nextCommandId = 0;
+		if (nextCommandId == MAX_COMMAND_ID) {
+			nextCommandId = 1;
 		} else {
 			nextCommandId++;
 		}
 	}
-	
+
 public:
 	/** SafeLibev takes over ownership of the loop object. */
 	SafeLibev(struct ev_loop *loop) {
 		this->loop = loop;
 		loopThread = pthread_self();
-		nextCommandId = 0;
-		
+		nextCommandId = 1;
+
 		ev_async_init(&async, asyncHandler);
 		ev_set_priority(&async, EV_MAXPRI);
 		async.data = this;
 		ev_async_start(loop, &async);
 	}
-	
+
 	~SafeLibev() {
 		destroy();
 		ev_loop_destroy(loop);
@@ -142,19 +150,36 @@ public:
 	void destroy() {
 		ev_async_stop(loop, &async);
 	}
-	
+
 	struct ev_loop *getLoop() const {
 		return loop;
 	}
-	
+
 	void setCurrentThread() {
 		loopThread = pthread_self();
+		#ifdef OXT_THREAD_LOCAL_KEYWORD_SUPPORTED
+			oxt::thread_signature = this;
+		#endif
 	}
 
 	pthread_t getCurrentThread() const {
 		return loopThread;
 	}
-	
+
+	bool onEventLoopThread() const {
+		#ifdef OXT_THREAD_LOCAL_KEYWORD_SUPPORTED
+			// Avoid double reads of the thread-local variable.
+			const void *sig = oxt::thread_signature;
+			if (OXT_UNLIKELY(sig == NULL)) {
+				return pthread_equal(pthread_self(), loopThread);
+			} else {
+				return sig == this;
+			}
+		#else
+			return pthread_equal(pthread_self(), loopThread);
+		#endif
+	}
+
 	template<typename Watcher>
 	void start(Watcher &watcher) {
 		if (pthread_equal(pthread_self(), loopThread)) {
@@ -173,7 +198,7 @@ public:
 			}
 		}
 	}
-	
+
 	template<typename Watcher>
 	void stop(Watcher &watcher) {
 		if (pthread_equal(pthread_self(), loopThread)) {
@@ -191,7 +216,7 @@ public:
 			}
 		}
 	}
-	
+
 	void run(const Callback &callback) {
 		assert(callback != NULL);
 		if (pthread_equal(pthread_self(), loopThread)) {
@@ -251,14 +276,18 @@ public:
 	 * in the future, while a return value of false means that the callback has already
 	 * been called or is currently being called.
 	 */
-	bool cancelCommand(int id) {
+	bool cancelCommand(unsigned int id) {
+		if (id == 0) {
+			return false;
+		}
+
 		boost::unique_lock<boost::mutex> l(syncher);
 		// TODO: we can do a binary search because the command ID
 		// is monotically increasing except on overflow.
 		vector<Command>::iterator it, end = commands.end();
 		for (it = commands.begin(); it != end; it++) {
 			if (it->id == id) {
-				commands.erase(it);
+				it->canceled = true;
 				return true;
 			}
 		}

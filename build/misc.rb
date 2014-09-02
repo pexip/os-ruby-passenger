@@ -60,18 +60,18 @@ def extract_latest_news_contents_and_items
 	#    * More text.
 	#    * A header.
 	#      With yet more text.
-	#   
+	#
 	#   Release y.y.y
 	#   -------------
 	#   .....
-	contents = File.read("NEWS")
-	
+	contents = File.read("CHANGELOG")
+
 	# We're only interested in the latest release, so extract the text for that.
 	contents =~ /\A(Release.*?)^(Release|Older releases)/m
 	contents = $1
 	contents.sub!(/\A.*?\n-+\n+/m, '')
 	contents.sub!(/\n+\Z/, '')
-	
+
 	# Now split the text into individual items.
 	items = contents.split(/^ \* /)
 	items.shift while items.first == ""
@@ -79,11 +79,11 @@ def extract_latest_news_contents_and_items
 	return [contents, items]
 end
 
-desc "Convert the NEWS items for the latest release to HTML"
-task :news_as_html do
+desc "Convert the Changelog items for the latest release to HTML"
+task :changelog_as_html do
 	require 'cgi'
 	contents, items = extract_latest_news_contents_and_items
-	
+
 	puts "<ul>"
 	items.each do |item|
 		def format_paragraph(text)
@@ -92,13 +92,13 @@ task :news_as_html do
 			while text.index('  ')
 				text.gsub!('  ', ' ')
 			end
-			
+
 			# Auto-link to issue tracker.
-			text.gsub!(/(bug|issue) #(\d+)/i) do
-				url = "http://code.google.com/p/phusion-passenger/issues/detail?id=#{$2}"
-				%Q(<{a href="#{url}"}>#{$1} ##{$2}<{/a}>)
+			text.gsub!(/(bug #|issue #|GH-)(\d+)/i) do
+				url = "https://github.com/phusion/passenger/issues/#{$2}"
+				%Q(<{a href="#{url}"}>#{$1}#{$2}<{/a}>)
 			end
-			
+
 			text.strip!
 			text = CGI.escapeHTML(text)
 			text.gsub!(%r(&lt;\{(.*?)\}&gt;(.*?)&lt;\{/(.*?)\}&gt;)) do
@@ -112,14 +112,14 @@ task :news_as_html do
 	puts "</ul>"
 end
 
-desc "Convert the NEWS items for the latest release to Markdown"
-task :news_as_markdown do
+desc "Convert the Changelog items for the latest release to Markdown"
+task :changelog_as_markdown do
 	contents, items = extract_latest_news_contents_and_items
 
 	# Auto-link to issue tracker.
-	contents.gsub!(/(bug|issue) #(\d+)/i) do
-		url = "http://code.google.com/p/phusion-passenger/issues/detail?id=#{$2}"
-		%Q([#{$1} ##{$2}](#{url}))
+	contents.gsub!(/(bug #|issue #|GH-)(\d+)/i) do
+		url = "https://github.com/phusion/passenger/issues/#{$2}"
+		%Q([#{$1}#{$2}](#{url}))
 	end
 
 	puts contents
@@ -139,6 +139,8 @@ task :contributors do
 	entries.push "Goffert van Gool (Phusion)"
 	entries.delete "Gokulnath"
 	entries.push "Gokulnath Manakkattil"
+	entries.push "Sean Wilkinson"
+	entries.push "Yichun Zhang"
 	File.open("CONTRIBUTORS", "w") do |f|
 		f.puts(entries.sort{ |a, b| a.downcase <=> b.downcase }.join("\n"))
 	end
@@ -181,9 +183,14 @@ task :compile_app => dependencies do
 		end
 		source = '_source.cpp'
 	end
+	object = source.sub(/\.cpp$/, '.o')
 	exe = source.sub(/\.cpp$/, '')
 	begin
-		create_executable(exe, source,
+		compile_cxx(source,
+			"-DSTANDALONE -o #{object} " <<
+			"-Iext -Iext/common #{LIBEV_CFLAGS} #{LIBEIO_CFLAGS} " <<
+			"#{EXTRA_CXXFLAGS}")
+		create_executable(exe, object,
 			"-DSTANDALONE " <<
 			"-Iext -Iext/common #{LIBEV_CFLAGS} #{LIBEIO_CFLAGS} " <<
 			"#{EXTRA_CXXFLAGS} " <<

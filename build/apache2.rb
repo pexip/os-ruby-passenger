@@ -63,7 +63,7 @@ APACHE2_MODULE_CFLAGS =
 	"#{EXTRA_CFLAGS}"
 APACHE2_MODULE_CXXFLAGS =
 	"#{EXTRA_PRE_CXXFLAGS} " <<
-	"-Iext -Iext/common #{PlatformInfo.apache2_module_cflags} " <<
+	"-Iext -Iext/common #{PlatformInfo.apache2_module_cxxflags} " <<
 	"#{EXTRA_CXXFLAGS}"
 
 APACHE2_MODULE_BOOST_OXT_LIBRARY = define_libboost_oxt_task("apache2",
@@ -98,6 +98,9 @@ task :apache2 => [
 	NATIVE_SUPPORT_TARGET
 ].compact
 
+# Workaround for https://github.com/jimweirich/rake/issues/274
+task :_apache2 => :apache2
+
 
 # Define rules for the individual Apache 2 module source files.
 APACHE2_MODULE_INPUT_FILES.each_pair do |target, sources|
@@ -106,10 +109,8 @@ APACHE2_MODULE_INPUT_FILES.each_pair do |target, sources|
 		object_basename = File.basename(target)
 		object_filename = APACHE2_OUTPUT_DIR + object_basename
 		compile_cxx(sources[0],
-			"#{EXTRA_PRE_CXXFLAGS} " <<
 			"#{APACHE2_MODULE_CXXFLAGS} " <<
-			"-o #{object_filename} " <<
-			"#{EXTRA_CXXFLAGS}")
+			"-o #{object_filename}")
 	end
 end
 
@@ -125,25 +126,23 @@ file APACHE2_MODULE => dependencies do
 	PlatformInfo.apxs2.nil?      and raise "Could not find 'apxs' or 'apxs2'."
 	PlatformInfo.apache2ctl.nil? and raise "Could not find 'apachectl' or 'apache2ctl'."
 	PlatformInfo.httpd.nil?      and raise "Could not find the Apache web server binary."
-	
+
 	sources = (APACHE2_MODULE_OBJECTS + [APACHE2_MOD_PASSENGER_O]).join(' ')
 	linkflags =
 		"#{EXTRA_PRE_CXX_LDFLAGS} " <<
 		"#{APACHE2_MODULE_COMMON_LIBRARIES.join(' ')} " <<
 		"#{APACHE2_MODULE_BOOST_OXT_LIBRARY} " <<
-		"#{PlatformInfo.apache2_module_ldflags} " <<
+		"#{PlatformInfo.apache2_module_cxx_ldflags} " <<
 		"#{PlatformInfo.portability_cxx_ldflags} " <<
 		"#{EXTRA_CXX_LDFLAGS} "
-	
+
 	create_shared_library(APACHE2_MODULE, sources, linkflags)
 end
 
 file APACHE2_MOD_PASSENGER_O => ['ext/apache2/mod_passenger.c'] do
 	compile_c('ext/apache2/mod_passenger.c',
-		"#{EXTRA_PRE_CFLAGS} " <<
 		"#{APACHE2_MODULE_CFLAGS} " <<
-		"-o #{APACHE2_MOD_PASSENGER_O} " <<
-		"#{EXTRA_CFLAGS}")
+		"-o #{APACHE2_MOD_PASSENGER_O}")
 end
 
 task :clean => 'apache2:clean'

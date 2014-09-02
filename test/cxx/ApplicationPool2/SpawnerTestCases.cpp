@@ -31,7 +31,7 @@
 		(void) uid; (void) gid; (void) groups
 
 	typedef boost::shared_ptr<Spawner> SpawnerPtr;
-	
+
 	static void addUserSwitchingCode() {
 		FILE *f = fopen("tmp.wsgi/passenger_wsgi.py", "a");
 		fputs(
@@ -84,7 +84,7 @@
 		process = spawner->spawn(options);
 		process->requiresShutdown = false;
 		ensure_equals(process->sockets->size(), 1u);
-		
+
 		Connection conn = process->sockets->front().checkoutConnection();
 		ScopeGuard guard(boost::bind(checkin, process, &conn));
 		writeExact(conn.fd, "ping\n");
@@ -99,6 +99,7 @@
 		options.startupFile  = ".";
 		options.startTimeout = 300;
 		SpawnerPtr spawner = createSpawner(options);
+		setLogLevel(LVL_CRIT);
 		try {
 			process = spawner->spawn(options);
 			process->requiresShutdown = false;
@@ -117,6 +118,7 @@
 		options.startCommand = "echo\t" "!> hello world";
 		options.startupFile  = ".";
 		SpawnerPtr spawner = createSpawner(options);
+		setLogLevel(LVL_CRIT);
 		try {
 			process = spawner->spawn(options);
 			process->requiresShutdown = false;
@@ -135,6 +137,7 @@
 		options.startCommand = "perl\t" "start_error.pl";
 		options.startupFile  = "start_error.pl";
 		SpawnerPtr spawner = createSpawner(options);
+		setLogLevel(LVL_CRIT);
 		try {
 			process = spawner->spawn(options);
 			process->requiresShutdown = false;
@@ -157,6 +160,7 @@
 		options.startupFile  = "start_error.pl";
 		options.startTimeout = 300;
 		SpawnerPtr spawner = createSpawner(options);
+		setLogLevel(LVL_CRIT);
 		try {
 			process = spawner->spawn(options);
 			process->requiresShutdown = false;
@@ -177,13 +181,13 @@
 		process = spawner->spawn(options);
 		process->requiresShutdown = false;
 		ensure_equals(process->sockets->size(), 1u);
-		
+
 		Connection conn = process->sockets->front().checkoutConnection();
 		ScopeGuard guard(boost::bind(checkin, process, &conn));
 		writeExact(conn.fd, "pid\n");
 		ensure_equals(readAll(conn.fd), toString(process->pid) + "\n");
 	}
-	
+
 	TEST_METHOD(7) {
 		// Custom environment variables can be passed.
 		Options options = createOptions();
@@ -196,7 +200,7 @@
 		process = spawner->spawn(options);
 		process->requiresShutdown = false;
 		ensure_equals(process->sockets->size(), 1u);
-		
+
 		Connection conn = process->sockets->front().checkoutConnection();
 		ScopeGuard guard(boost::bind(checkin, process, &conn));
 		writeExact(conn.fd, "envvars\n");
@@ -213,6 +217,7 @@
 		options.startupFile  = ".";
 		options.environmentVariables.push_back(make_pair("PASSENGER_FOO", "foo"));
 		SpawnerPtr spawner = createSpawner(options);
+		setLogLevel(LVL_CRIT);
 		try {
 			process = spawner->spawn(options);
 			process->requiresShutdown = false;
@@ -236,6 +241,7 @@
 		options.appRoot = "tmp.check/a/b/c/d";
 		options.appType = "rack";
 		SpawnerPtr spawner = createSpawner(options);
+		setLogLevel(LVL_CRIT);
 
 		if (getuid() != 0) {
 			// TODO: implement this test for root too
@@ -290,10 +296,10 @@
 		SpawnerPtr spawner = createSpawner(options);
 		process = spawner->spawn(options);
 		process->requiresShutdown = false;
-		
+
 		SessionPtr session = process->newSession();
 		session->initiate();
-		
+
 		setLogLevel(LVL_ERROR); // TODO: should be LVL_WARN
 		const char header[] =
 			"REQUEST_METHOD\0GET\0"
@@ -317,7 +323,41 @@
 				&& gatheredOutput.find("hello stderr!\n") != string::npos;
 		);
 	}
-	
+
+	TEST_METHOD(11) {
+		// It infers the code revision from the REVISION file.
+		TempDirCopy dir("stub/rack", "tmp.rack");
+		createFile("tmp.rack/REVISION", "hello\n");
+
+		Options options = createOptions();
+		options.appRoot      = "tmp.rack";
+		options.startCommand = "ruby\t" "start.rb";
+		options.startupFile  = "start.rb";
+		SpawnerPtr spawner = createSpawner(options);
+		process = spawner->spawn(options);
+		process->requiresShutdown = false;
+
+		ensure_equals(process->codeRevision, "hello");
+	}
+
+	TEST_METHOD(12) {
+		// It infers the code revision from the app root symlink,
+		// if the app root is called "current".
+		TempDir dir1("tmp.rack");
+		TempDirCopy dir2("stub/rack", "tmp.rack/today");
+		symlink("today", "tmp.rack/current");
+
+		Options options = createOptions();
+		options.appRoot      = "tmp.rack/current";
+		options.startCommand = "ruby\t" "start.rb";
+		options.startupFile  = "start.rb";
+		SpawnerPtr spawner = createSpawner(options);
+		process = spawner->spawn(options);
+		process->requiresShutdown = false;
+
+		ensure_equals(process->codeRevision, "today");
+	}
+
 	// It raises an exception if getStartupCommand() is empty.
 
 	/******* User switching tests *******/
@@ -780,6 +820,6 @@
 			}
 			defaultGroups.erase(0, pos);
 		}
-		
+
 		ensure_equals(groups, defaultGroups);
 	}

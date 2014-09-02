@@ -104,6 +104,11 @@ task :clobber => 'package:clean'
 
 task 'package:set_official' do
 	ENV['OFFICIAL_RELEASE'] = '1'
+	# These environment variables interfere with 'brew install'
+	# and maybe other stuff, so unset them.
+	ENV.delete('CC')
+	ENV.delete('CXX')
+	ENV.delete('USE_CCACHE')
 end
 
 desc "Build, sign & upload gem & tarball"
@@ -116,7 +121,7 @@ task 'package:release' => ['package:set_official', 'package:gem', 'package:tarba
 	basename   = "#{PhusionPassenger::PACKAGE_NAME}-#{PhusionPassenger::VERSION_STRING}"
 	version    = PhusionPassenger::VERSION_STRING
 	is_beta        = !!version.split('.')[3]
-	
+
 	if !`git status --porcelain | grep -Ev '^\\?\\? '`.empty?
 		STDERR.puts "-------------------"
 		abort "*** ERROR: There are uncommitted files. See 'git status'"
@@ -150,7 +155,7 @@ task 'package:release' => ['package:set_official', 'package:gem', 'package:tarba
 	puts "Proceed with pushing tag to remote Git repo and uploading the gem and signatures? [y/n]"
 	if STDIN.readline == "y\n"
 		sh "git push origin #{git_tag}"
-		
+
 		if is_open_source?
 			sh "s3cmd -P put #{PKG_DIR}/passenger-#{version}.{gem,tar.gz,gem.asc,tar.gz.asc} s3://phusion-passenger/releases/"
 			sh "gem push #{PKG_DIR}/passenger-#{version}.gem"
@@ -288,7 +293,7 @@ task 'package:sign' do
 		password = h.ask("Password for software-signing@phusion.nl GPG key: ") { |q| q.echo = false }
 		passphrase_opt = "--passphrase-file .gpg-password"
 	end
-	
+
 	begin
 		if password
 			File.open(".gpg-password", "w", 0600) do |f|
@@ -323,7 +328,7 @@ task 'package:update_homebrew' do
 	formula = File.read("/tmp/homebrew/Library/Formula/passenger.rb")
 	formula.gsub!(/passenger-.+?\.tar\.gz/, "passenger-#{version}.tar.gz") ||
 		abort("Unable to substitute Homebrew formula tarball filename")
-	formula.gsub!(/sha1 .*/, "sha1 '#{sha1}'") ||
+	formula.gsub!(/^  sha1 .*/, "  sha1 '#{sha1}'") ||
 		abort("Unable to substitute Homebrew formula SHA-1")
 	necessary_dirs = ORIG_TARBALL_FILES.call.map{ |filename| filename.split("/").first }.uniq
 	necessary_dirs -= Packaging::HOMEBREW_EXCLUDE
@@ -351,14 +356,12 @@ task 'package:initiate_debian_building' do
 	version = VERSION_STRING
 	if is_open_source?
 		command = "cd /srv/passenger_apt_automation && " +
-			"chpst -l /tmp/passenger_apt_automation.lock " +
 			"/tools/silence-unless-failed " +
-			"./new_release https://github.com/phusion/passenger.git passenger.repo passenger.apt #{git_tag}"
+			"./new_release https://github.com/phusion/passenger.git passenger #{git_tag}"
 	else
 		command = "cd /srv/passenger_apt_automation && " +
-			"chpst -l /tmp/passenger_apt_automation.lock " +
 			"/tools/silence-unless-failed " +
-			"./new_release #{enterprise_git_url} passenger-enterprise.repo passenger-enterprise.apt #{git_tag}"
+			"./new_release #{enterprise_git_url} passenger-enterprise #{git_tag}"
 	end
 
 	sh "ssh psg_apt_automation@juvia-helper.phusion.nl at now <<<'#{command}'"
@@ -425,7 +428,7 @@ task :fakeroot => [:apache2, :nginx, :doc] do
 	psg_apache2_module_path       = ENV['APACHE2_MODULE_PATH'] || "#{fs_libdir}/apache2/modules/mod_passenger.so"
 	psg_ruby_extension_source_dir = "#{fs_datadir}/#{GLOBAL_NAMESPACE_DIRNAME}/ruby_extension_source"
 	psg_nginx_module_source_dir   = "#{fs_datadir}/#{GLOBAL_NAMESPACE_DIRNAME}/ngx_http_passenger_module"
-	
+
 	fakeroot = "pkg/fakeroot"
 	fake_rubylibdir = "#{fakeroot}#{psg_rubylibdir}"
 	fake_nodelibdir = "#{fakeroot}#{psg_nodelibdir}"
@@ -443,10 +446,10 @@ task :fakeroot => [:apache2, :nginx, :doc] do
 	fake_nginx_module_source_dir   = "#{fakeroot}#{psg_nginx_module_source_dir}"
 
 	native_packaging_method = ENV['NATIVE_PACKAGING_METHOD'] || "deb"
-	
+
 	sh "rm -rf #{fakeroot}"
 	sh "mkdir -p #{fakeroot}"
-	
+
 	# Ruby sources
 	sh "mkdir -p #{fake_rubylibdir}"
 	sh "cp #{PhusionPassenger.ruby_libdir}/phusion_passenger.rb #{fake_rubylibdir}/"
@@ -460,24 +463,24 @@ task :fakeroot => [:apache2, :nginx, :doc] do
 	sh "mkdir -p #{fake_libdir}"
 	sh "cp -R #{PhusionPassenger.lib_dir}/common #{fake_libdir}/"
 	sh "rm -rf #{fake_libdir}/common/libboost_oxt"
-	
+
 	# Ruby extension binaries
 	sh "mkdir -p #{fake_native_support_dir}"
 	native_support_archdir = PlatformInfo.ruby_extension_binary_compatibility_id
 	sh "mkdir -p #{fake_native_support_dir}"
 	sh "cp -R buildout/ruby/#{native_support_archdir}/*.#{LIBEXT} #{fake_native_support_dir}/"
-	
+
 	# Agents
 	sh "mkdir -p #{fake_agents_dir}"
 	sh "cp -R #{PhusionPassenger.agents_dir}/* #{fake_agents_dir}/"
 	sh "rm -rf #{fake_agents_dir}/*.dSYM"
 	sh "rm -rf #{fake_agents_dir}/*/*.dSYM"
 	sh "rm -rf #{fake_agents_dir}/*.o"
-	
+
 	# Helper scripts
 	sh "mkdir -p #{fake_helper_scripts_dir}"
 	sh "cp -R #{PhusionPassenger.helper_scripts_dir}/* #{fake_helper_scripts_dir}/"
-	
+
 	# Resources
 	sh "mkdir -p #{fake_resources_dir}"
 	sh "cp -R resources/* #{fake_resources_dir}/"
@@ -505,12 +508,12 @@ task :fakeroot => [:apache2, :nginx, :doc] do
 	# Nginx module sources
 	sh "mkdir -p #{fake_nginx_module_source_dir}"
 	sh "cp ext/nginx/* #{fake_nginx_module_source_dir}/"
-	
+
 	# Documentation
 	sh "mkdir -p #{fake_docdir}"
 	sh "cp doc/*.html #{fake_docdir}/"
 	sh "cp -R doc/images #{fake_docdir}/"
-	
+
 	# User binaries
 	sh "mkdir -p #{fake_bindir}"
 	Packaging::USER_EXECUTABLES.each do |exe|
@@ -519,7 +522,7 @@ task :fakeroot => [:apache2, :nginx, :doc] do
 			change_shebang("#{fake_bindir}/#{exe}", "#{fs_bindir}/ruby")
 		end
 	end
-	
+
 	# Superuser binaries
 	sh "mkdir -p #{fake_sbindir}"
 	Packaging::SUPER_USER_EXECUTABLES.each do |exe|
@@ -528,7 +531,7 @@ task :fakeroot => [:apache2, :nginx, :doc] do
 			change_shebang("#{fake_sbindir}/#{exe}", "#{fs_bindir}/ruby")
 		end
 	end
-	
+
 	# Apache 2 module
 	sh "mkdir -p #{File.dirname(fake_apache2_module_path)}"
 	sh "cp #{APACHE2_MODULE} #{fake_apache2_module_path}"

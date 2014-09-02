@@ -57,11 +57,11 @@ endif::[]
 [[install_on_debian_ubuntu]]
 === Installing or upgrading on Debian or Ubuntu
 
-We provide and official Phusion Passenger APT repository. This APT repository contains Phusion Passenger packages for multiple versions of Debian and Ubuntu. These packages are automatically built by our build server after we push out a source release, and thus are always up to date with the official source releases.
+We provide an official Phusion Passenger APT repository. This APT repository contains Phusion Passenger packages for multiple versions of Debian and Ubuntu. These packages are automatically built by our build server after we push out a source release, and thus are always up to date with the official source releases.
 
 If you use these packages to install Phusion Passenger then you do not need to run `passenger-install-apache2-module` or `passenger-install-nginx-module`. These packages contain all the binaries that you need.
 
-Packages are available for the x86 and x86_64 architectures. Our policy is to support all Ubuntu LTS releases that are still supported by Canonical, plus the latest non-LTS Ubuntu release, plus all Debian releases that are still supported by Debian.
+Packages are available for the x86 and x86_64 architectures. Our policy is to support all Ubuntu LTS releases that are still supported by Canonical, plus the latest Ubuntu release, plus all Debian releases that are still supported by Debian.
 
 [[install_add_apt_repo]]
 ==== Adding our APT repository
@@ -85,8 +85,8 @@ sudo apt-get install apt-transport-https ca-certificates
 [source,sh]
 --------------------------------------------------------------
 ##### !!!! Only add ONE of these lines, not all of them !!!! #####
-# Ubuntu 13.10
-deb https://oss-binaries.phusionpassenger.com/apt/passenger saucy main
+# Ubuntu 14.04
+deb https://oss-binaries.phusionpassenger.com/apt/passenger trusty main
 # Ubuntu 12.04
 deb https://oss-binaries.phusionpassenger.com/apt/passenger precise main
 # Ubuntu 10.04
@@ -102,8 +102,8 @@ deb https://oss-binaries.phusionpassenger.com/apt/passenger squeeze main
 [source,sh]
 --------------------------------------------------------------
 ##### !!!! Only add ONE of these lines, not all of them !!!! #####
-# Ubuntu 13.10
-deb https://download:YOUR_DOWNLOAD_TOKEN@www.phusionpassenger.com/enterprise_apt saucy main
+# Ubuntu 14.04
+deb https://download:YOUR_DOWNLOAD_TOKEN@www.phusionpassenger.com/enterprise_apt trusty main
 # Ubuntu 12.04
 deb https://download:YOUR_DOWNLOAD_TOKEN@www.phusionpassenger.com/enterprise_apt precise main
 # Ubuntu 10.04
@@ -141,6 +141,9 @@ sudo apt-get install nginx-extras passenger
 --------------------------------------------------------------
 +
 3. Edit `/etc/nginx/nginx.conf` and uncomment `passenger_root` and `passenger_ruby`.
++
+Especially <<PassengerRoot,passenger_root>> is important: Phusion Passenger won't work without it! If you don't see a commented version of `passenger_root` inside nginx.conf, then you need to <<inserting_passenger_root_for_apt,insert it yourself>>.
++
 4. Restart Nginx:
 +
 --------------------------------------------------------------
@@ -152,6 +155,13 @@ ifdef::apache[]
 +
 --------------------------------------------------------------
 sudo apt-get install libapache2-mod-passenger
+--------------------------------------------------------------
++
+3. Enable the Phusion Passenger Apache module and restart Apache:
++
+--------------------------------------------------------------
+sudo a2enmod passenger
+sudo service apache2 restart
 --------------------------------------------------------------
 endif::[]
 ifdef::standalone[]
@@ -173,6 +183,9 @@ ifdef::nginx[]
 sudo apt-get install nginx-extras passenger-enterprise
 --------------------------------------------------------------
 4. Edit `/etc/nginx/nginx.conf` and uncomment `passenger_root` and `passenger_ruby`.
++
+Especially <<PassengerRoot,passenger_root>> is important: Phusion Passenger won't work without it! If you don't see a commented version of `passenger_root` inside nginx.conf, then you need to <<inserting_passenger_root_for_apt,insert it yourself>>.
++
 5. Restart Nginx:
 +
 --------------------------------------------------------------
@@ -183,12 +196,51 @@ ifdef::apache[]
 --------------------------------------------------------------
 sudo apt-get install libapache2-mod-passenger-enterprise
 --------------------------------------------------------------
++
+4. Enable the Phusion Passenger Apache module and restart Apache:
++
+--------------------------------------------------------------
+sudo a2enmod passenger
+sudo service apache2 restart
+--------------------------------------------------------------
 endif::[]
 ifdef::standalone[]
 --------------------------------------------------------------
 sudo apt-get install passenger-enterprise
 --------------------------------------------------------------
 endif::[]
+
+ifdef::nginx[]
+[[inserting_passenger_root_for_apt]]
+==== Inserting `passenger_root` into nginx.conf
+
+During step 3 of the 'Installing packages' subsection, you were instructed to uncomment the <<PassengerRoot,passenger_root>> directive in `/etc/nginx/nginx.conf`. If there is no commented version in there, then you need to insert it yourself.
+
+First, run the following command and take note of its output:
+
+-----------------------------------
+/usr/bin/passenger-config --root
+-----------------------------------
+
+Next, insert the following snippet into `/etc/nginx/nginx.conf`, under the `http` block:
+
+-------------------------------------------------------------
+passenger_root whatever_value_you_got_from_previous_command;
+-------------------------------------------------------------
+
+Here is an example:
+
+-------------------------------------------------------------
+...
+http {
+   # path-to-locations.ini is given to you by `passenger-config --root`.
+   passenger_root /path-to-locations.ini;
+   ...
+}
+-------------------------------------------------------------
+
+Once you're done editing nginx.conf, continue with step 4.
+endif::nginx[]
 
 
 === Installing or upgrading on Red Hat, Fedora, CentOS or ScientificLinux
@@ -552,23 +604,23 @@ The email address software-signing@phusion.nl redirects to info@phusion.nl so it
 The Phusion Software Signing key is also *signed by the Phusion founders*. Their keys are as follows:
 
   Hongli Lai (hongli@phusion.nl)
-  Short key ID: 4B6F4332
-  Long key ID: 06A131094B6F4332
-  Fingerprint: 64E8 0420 FC6A 499F 9E1F  81FA 06A1 3109 4B6F 4332
+  Short key ID: 8C59158F
+  Long key ID: CD70085E8C59158F
+  Fingerprint: 218A 7255 83D0 2ECE F3A9 C2A7 CD70 085E 8C59 158F
 
   Ninh Bui (ninh@phusion.nl)
-  Short key ID: 6FAF3782
-  Long key ID: BA8DA3F46FAF3782
-  Fingerprint: 353A 398C 49AF 5CD5 74A0  656C BA8D A3F4 6FAF 3782
+  Short key ID: 69481265
+  Long key ID: AE405F7869481265
+  Fingerprint: A77C 9CEF 766D 0E7D A95B 8778 AE40 5F78 6948 1265
 
 Both keys are stored at both sks-servers.net and keyserver.ubuntu.com. Import them with:
 
 ------------------------------------------
-gpg --keyserver pool.sks-servers.net --search-keys 0x06A131094B6F4332
-gpg --keyserver pool.sks-servers.net --search-keys 0xBA8DA3F46FAF3782
+gpg --keyserver pool.sks-servers.net --search-keys 0xCD70085E8C59158F
+gpg --keyserver pool.sks-servers.net --search-keys 0xAE405F7869481265
 # -OR-
-gpg --keyserver keyserver.ubuntu.com --search-keys 0x06A131094B6F4332
-gpg --keyserver keyserver.ubuntu.com --search-keys 0xBA8DA3F46FAF3782
+gpg --keyserver keyserver.ubuntu.com --search-keys 0xCD70085E8C59158F
+gpg --keyserver keyserver.ubuntu.com --search-keys 0xAE405F7869481265
 ------------------------------------------
 
 ==== Verifying the gem and tarball
@@ -907,16 +959,19 @@ configuration directives from your web server configuration file(s). After you'v
 done this, you need to remove the Phusion Passenger files.
 endif::[]
 
+- If you installed Phusion Passenger through Homebrew, then run `brew uninstall passenger`.
+ifdef::apache[]
+Then run `rm -f /etc/apache2/other/passenger.conf`.
+endif::[]
 - If you installed Phusion Passenger via a Ruby gem, then run `gem uninstall passenger` (or, if you're a link:https://www.phusionpassenger.com/enterprise[Phusion Passenger Enterprise] user, `gem uninstall passenger-enterprise-server`).
   You <<is_ruby_home_or_system_wide_installed,might have to run this as root>>.
 - If you installed Phusion Passenger via a source tarball, then remove the directory
   in which you placed the extracted Phusion Passenger files. This directory is the
   same as the one pointed to the by `PassengerRoot`/`passenger_root` configuration directive.
 - If you installed Phusion Passenger through APT or YUM, then use them to uninstall Phusion Passenger.
-- If you installed Phusion Passenger through Homebrew, then run `brew uninstall passenger`.
 
 ifdef::nginx[]
-Nginx does not have to be recompiled. Altough it contains Phusion Passenger code, it will not do anything when all Phusion Passenger configuration directives are removed.
+Nginx does not have to be recompiled after uninstalling Phusion Passenger. Altough Nginx will contain the Phusion Passenger Nginx module, the module will not do anything when all Phusion Passenger configuration directives are removed.
 endif::[]
 
 

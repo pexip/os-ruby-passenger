@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #  Phusion Passenger - https://www.phusionpassenger.com/
-#  Copyright (c) 2010-2013 Phusion
+#  Copyright (c) 2010-2014 Phusion
 #
 #  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
 #
@@ -22,7 +22,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #  THE SOFTWARE.
 
-import sys, os, re, imp, traceback, socket, select, struct, logging, errno
+import sys, os, re, imp, threading, signal, traceback, socket, select, struct, logging, errno
 
 options = {}
 
@@ -53,7 +53,11 @@ def handshake_and_read_startup_request():
 		line = readline()
 
 def load_app():
-	return imp.load_source('passenger_wsgi', 'passenger_wsgi.py')
+	global options
+
+	sys.path.insert(0, os.getcwd())
+	startup_file = options.get('startup_file', 'passenger_wsgi.py')
+	return imp.load_source('passenger_wsgi', startup_file)
 
 def create_server_socket():
 	global options
@@ -67,6 +71,28 @@ def create_server_socket():
 	s.bind(filename)
 	s.listen(1000)
 	return (filename, s)
+
+def install_signal_handlers():
+	def debug(sig, frame):
+		id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
+		code = []
+		for thread_id, stack in sys._current_frames().items():
+			code.append("\n# Thread: %s(%d)" % (id2name.get(thread_id,""), thread_id))
+			for filename, lineno, name, line in traceback.extract_stack(stack):
+				code.append('  File: "%s", line %d, in %s' % (filename, lineno, name))
+				if line:
+					code.append("    %s" % (line.strip()))
+		print("\n".join(code))
+
+	def debug_and_exit(sig, frame):
+		debug(sig, frame)
+		sys.exit(1)
+
+	# Unfortunately, there's no way to install a signal handler that prints
+	# the backtrace without interrupting the current system call. os.siginterrupt()
+	# doesn't seem to work properly either. That is why we only have a SIGABRT
+	# handler and no SIGQUIT handler.
+	signal.signal(signal.SIGABRT, debug_and_exit)
 
 def advertise_sockets(socket_filename):
 	print("!> socket: main;unix:%s;session;1" % socket_filename)
@@ -191,7 +217,7 @@ class RequestHandler:
 		env['wsgi.version']      = (1, 0)
 		env['wsgi.multithread']  = False
 		env['wsgi.multiprocess'] = True
-		env['wsgi.run_once']	 = True
+		env['wsgi.run_once']	 = False
 		if env.get('HTTPS','off') in ('on', '1', 'true', 'yes'):
 			env['wsgi.url_scheme'] = 'https'
 		else:
@@ -234,9 +260,13 @@ class RequestHandler:
 			headers_set[:] = [status, response_headers]
 			return write
 		
-		def hijack():
-			env['passenger.hijacked_socket'] = output_stream
-			return output_stream
+		# Django's django.template.base module goes through all WSGI
+		# environment values, and calls each value that is a callable.
+		# No idea why, but we work around that with the `do_it` parameter.
+		def hijack(do_it = False):
+			if do_it:
+				env['passenger.hijacked_socket'] = output_stream
+				return output_stream
 
 		env['passenger.hijack'] = hijack
 
@@ -270,6 +300,7 @@ if __name__ == "__main__":
 	handshake_and_read_startup_request()
 	app_module = load_app()
 	socket_filename, server_socket = create_server_socket()
+	install_signal_handlers()
 	handler = RequestHandler(server_socket, sys.stdin, app_module.application)
 	print("!> Ready")
 	advertise_sockets(socket_filename)

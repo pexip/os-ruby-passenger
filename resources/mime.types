@@ -26,7 +26,7 @@ types {
 
     application/x-font-ttf                ttf;
     font/opentype                         otf;
-    font/x-woff                           woff;
+    application/font-woff                 woff;
     application/vnd.ms-fontobject         eot;
 
     application/java-archive              jar war ear;
@@ -53,6 +53,7 @@ types {
     application/x-shockwave-flash         swf;
     application/x-stuffit                 sit;
     application/x-tcl                     tcl tk;
+    application/x-web-app-manifest+json   webapp;
     application/x-x509-ca-cert            der pem crt;
     application/x-xpinstall               xpi;
     application/zip                       zip;

@@ -58,6 +58,8 @@ For example:
     <Directory /webapps/mycook/public>
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
 </VirtualHost>
 -------------------------------------------
@@ -82,6 +84,9 @@ Suppose that you already have a virtual host:
     DocumentRoot /websites/phusion
     <Directory /websites/phusion>
         Allow from all
+        Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
 </VirtualHost>
 -------------------------------------------
@@ -96,7 +101,7 @@ To do this, you need to perform the following:
  3. Inside the Location block, set `PassengerBaseURI /{SUBURI}`.
  4. Inside the Location block, set `PassengerAppRoot {PATH TO YOUR APPLICATION ROOT}`.
  5. Create a `<Directory {PATH TO YOUR APPLICATION'S PUBLIC DIRECTORY}>` block.
- 6. Inside the Directory block, set `Allow from all`.
+ 6. Inside the Directory block, set `Allow from all`, and (if you're on Apache >= 2.4) `Require all granted`.
  7. Inside the Directory block, disable MultiViews.
 
 Here is an example:
@@ -107,6 +112,9 @@ Here is an example:
     DocumentRoot /websites/phusion
     <Directory /websites/phusion>
         Allow from all
+        Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
     
     # These have been added:
@@ -118,6 +126,8 @@ Here is an example:
     <Directory /websites/rails/public>
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
 </VirtualHost>
 -------------------------------------------
@@ -233,6 +243,8 @@ the Apache configuration file:
     <Directory /webapps/rack_example/public>
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
 </VirtualHost>
 -------------------------------------------
@@ -258,6 +270,8 @@ For example:
     <Directory /webapps/rackapp/public>
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
 </VirtualHost>
 -------------------------------------------
@@ -282,6 +296,9 @@ Suppose that you already have a virtual host:
     DocumentRoot /websites/phusion
     <Directory /websites/phusion>
         Allow from all
+        Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
 </VirtualHost>
 -------------------------------------------
@@ -296,7 +313,7 @@ To do this, you need to perform the following:
  3. Inside the Location block, set `PassengerBaseURI /{SUBURI}`.
  4. Inside the Location block, set `PassengerAppRoot {PATH TO YOUR APPLICATION ROOT}`.
  5. Create a `<Directory {PATH TO YOUR APPLICATION'S PUBLIC DIRECTORY}>` block.
- 6. Inside the Directory block, set `Allow from all`.
+ 6. Inside the Directory block, set `Allow from all`, and (if you're on Apache >= 2.4) `Require all granted`.
  7. Inside the Directory block, disable MultiViews.
 
 Here is an example:
@@ -307,6 +324,9 @@ Here is an example:
     DocumentRoot /websites/phusion
     <Directory /websites/phusion>
         Allow from all
+        Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
     
     # These have been added:
@@ -318,6 +338,8 @@ Here is an example:
     <Directory /websites/rack/public>
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
 </VirtualHost>
 -------------------------------------------
@@ -358,7 +380,7 @@ So '/webapps/wsgiapp' must, at minimum, look like this:
 ----------------------
 /webapps/wsgiapp
   |
-  +-- config.ru
+  +-- passenger_wsgi.py
   |
   +-- public/
   |
@@ -397,6 +419,8 @@ the Apache configuration file:
     <Directory /webapps/wsgi_example/public>
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
 </VirtualHost>
 -------------------------------------------
@@ -422,6 +446,8 @@ For example:
     <Directory /webapps/wsgiapp/public>
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
 </VirtualHost>
 -------------------------------------------
@@ -446,6 +472,9 @@ Suppose that you already have a virtual host:
     DocumentRoot /websites/phusion
     <Directory /websites/phusion>
         Allow from all
+        Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
 </VirtualHost>
 -------------------------------------------
@@ -460,7 +489,7 @@ To do this, you need to perform the following:
  3. Inside the Location block, set `PassengerBaseURI /{SUBURI}`.
  4. Inside the Location block, set `PassengerAppRoot {PATH TO YOUR APPLICATION ROOT}`.
  5. Create a `<Directory {PATH TO YOUR APPLICATION'S PUBLIC DIRECTORY}>` block.
- 6. Inside the Directory block, set `Allow from all`.
+ 6. Inside the Directory block, set `Allow from all`, and (if you're on Apache >= 2.4) `Require all granted`.
  7. Inside the Directory block, disable MultiViews.
 
 Here is an example:
@@ -471,6 +500,9 @@ Here is an example:
     DocumentRoot /websites/phusion
     <Directory /websites/phusion>
         Allow from all
+        Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
     
     # These have been added:
@@ -482,6 +514,8 @@ Here is an example:
     <Directory /websites/python/public>
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
 </VirtualHost>
 -------------------------------------------
@@ -506,6 +540,19 @@ command line:
 touch /webapps/wsgiapp/tmp/restart.txt
 -------------------------------------------
 
+=== Sample `passenger_wsgi.py` for Django
+
+For Django applications, `passenger_wsgi.py` should look like this:
+
+[code,python]
+-------------------------------------------
+import myproject.wsgi
+application = myproject.wsgi.application
+-------------------------------------------
+
+Replace `myproject` with your project's module name.
+
+
 == Deploying a Node.js application
 
 Please refer to link:https://github.com/phusion/passenger/wiki/Phusion-Passenger%3A-Node.js-tutorial[the Node.js tutorial].
@@ -523,10 +570,17 @@ Nevertheless, the system administrator may be interested in changing
 Phusion Passenger's behavior. Phusion Passenger's Apache module supports the
 following configuration options:
 
+[[PassengerRoot]]
 === PassengerRoot <directory> ===
 The location to the Phusion Passenger root directory. This configuration option
 is essential to Phusion Passenger, and allows Phusion Passenger to locate its own
-data files. The correct value is given by the installer.
+data files. If you do not set this option, or if you set this option to the wrong value, then Phusion Passenger will make Apache abort with an error.
+
+While installing Phusion Passenger, you have been told to set this option in your Apache configuration file, and you have been told what value to set it to. So under normal conditions, you don't have ask yourself what value to set for this option. But in case you lost the value (e.g. because you accidentally removed the Apache configuration file, and you are trying to reconstruct it), or in case you didn't follow the installation instructions correctly, then here's how you can find out the correct value:
+
+ * If you installed Phusion Passenger through <<install_on_debian_ubuntu,our APT repository>>, then the value can be obtained by running `/usr/bin/passenger-config --root`.
+ * If you installed Phusion Passenger through RubyGems, then the value can be obtained by running `passenger-config --root`.
+ * If you installed Phusion Passenger through the source tarball, then the value is the path to the Phusion Passenger directory. For example, if you extracted the tarball's contents to `/opt/passenger/passenger-x.x.x`, then `passenger_root` must be `/opt/passenger/passenger-x.x.x`.
 
 If you've moved Phusion Passenger to a different directory then you need to update
 this option as well. Please read
@@ -577,6 +631,24 @@ This way, Phusion Passenger will not interfere with Wordpress.
  * In '.htaccess'.
 
 In each place, it may be specified at most once. The default value is 'on'.
+
+[[PassengerBaseURI]]
+==== PassengerBaseURI <uri> ====
+Used to specify that the given URI is a Phusion Passenger-served application. Please refer
+to the following sections for examples:
+
+ * <<deploying_rails_to_sub_uri,Deploying Rails 1.x and 2.x to a sub URI>>
+ * <<deploying_rack_to_sub_uri,Deploying Rack (including Rails >= 3) to a sub URI>>
+ * <<deploying_python_to_sub_uri,Deploying Python to a sub URI>>
+
+This option may occur in the following places:
+
+ * In the global server configuration.
+ * In a virtual host configuration block.
+ * In a `<Directory>` or `<Location>` block.
+ * In '.htaccess', if `AllowOverride Options` is on.
+
+=== Application loading options
 
 [[PassengerRuby]]
 ==== PassengerRuby <filename>
@@ -631,6 +703,8 @@ PassengerNodejs /usr/bin/node;
     <Directory /websites/blog/public>
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
 </VirtualHost>
 
@@ -710,27 +784,102 @@ Example:
 -----------------------------
 <VirtualHost test.host>
     DocumentRoot /var/rails/zena/sites/example.com/public
-    PassengerAppRoot /var/rails/zena   # <-- normally Phusion Passenger would
-                                       #     have assumed that the application
-                                       #     root is "/var/rails/zena/sites/example.com"
+    # Normally Phusion Passenger would have assumed that the
+    # application root is "/var/rails/zena/sites/example.com".
+    # This overrides it.
+    PassengerAppRoot /var/rails/zena
 </VirtualHost>
 -----------------------------
 
-[[PassengerBaseURI]]
-==== PassengerBaseURI <uri> ====
-Used to specify that the given URI is a Phusion Passenger-served application. Please refer
-to the following sections for examples:
+[[PassengerAppType]]
+==== PassengerAppType <name>
+:version: 4.0.25
+include::users_guide_snippets/since_version.txt[]
 
- * <<deploying_rails_to_sub_uri,Deploying Rails 1.x and 2.x to a sub URI>>
- * <<deploying_rack_to_sub_uri,Deploying Rack (including Rails >= 3) to a sub URI>>
- * <<deploying_python_to_sub_uri,Deploying Python to a sub URI>>
+By default, Phusion Passenger autodetects the type of the application, e.g. whether it's a Ruby, Python, Node.js or Meteor app. If it's unable to autodetect the type of the application (e.g. because you've specified a custom <<PassengerStartupFile,PassengerStartupFile>>) then you can use this option to force Phusion Passenger to recognize the application as a specific type.
+
+Allowed values are:
+
+ * `rack` - Ruby on Rails >= 3.0 and Ruby Rack
+ * `classic-rails` - Ruby on Rails 1.x and 2.0
+ * `wsgi` - Python
+ * `node` - Node.js, or Meteor JS in bundled mode
+ * `meteor` - Meteor JS in non-bundled mode
+
+If you set this option, then you **must** also set <<PassengerAppRoot,PassengerAppRoot>>, otherwise Phusion Passenger does not properly recognize your application.
 
 This option may occur in the following places:
 
  * In the global server configuration.
  * In a virtual host configuration block.
  * In a `<Directory>` or `<Location>` block.
- * In '.htaccess', if `AllowOverride Options` is on.
+ * In '.htaccess'.
+
+In each place, it may be specified at most once.
+
+Example:
+
+-----------------------------
+<VirtualHost test.host>
+    DocumentRoot /webapps/example.com/public
+    # Use server.js as the startup file (entry point file) for
+    # your Node.js application, instead of the default app.js
+    PassengerStartupFile server.js
+    PassengerAppType node
+    PassengerAppRoot /webapps/example.com
+</VirtualHost>
+-----------------------------
+
+[[PassengerStartupFile]]
+==== PassengerStartupFile <filename>
+:version: 4.0.25
+include::users_guide_snippets/since_version.txt[]
+
+This option specifies the startup file that Phusion Passenger should use when loading the application.
+
+Every application has a *startup file* or *entry point file*: a file where the application begins execution. Some languages have widely accepted conventions about how such a file should be called (e.g. Ruby, with its `config.ru`). Other languages have somewhat-accepted conventions (e.g. Node.js, with its `app.js`). In these cases, Phusion Passenger reuses these conventions, and executes applications through those files.
+
+Other languages have no conventions at all, and so Phusion Passenger invents one (e.g. Python WSGI with `passenger_wsgi.py`).
+
+Here's a list of the language-specific conventions that Phusion Passenger accepts:
+
+[options="header"]
+|================================================
+| Language                        | Phusion Passenger convention
+| Ruby on Rails >= 3.0, Ruby Rack | config.ru
+| Ruby on Rails 1.x and 2.x       | config/environment.rb
+| Python                          | passenger_wsgi.py
+| Node.js                         | app.js
+|================================================
+
+But sometimes you might not want to adhere to the convention that Phusion Passenger accepts. For example, on Node.js, you might want to use `server.js` as the startup file instead of the default `app.js`. With this option, you can customize the startup file to any file you like.
+
+Notes:
+
+ * Customizing the startup file affects <<user_switching,user switching>>. After all, if user switching is enabled, the application is executed as the user that owns the startup file.
+ * If you set this option, you **must** also set <<PassengerAppRoot,PassengerAppRoot>> and <<PassengerAppType,PassengerAppType>>, otherwise Phusion Passenger doesn't know what kind of application it is.
+
+This option may occur in the following places:
+
+ * In the global server configuration.
+ * In a virtual host configuration block.
+ * In a `<Directory>` or `<Location>` block.
+ * In '.htaccess'.
+
+In each place, it may be specified at most once.
+
+Example:
+
+-----------------------------
+<VirtualHost test.host>
+    DocumentRoot /webapps/example.com/public
+    # Use server.js as the startup file (entry point file) for
+    # your Node.js application, instead of the default app.js
+    PassengerStartupFile server.js
+    PassengerAppType node
+    PassengerAppRoot /webapps/example.com
+</VirtualHost>
+-----------------------------
 
 ==== PassengerRestartDir <directory>
 As described in the deployment chapters of this document, Phusion Passenger
@@ -789,6 +938,50 @@ allow the attacker to cause a Denial-of-Service.
 
 You can prevent this from happening by pointing PassengerRestartDir to a
 directory that's readable by Apache, but only writable by administrators.
+
+[[PassengerSpawnMethod]]
+==== PassengerSpawnMethod <string>
+[TIP]
+."What spawn method should I use?"
+=========================================================
+This subsection attempts to describe spawn methods, but it's okay if you don't (want to)
+understand it, as it's mostly a technical detail. You can basically follow this rule of thumb:
+
+************************************************
+If your application works on Mongrel or Thin, but not on Phusion Passenger, then set
+`PassengerSpawnMethod` to 'direct'. Otherwise, leave it at 'smart' (the default).
+************************************************
+
+However, we do recommend you to try to understand it. The 'smart' spawn
+method bring many benefits.
+=========================================================
+
+include::users_guide_snippets/passenger_spawn_method.txt[]
+
+This option may occur in the following places:
+
+ * In the global server configuration.
+ * In a virtual host configuration block.
+
+In each place, it may be specified at most once. The default value is 'smart'.
+
+[[PassengerLoadShellEnvvars]]
+==== PassengerLoadShellEnvvars <on|off>
+:version: 4.0.20
+include::users_guide_snippets/since_version.txt[]
+
+Enables or disables the loading of shell environment variables before spawning the application.
+
+If this option is turned on, and the user's shell is `bash`, then applications are loaded by running them with `bash -l -c`. Otherwise, they are loaded by running them directly from the `PassengerHelperAgent` process.
+
+This option may occur in the following places:
+
+ * In the global server configuration.
+ * In a virtual host configuration block.
+ * In a `<Directory>` or `<Location>` block.
+ * In '.htaccess', if `AllowOverride Options` is on.
+
+In each place, it may be specified at most once. The default value is 'on'.
 
 [[PassengerRollingRestarts]]
 ==== PassengerRollingRestarts <on|off>
@@ -866,52 +1059,6 @@ This option may occur in the following places:
 
 In each place, it may be specified at most once. The default value is 'off'.
 
-=== Process spawning options
-
-[[PassengerSpawnMethod]]
-==== PassengerSpawnMethod <string>
-[TIP]
-."What spawn method should I use?"
-=========================================================
-This subsection attempts to describe spawn methods, but it's okay if you don't (want to)
-understand it, as it's mostly a technical detail. You can basically follow this rule of thumb:
-
-************************************************
-If your application works on Mongrel or Thin, but not on Phusion Passenger, then set
-`PassengerSpawnMethod` to 'direct'. Otherwise, leave it at 'smart' (the default).
-************************************************
-
-However, we do recommend you to try to understand it. The 'smart' spawn
-method bring many benefits.
-=========================================================
-
-include::users_guide_snippets/passenger_spawn_method.txt[]
-
-This option may occur in the following places:
-
- * In the global server configuration.
- * In a virtual host configuration block.
-
-In each place, it may be specified at most once. The default value is 'smart'.
-
-[[PassengerLoadShellEnvvars]]
-==== PassengerLoadShellEnvvars <on|off>
-:version: 4.0.20
-include::users_guide_snippets/since_version.txt[]
-
-Enables or disables the loading of shell environment variables before spawning the application.
-
-If this option is turned on, and the user's shell is `bash`, then applications are loaded by running them with `bash -l -c`. Otherwise, they are loaded by running them directly from the `PassengerHelperAgent` process.
-
-This option may occur in the following places:
-
- * In the global server configuration.
- * In a virtual host configuration block.
- * In a `<Directory>` or `<Location>` block.
- * In '.htaccess', if `AllowOverride Options` is on.
-
-In each place, it may be specified at most once. The default value is 'on'.
-
 === Security options ===
 
 [[PassengerUserSwitching]]
@@ -979,11 +1126,13 @@ The default value is the primary group of the user specifified by
 ==== PassengerFriendlyErrorPages <on|off> ====
 Phusion Passenger can display friendly error pages whenever an application fails
 to start. This friendly error page presents the startup error message, some
-suggestions for solving the problem, and a backtrace. This feature is very useful
-during application development and useful for less experienced system administrators,
-but the page might reveal potentially sensitive information, depending on the
-application. Experienced system administrators who are using Phusion Passenger
-on serious production servers should consider turning this feature off.
+suggestions for solving the problem, a backtrace and a dump of the environment variables.
+This feature is very useful during application development and useful for less experienced
+system administrators, but the page might reveal potentially sensitive information,
+depending on the application. For this reason, friendly error pages are turned off by default when
+<<PassengerAppEnv,PassengerAppEnv (and its aliases such as RailsEnv and RackEnv)>>
+is set to 'staging' or 'production', but enabled by default otherwise. You can use
+this option to explicitly enable or disable this feature.
 
 This option may occur in the following places:
 
@@ -992,7 +1141,7 @@ This option may occur in the following places:
  * In a `<Directory>` or `<Location>` block.
  * In '.htaccess', if `AllowOverride Options` is on.
 
-In each place, it may be specified at most once. The default value is 'on'.
+In each place, it may be specified at most once. The default value depends on <<PassengerAppEnv,PassengerAppEnv (and its aliases such as RailsEnv and RackEnv)>>, as documented above.
 
 
 === Resource control and optimization options ===
@@ -1168,19 +1317,19 @@ The default value is '300'.
 
 [[PassengerMaxPreloaderIdleTime]]
 ==== PassengerMaxPreloaderIdleTime <integer> ====
-The ApplicationSpawner server (explained in <<spawning_methods_explained,Spawning
+The preloader process(explained in <<spawning_methods_explained,Spawning
 methods explained>>) has an idle timeout, just like the backend processes spawned by
 Phusion Passenger do. That is, it will automatically shutdown if it hasn't done
 anything for a given period.
 
-This option allows you to set the ApplicationSpawner server's idle timeout, in
+This option allows you to set the preloader's idle timeout, in
 seconds. A value of '0' means that it should never idle timeout.
 
-Setting a higher value will mean that the ApplicationSpawner server is kept around
+Setting a higher value will mean that the preloader is kept around
 longer, which may slightly increase memory usage. But as long as the
-ApplicationSpawner server is running, the time to spawn a Ruby on Rails backend
+preloader server is running, the time to spawn a Ruby on Rails backend
 process only takes about 10% of the time that is normally needed, assuming that
-you're using the 'smart' or 'smart-lv2' <<PassengerSpawnMethod,spawning method>>. So if your
+you're using the 'smart' <<PassengerSpawnMethod,spawning method>>. So if your
 system has enough memory, is it recommended that you set this option to a high
 value or to '0'.
 
@@ -1477,6 +1626,8 @@ Suppose that you have a web application deployed in a sub-URI '/store', like thi
     <Directory /websites/store/public>
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
 </VirtualHost>
 ---------------------------
@@ -1497,6 +1648,8 @@ like this:
     <Directory /websites/store/public>
         Allow from all
         Options -MultiViews
+        # Uncomment this if you're on Apache >= 2.4:
+        #Require all granted
     </Directory>
 </VirtualHost>
 
@@ -1515,7 +1668,7 @@ PassengerPreStart http://myblog.com/    # <----- WRONG! Missing "/store" part.
 Application processes started with PassengerPreStart are
 also subject to the idle timeout rules as specified by
 <<PassengerPoolIdleTime,PassengerPoolIdleTime>>! That means that by default,
-the pre-started application processes for foo.com are bar.com are shut down
+the pre-started application processes for foo.com and bar.com are shut down
 after a few minutes of inactivity. If you don't want that to happen, then
 you should combine PassengerPreStart with
 <<PassengerMinInstances,PassengerMinInstances>>, like this:
@@ -1836,6 +1989,53 @@ This option may occur in the following places:
 
 In each place, it may be specified at most once. The default value is '100'.
 
+[[PassengerStickySessions]]
+==== PassengerStickySessions <on|off>
+:version: 4.0.45
+include::users_guide_snippets/since_version.txt[]
+
+When sticky sessions are enabled, all requests that a client sends will be routed to the same originating application process, whenever possible. When sticky sessions are disabled, requests may be distributed over multiple processes, and may not necessarily be routed to the originating process, in order to balance traffic over multiple CPU cores. Because of this, sticky sessions should only be enabled in specific circumstances.
+
+For applications that store important state inside the process's own memory -- that is, as opposed to storing state in a distributed data store, such as the database or Redis -- sticky sessions *should* be enabled. This is because otherwise, some requests could be routed to a different process, which stores different state data. Because processes don't share memory with each other, there's no way for one process to know about the state in another process, and then things can go wrong.
+
+One prominent example is the popular link:http://sockjs.org/[SockJS library], which is capable of emulating WebSockets through long polling. This is implemented through two HTTP endpoints, `/SESSION_ID/xhr_stream` (a long polling end point which sends data from the server to the client), and `/SESSION_ID/xhr_send` (a normal POST endpoint which is used for sending data from the client to the server). SockJS correlates the two requests with each other through a session identifier. At the same time, in its default configuration, it stores all known session identifiers in an in-memory data structure. It is therefore important that a particular `/SESSION_ID/xhr_send` request is sent to the same process where the corresponding `/SESSION_ID/xhr_stream` request originates from; otherwise, SockJS cannot correlate the two requests, and an error occurs.
+
+So prominent examples where sticky sessions should (or even *must*) be enabled, include:
+
+ * Applications that use the SockJS library (unless configured with a distributed data store)
+ * Applications that use the Socket.io library (unless configured with a distributed data store)
+ * Applications that use the faye-websocket gem (unless configured with a distributed data store)
+ * Meteor JS applications (because Meteor uses SockJS)
+
+Sticky sessions work through the use of a special cookie, whose name can be customized with <<PassengerStickySessionsCookieName,PassengerStickySessionsCookieName>>. Phusion Passenger puts an identifier in this cookie, which tells Phusion Passenger what the originating process is. Next time the client sends a request, Phusion Passenger reads this cookie and uses the value in the cookie to route the request back to the originating process. If the originating process no longer exists (e.g. because it has crashed or restarted) then Phusion Passenger will route the request to some other process, and reset the cookie.
+
+If you have a load balancer in front end of Phusion Passenger + Apache, then you must configure sticky sessions on that load balancer too. Otherwise, the load balancer could route the request to a different server.
+
+This option may occur in the following places:
+
+ * In the global server configuration.
+ * In a virtual host configuration block.
+ * In a `<Directory>` or `<Location>` block.
+ * In '.htaccess'.
+
+In each place, it may be specified at most once. The default value is `off`.
+
+[[PassengerStickySessionsCookieName]]
+==== PassengerStickySessionsCookieName
+:version: 4.0.45
+include::users_guide_snippets/since_version.txt[]
+
+Sets the name of the <<PassengerStickySessions,sticky sessions>> cookie.
+
+This option may occur in the following places:
+
+ * In the global server configuration.
+ * In a virtual host configuration block.
+ * In a `<Directory>` or `<Location>` block.
+ * In '.htaccess'.
+
+In each place, it may be specified at most once. The default value is `passenger_route`.
+
 
 === Compatibility options ===
 
@@ -2099,6 +2299,9 @@ assets correctly:
    AllowOverride None
    Order allow,deny
    Allow from all
+   Options -MultiViews
+   # Uncomment this if you're on Apache >= 2.4:
+   #Require all granted
 </Directory>
 -----------------------------------------
 +

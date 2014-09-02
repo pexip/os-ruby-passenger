@@ -36,7 +36,7 @@
 #define DEFAULT_BACKEND_ACCOUNT_RIGHTS Account::DETACH
 
 
-	#define APACHE2_DOC_URL "http://www.modrails.com/documentation/Users%20guide%20Apache.html"
+	#define APACHE2_DOC_URL "https://www.phusionpassenger.com/documentation/Users%20guide%20Apache.html"
 
 	#define DEB_APACHE_MODULE_PACKAGE "libapache2-mod-passenger"
 
@@ -68,6 +68,8 @@
 
 	#define DEFAULT_START_TIMEOUT 90000
 
+	#define DEFAULT_STICKY_SESSIONS_COOKIE_NAME "_passenger_route"
+
 	#define DEFAULT_THREAD_COUNT 1
 
 	#define DEFAULT_UNION_STATION_GATEWAY_ADDRESS "gateway.unionstationapp.com"
@@ -76,19 +78,19 @@
 
 	#define DEFAULT_WEB_APP_USER "nobody"
 
-	#define ENTERPRISE_URL "http://www.phusionpassenger.com/enterprise"
+	#define ENTERPRISE_URL "https://www.phusionpassenger.com/enterprise"
 
 	#define FEEDBACK_FD 3
 
-	#define INDEX_DOC_URL "http://www.modrails.com/documentation/Users%20guide.html"
+	#define INDEX_DOC_URL "https://www.phusionpassenger.com/documentation/Users%20guide.html"
 
 	#define MESSAGE_SERVER_MAX_PASSWORD_SIZE 100
 
 	#define MESSAGE_SERVER_MAX_USERNAME_SIZE 100
 
-	#define NGINX_DOC_URL "http://www.modrails.com/documentation/Users%20guide%20Nginx.html"
+	#define NGINX_DOC_URL "https://www.phusionpassenger.com/documentation/Users%20guide%20Nginx.html"
 
-	#define PASSENGER_VERSION "4.0.37"
+	#define PASSENGER_VERSION "4.0.49"
 
 	#define POOL_HELPER_THREAD_STACK_SIZE 262144
 
@@ -114,11 +116,11 @@
 
 	#define SERVER_INSTANCE_DIR_STRUCTURE_MINOR_VERSION 0
 
-	#define STANDALONE_DOC_URL "http://www.modrails.com/documentation/Users%20guide%20Standalone.html"
+	#define STANDALONE_DOC_URL "https://www.phusionpassenger.com/documentation/Users%20guide%20Standalone.html"
 
 	#define STANDALONE_NGINX_CONFIGURE_OPTIONS "--with-cc-opt='-Wno-error' --without-http_fastcgi_module --without-http_scgi_module --without-http_uwsgi_module --with-http_gzip_static_module --with-http_stub_status_module --with-http_ssl_module"
 
-	#define SUPPORT_URL "http://www.phusionpassenger.com/support"
+	#define SUPPORT_URL "https://www.phusionpassenger.com/documentation_and_support"
 
 
 #endif /* _PASSENGER_CONSTANTS_H */

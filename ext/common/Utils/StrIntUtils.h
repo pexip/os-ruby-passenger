@@ -145,6 +145,41 @@ string replaceAll(const string &str, const string &toFind, const string &replace
 string strip(const StaticString &str);
 
 /**
+ * Given a pointer to a NULL-terminated string, update it to a
+ * position where all leading whitespaces (0x20) have been skipped.
+ */
+inline void
+skipLeadingWhitespaces(const char **data) {
+	while (**data == ' ') {
+		(*data)++;
+	}
+}
+
+/**
+ * Given a pointer to a string and its end, update the begin pointer to a
+ * position where all leading whitespaces (0x20) have been skipped.
+ * The pointer will not be moved past `end`.
+ */
+inline void
+skipLeadingWhitespaces(const char **data, const char *end) {
+	while (*data < end && **data == ' ') {
+		(*data)++;
+	}
+}
+
+/**
+ * Given a string and a pointer to its position within it, update the pointer
+ * to a position where all trailing whitespaces (0x20) have been skipped.
+ * The pointer will not be moved before `begin`.
+ */
+inline void
+skipTrailingWhitespaces(const char *begin, const char **pos) {
+	while (*pos > begin && (*pos)[-1] == ' ') {
+		(*pos)--;
+	}
+}
+
+/**
  * Convert anything to a string.
  */
 template<typename T> string
@@ -210,7 +245,7 @@ reverseString(char *str, unsigned int size) {
  * Convert the given integer to some other radix, placing
  * the result into the given output buffer. The output buffer
  * will be NULL terminated. Supported radices are 2-36.
- * 
+ *
  * @param outputSize The size of the output buffer, including space for
  *                   the terminating NULL.
  * @return The size of the created string, excluding
@@ -228,13 +263,13 @@ integerToOtherBase(IntegerType value, char *output, unsigned int outputSize) {
 	};
 	IntegerType remainder = value;
 	unsigned int size = 0;
-	
+
 	do {
 		output[size] = chars[remainder % radix];
 		remainder = remainder / radix;
 		size++;
 	} while (remainder != 0 && size < outputSize - 1);
-	
+
 	if (remainder == 0) {
 		reverseString(output, size);
 		output[size] = '\0';

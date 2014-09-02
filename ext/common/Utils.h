@@ -65,8 +65,6 @@ typedef enum {
 	FT_REGULAR,
 	/** A directory. */
 	FT_DIRECTORY,
-	/** A symlink. Only returned by getFileTypeNoFollowSymlinks(), not by getFileType(). */
-	FT_SYMLINK,
 	/** Something else, e.g. a pipe or a socket. */
 	FT_OTHER
 } FileType;
@@ -123,10 +121,6 @@ bool fileExists(const StaticString &filename, CachedFileStat *cstat = 0,
  */
 FileType getFileType(const StaticString &filename, CachedFileStat *cstat = 0,
                      unsigned int throttleRate = 0);
-/**
- * Like getFileType(), but does not follow symlinks.
- */
-FileType getFileTypeNoFollowSymlinks(const StaticString &filename);
 
 /**
  * Create the given file with the given contents, permissions and ownership.
@@ -207,7 +201,7 @@ string extractBaseName(const StaticString &path);
  * @throws std::bad_alloc Something went wrong.
  * @ingroup Support
  */
-string escapeForXml(const string &input);
+string escapeForXml(const StaticString &input);
 
 /**
  * Returns the username of the user that the current process is running as.
@@ -392,6 +386,14 @@ void disableMallocDebugging();
 int runShellCommand(const StaticString &command);
 
 /**
+ * Run a command and capture its stdout output.
+ *
+ * @param command The argument to pass to execvp();
+ * @throws SystemException.
+ */
+string runCommandAndCaptureOutput(const char **command);
+
+/**
  * Async-signal safe way to fork().
  *
  * On Linux, the fork() glibc wrapper grabs a ptmalloc lock, so
@@ -401,15 +403,28 @@ int runShellCommand(const StaticString &command);
  * OS X apparently does something similar, except they use a
  * spinlock so it results in 100% CPU. See _cthread_fork_prepare()
  * at http://www.opensource.apple.com/source/Libc/Libc-166/threads.subproj/cthreads.c
+ * However, since POSIX in OS X is implemented on top of a Mach layer,
+ * calling asyncFork() can mess up the state of the Mach layer, causing
+ * some POSIX functions to mysteriously fail. See
+ * https://code.google.com/p/phusion-passenger/issues/detail?id=1094
+ * You should therefore not use asyncFork() unless you're in a signal
+ * handler.
  */
 pid_t asyncFork();
 
 /**
  * Close all file descriptors that are higher than <em>lastToKeepOpen</em>.
- * This function is async-signal safe. But make sure there are no other
- * threads running that might open file descriptors!
+ *
+ * If you set `asyncSignalSafe` to true, then this function becomes fully async-signal,
+ * through the use of asyncFork() instead of fork(). However, read the documentation
+ * for asyncFork() to learn about its caveats.
+ *
+ * Also, regardless of whether `asyncSignalSafe` is true or not, this function is not
+ * *thread* safe. Make sure there are no other threads running that might open file
+ * descriptors, otherwise some file descriptors might not be closed even though they
+ * should be.
  */
-void closeAllFileDescriptors(int lastToKeepOpen);
+void closeAllFileDescriptors(int lastToKeepOpen, bool asyncSignalSafe = false);
 
 /**
  * A no-op, but usually set as a breakpoint in gdb. See CONTRIBUTING.md.
@@ -426,7 +441,7 @@ class BufferedUpload {
 public:
 	/** The file handle. */
 	FILE *handle;
-	
+
 	/**
 	 * Create an empty upload bufer file, and open it for reading and writing.
 	 *
@@ -435,19 +450,19 @@ public:
 	BufferedUpload(const string &dir, const char *identifier = "temp") {
 		char templ[PATH_MAX];
 		int fd;
-		
+
 		snprintf(templ, sizeof(templ), "%s/%s.XXXXXX", dir.c_str(), identifier);
 		templ[sizeof(templ) - 1] = '\0';
 		fd = lfs_mkstemp(templ);
 		if (fd == -1) {
 			char message[1024];
 			int e = errno;
-			
+
 			snprintf(message, sizeof(message), "Cannot create a temporary file '%s'", templ);
 			message[sizeof(message) - 1] = '\0';
 			throw SystemException(message, e);
 		}
-		
+
 		/* We use a POSIX trick here: the file's permissions are set to "u=,g=,o="
 		 * and the file is deleted immediately from the filesystem, while we
 		 * keep its file handle open. The result is that no other processes
@@ -456,10 +471,10 @@ public:
 		 */
 		fchmod(fd, 0000);
 		unlink(templ);
-		
+
 		handle = fdopen(fd, "w+");
 	}
-	
+
 	~BufferedUpload() {
 		fclose(handle);
 	}

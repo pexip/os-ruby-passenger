@@ -31,7 +31,7 @@ module Packaging
 		'doc/Users guide Nginx.html',
 		'doc/Users guide Standalone.html',
 		'doc/Security of user switching support.html',
-		'doc/Architectural overview.html'
+		'doc/Design and Architecture.html'
 	]
 
 	# Files that must be generated before packaging.
@@ -68,14 +68,19 @@ module Packaging
 	GLOB = [
 		'.gitignore',
 		'.travis.yml',
+		'.editorconfig',
 		'configure',
 		'Rakefile',
+		'Vagrantfile',
 		'README.md',
 		'CONTRIBUTORS',
 		'CONTRIBUTING.md',
 		'LICENSE',
+		'CHANGELOG',
 		'INSTALL.md',
 		'NEWS',
+		'package.json',
+		'npm-shrinkwrap.json',
 		'passenger.gemspec',
 		'build/*.rb',
 		'lib/*.rb',
@@ -86,7 +91,7 @@ module Packaging
 		'doc/**/*',
 		'man/*',
 		'debian.template/**/*',
-		'rpm/**/*',
+		'packaging/**/*',
 		'helper-scripts/**/*',
 		'ext/common/**/*.{cpp,c,h,hpp,md,erb}',
 		'ext/apache2/*.{cpp,h,hpp,c,erb}',
@@ -106,12 +111,13 @@ module Packaging
 		'ext/oxt/*.txt',
 		'ext/oxt/detail/*.hpp',
 		'ext/ruby/*.{c,rb}',
-		'dev/*',
+		'dev/**/*',
 		'resources/**/*',
 		'test/.rspec',
 		'test/*.example',
 		'test/*.travis',
 		'test/*.rpm-automation',
+		'test/*.vagrant',
 		'test/*.supp',
 		'test/support/*.{c,cpp,h,rb}',
 		'test/tut/*',
@@ -125,6 +131,8 @@ module Packaging
 	]
 	
 	EXCLUDE_GLOB = [
+		'**/.DS_Store',
+		'packaging/*/.git',
 		'test/stub/rails_apps/3.0/empty/help/**/*',
 		'test/stub/*.dSYM'
 	]
@@ -132,15 +140,19 @@ module Packaging
 	# Files that should be excluded from the Debian tarball.
 	DEBIAN_EXCLUDE_GLOB = [
 		"debian.template/**/*",
+		"packaging/**/*",
 	]
 
 	# Files and directories that should be excluded from the Homebrew installation.
 	HOMEBREW_EXCLUDE = [
-		"dev", "test", ".gitignore", ".travis.yml", "debian.template", "rpm"
+		".gitignore", ".gitmodules", ".travis.yml", "package.json", "Vagrantfile",
+		"npm-shrinkwrap.json", "debian.template", "packaging", "dev", "test"
 	]
 
 	def self.files
-		return Dir[*GLOB] - Dir[*EXCLUDE_GLOB]
+		result = Dir[*GLOB] - Dir[*EXCLUDE_GLOB]
+		result.reject! { |path| path =~ %r{/\.\.?$} }
+		return result
 	end
 
 	def self.debian_orig_tarball_files

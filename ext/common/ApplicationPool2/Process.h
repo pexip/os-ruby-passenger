@@ -41,7 +41,6 @@
 #include <ApplicationPool2/PipeWatcher.h>
 #include <Constants.h>
 #include <FileDescriptor.h>
-#include <SafeLibev.h>
 #include <Logging.h>
 #include <Utils/PriorityQueue.h>
 #include <Utils/SystemTime.h>
@@ -70,11 +69,11 @@ public:
 			return *it;
 		}
 	}
-	
+
 	ProcessPtr &operator[](unsigned int index) {
 		return get(index);
 	}
-	
+
 	iterator last_iterator() {
 		if (empty()) {
 			return end();
@@ -129,7 +128,7 @@ class Process: public boost::enable_shared_from_this<Process> {
 // Actually private, but marked public so that unit tests can access the fields.
 public:
 	friend class Group;
-	
+
 	/** A mutex to protect access to `lifeStatus`. */
 	mutable boost::mutex lifetimeSyncher;
 
@@ -138,11 +137,11 @@ public:
 	 * Read-only; only set once during initialization.
 	 */
 	boost::weak_ptr<Group> group;
-	
+
 	/** A subset of 'sockets': all sockets that speak the
 	 * "session" protocol, sorted by socket.busyness(). */
 	PriorityQueue<Socket> sessionSockets;
-	
+
 	/** The iterator inside the associated Group's process list. */
 	ProcessList::iterator it;
 	/** The handle inside the associated Group's process priority queue. */
@@ -202,15 +201,13 @@ public:
 			concurrency = 0;
 		}
 	}
-	
+
 public:
 	/*************************************************************
 	 * Read-only fields, set once during initialization and never
 	 * written to again. Reading is thread-safe.
 	 *************************************************************/
-	
-	/** The libev event loop to use. */
-	SafeLibev * const libev;
+
 	/** Process PID. */
 	pid_t pid;
 	/** An ID that uniquely identifies this Process in the Group, for
@@ -224,6 +221,11 @@ public:
 	FileDescriptor adminSocket;
 	/** The sockets that this Process listens on for connections. */
 	SocketListPtr sockets;
+	/** The code revision of the application, inferred through various means.
+	 * See Spawner::prepareSpawn() to learn how this is determined.
+	 * May be an empty string.
+	 */
+	string codeRevision;
 	/** Time at which the Spawner that created this process was created.
 	 * Microseconds resolution. */
 	unsigned long long spawnerCreationTime;
@@ -243,13 +245,13 @@ public:
 	 * processes are never added to Group.enabledProcesses.
 	 */
 	bool requiresShutdown;
-	
+
 	/*************************************************************
 	 * Information used by Pool. Do not write to these from
 	 * outside the Pool. If you read these make sure the Pool
 	 * isn't concurrently modifying.
 	 *************************************************************/
-	
+
 	/** Time at which we finished spawning this process, i.e. when this
 	 * process was finished initializing. Microseconds resolution.
 	 */
@@ -317,9 +319,8 @@ public:
 	time_t shutdownStartTime;
 	/** Collected by Pool::collectAnalytics(). */
 	ProcessMetrics metrics;
-	
-	Process(const SafeLibevPtr _libev,
-		pid_t _pid,
+
+	Process(pid_t _pid,
 		const string &_gupid,
 		const string &_connectPassword,
 		const FileDescriptor &_adminSocket,
@@ -330,10 +331,8 @@ public:
 		const FileDescriptor &_errorPipe,
 		const SocketListPtr &_sockets,
 		unsigned long long _spawnerCreationTime,
-		unsigned long long _spawnStartTime,
-		const SpawnerConfigPtr &_config = SpawnerConfigPtr())
+		unsigned long long _spawnStartTime)
 		: pqHandle(NULL),
-		  libev(_libev.get()),
 		  pid(_pid),
 		  stickySessionId(0),
 		  gupid(_gupid),
@@ -354,13 +353,6 @@ public:
 		  longRunningConnectionsAborted(false),
 		  shutdownStartTime(0)
 	{
-		SpawnerConfigPtr config;
-		if (_config == NULL) {
-			config = boost::make_shared<SpawnerConfig>();
-		} else {
-			config = _config;
-		}
-
 		if (_adminSocket != -1) {
 			PipeWatcherPtr watcher = boost::make_shared<PipeWatcher>(_adminSocket,
 				"stdout", pid);
@@ -373,15 +365,15 @@ public:
 			watcher->initialize();
 			watcher->start();
 		}
-		
+
 		if (OXT_LIKELY(sockets != NULL)) {
 			indexSessionSockets();
 		}
-		
+
 		lastUsed      = SystemTime::getUsec();
 		spawnEndTime  = lastUsed;
 	}
-	
+
 	~Process() {
 		if (OXT_UNLIKELY(!isDead() && requiresShutdown)) {
 			P_BUG("You must call Process::triggerShutdown() and Process::cleanup() before actually "
@@ -408,7 +400,7 @@ public:
 		assert(!isDead());
 		return group.lock();
 	}
-	
+
 	void setGroup(const GroupPtr &group) {
 		assert(this->group.lock() == NULL || this->group.lock() == group);
 		this->group = group;
@@ -544,7 +536,7 @@ public:
 			return 0;
 		}
 	}
-	
+
 	int busyness() const {
 		/* Different processes within a Group may have different
 		 * 'concurrency' values. We want:
@@ -565,7 +557,7 @@ public:
 			return (int) (((long long) sessions * INT_MAX) / (double) concurrency);
 		}
 	}
-	
+
 	/**
 	 * Whether we've reached the maximum number of concurrent sessions for this
 	 * process.
@@ -582,7 +574,7 @@ public:
 	bool canBeRoutedTo() const {
 		return !isTotallyBusy();
 	}
-	
+
 	/**
 	 * Create a new communication session with this process. This will connect to one
 	 * of the session sockets or reuse an existing connection. See Session for
@@ -604,13 +596,13 @@ public:
 			return boost::make_shared<Session>(shared_from_this(), socket);
 		}
 	}
-	
+
 	void sessionClosed(Session *session) {
 		Socket *socket = session->getSocket();
-		
+
 		assert(socket->sessions > 0);
 		assert(sessions > 0);
-		
+
 		socket->sessions--;
 		this->sessions--;
 		processed++;
@@ -641,7 +633,11 @@ public:
 		stream << "<spawn_start_time>" << spawnStartTime << "</spawn_start_time>";
 		stream << "<spawn_end_time>" << spawnEndTime << "</spawn_end_time>";
 		stream << "<last_used>" << lastUsed << "</last_used>";
+		stream << "<last_used_desc>" << distanceOfTimeInWords(lastUsed / 1000000).c_str() << " ago</last_used_desc>";
 		stream << "<uptime>" << uptime() << "</uptime>";
+		if (!codeRevision.empty()) {
+			stream << "<code_revision>" << escapeForXml(codeRevision) << "</code_revision>";
+		}
 		switch (lifeStatus) {
 		case ALIVE:
 			stream << "<life_status>ALIVE</life_status>";
