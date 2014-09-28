@@ -1,0 +1,40 @@
+#!/bin/sh
+
+set -e
+
+cat > /etc/apache2/conf-enabled/passenger-wsgi-py2.conf <<EOT
+Alias /testwsgi /var/www/testwsgi-py2/public
+<Location /testwsgi-py2>
+  PassengerBaseURI /testwsgi-py2
+  PassengerAppRoot /var/www/testwsgi-py2
+</Location>
+EOT
+
+mkdir /var/www/testwsgi-py2
+mkdir /var/www/testwsgi-py2/public
+mkdir /var/www/testwsgi-py2/tmp
+cat > /var/www/testwsgi-py2/passenger_wsgi.py <<EOT
+def application(environ, start_response):
+    start_response('200 OK', [('Content-Type', 'text/plain')])
+    return [b"hello world\n"]
+EOT
+chown -R www-data:www-data /var/www/testwsgi-py2
+
+a2enmod passenger
+service apache2 reload
+
+if ! output=`wget -O- http://localhost/testwsgi-py2/ 2>/dev/null`; then
+  echo "wget failed, output was:"
+  echo "$output"
+  echo
+  echo "Retest:"
+  wget -O- http://localhost/testwsgi-py2/
+  exit 1
+else
+  if [ "$output" != "hello world" ]; then
+    echo "output is wrong"
+    echo "got:      | $output |"
+    echo "expected: | hello world |"
+    exit 1
+  fi
+fi

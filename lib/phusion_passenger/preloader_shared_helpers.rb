@@ -1,6 +1,6 @@
 # encoding: binary
 #  Phusion Passenger - https://www.phusionpassenger.com/
-#  Copyright (c) 2011, 2012 Phusion
+#  Copyright (c) 2011-2014 Phusion
 #
 #  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
 #
@@ -23,6 +23,8 @@
 #  THE SOFTWARE.
 
 require 'socket'
+require 'tmpdir'
+PhusionPassenger.require_passenger_lib 'utils'
 PhusionPassenger.require_passenger_lib 'native_support'
 
 module PhusionPassenger
@@ -44,7 +46,7 @@ module PreloaderSharedHelpers
 		end
 		return options
 	end
-	
+
 	def accept_and_process_next_client(server_socket)
 		original_pid = Process.pid
 		client = server_socket.accept
@@ -60,10 +62,10 @@ module PreloaderSharedHelpers
 			while client.readline != "\n"
 				# Do nothing.
 			end
-			
+
 			# Improve copy-on-write friendliness.
 			GC.start
-			
+
 			pid = fork
 			if pid.nil?
 				$0 = "#{$0} (forking...)"
@@ -91,15 +93,35 @@ module PreloaderSharedHelpers
 			end
 		end
 	end
-	
+
 	def run_main_loop(options)
 		$0 = "Passenger AppPreloader: #{options['app_root']}"
 		client = nil
 		original_pid = Process.pid
-		socket_filename = "#{options['generation_dir']}/backends/preloader.#{Process.pid}"
-		server = UNIXServer.new(socket_filename)
+
+		if defined?(NativeSupport)
+			unix_path_max = NativeSupport::UNIX_PATH_MAX
+		else
+			unix_path_max = options.fetch('UNIX_PATH_MAX', 100).to_i
+		end
+		if options['generation_dir']
+			socket_dir = "#{options['generation_dir']}/backends"
+			socket_prefix = "preloader"
+		else
+			socket_dir = Dir.tmpdir
+			socket_prefix = "PsgPreloader"
+		end
+
+		socket_filename = nil
+		server = nil
+		Utils.retry_at_most(128, Errno::EADDRINUSE) do
+			socket_filename = "#{socket_dir}/#{socket_prefix}.#{rand(0xFFFFFFFF).to_s(36)}"
+			socket_filename = socket_filename.slice(0, unix_path_max - 10)
+			server = UNIXServer.new(socket_filename)
+		end
 		server.close_on_exec!
-		
+		File.chmod(0600, socket_filename)
+
 		# Update the dump information just before telling the preloader that we're
 		# ready because the HelperAgent will read and memorize this information.
 		LoaderSharedHelpers.dump_all_information
@@ -107,7 +129,7 @@ module PreloaderSharedHelpers
 		puts "!> Ready"
 		puts "!> socket: unix:#{socket_filename}"
 		puts "!> "
-		
+
 		while true
 			# We call ::select just in case someone overwrites the global select()
 			# function by including ActionView::Helpers in the wrong place.

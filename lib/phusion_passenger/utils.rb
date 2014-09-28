@@ -27,7 +27,7 @@ module PhusionPassenger
 # Utility functions.
 module Utils
 	extend self    # Make methods available as class methods.
-	
+
 	def self.included(klass)
 		# When included into another class, make sure that Utils
 		# methods are made private.
@@ -35,7 +35,7 @@ module Utils
 			klass.send(:private, method_name)
 		end
 	end
-	
+
 	# Generate a long, cryptographically secure random ID string, which
 	# is also a valid filename.
 	def generate_random_id(method)
@@ -56,7 +56,19 @@ module Utils
 			raise ArgumentError, "Invalid method #{method.inspect}"
 		end
 	end
-	
+
+	def retry_at_most(n, *exceptions)
+		n.times do |i|
+			begin
+				return yield
+			rescue *exceptions
+				if i == n - 1
+					raise
+				end
+			end
+		end
+	end
+
 	def home_dir
 		Etc.getpwuid(Process.uid).dir
 	end
@@ -77,7 +89,7 @@ module Utils
 			end
 		end
 	end
-	
+
 	def get_socket_address_type(address)
 		if address =~ %r{^unix:.}
 			return :unix
@@ -87,7 +99,7 @@ module Utils
 			return :unknown
 		end
 	end
-	
+
 	def connect_to_server(address)
 		case get_socket_address_type(address)
 		when :unix
@@ -100,7 +112,7 @@ module Utils
 			raise ArgumentError, "Unknown socket address type for '#{address}'."
 		end
 	end
-	
+
 	def local_socket_address?(address)
 		case get_socket_address_type(address)
 		when :unix
@@ -112,7 +124,7 @@ module Utils
 			raise ArgumentError, "Unknown socket address type for '#{address}'."
 		end
 	end
-	
+
 	# Checks whether the given process exists.
 	def process_is_alive?(pid)
 		begin
@@ -138,7 +150,7 @@ module Utils
 			object.instance_variable_set("@#{key}", options[key])
 		end
 	end
-	
+
 	# Returns a string which reports the backtraces for all threads,
 	# or if that's not supported the backtrace for the current thread.
 	def global_backtrace_report
@@ -178,7 +190,7 @@ module Utils
 		end
 		return output
 	end
-	
+
 	####################################
 end
 

@@ -797,7 +797,8 @@ install: function(toclevels) {
 }
 asciidoc.install();
 /*]]>*/
-</script><style type="text/css">
+</script>
+<style type="text/css">
 body {
 	margin: 1em auto 1em auto;
 	padding: 0 1em 0 1em;
@@ -1069,7 +1070,8 @@ pre {
 <div class="sectionbody">
 <div class="paragraph"><p><span class="image">
 <a class="image" href="http://www.phusion.nl/">
-<img src="images/phusion_banner.png" alt="images/phusion_banner.png"></a>
+<img src="images/phusion_banner.png" alt="images/phusion_banner.png">
+</a>
 </span></p></div>
 <div class="paragraph"><p>Phusion Passenger is an application server which can directly integrate into Nginx. It is designed to be easy to use, fast, stable and reliable and is used by <a href="http://trends.builtwith.com/Web-Server/Phusion-Passenger">hundreds of thousands of websites</a> all over the world.</p></div>
 <div class="paragraph"><p>Phusion Passenger is a so-called polyglot application server because it supports applications written in multiple programming languages. At this time, Ruby and Python are supported.</p></div>
@@ -1211,10 +1213,11 @@ using the command line.</p></div>
 <div class="foo toclevel4"><a href="#_passenger_ignore_client_abort_lt_on_off_gt">8.6.6. passenger_ignore_client_abort &lt;on|off&gt;</a></div>
 <div class="foo toclevel4"><a href="#passenger_intercept_errors">8.6.7. passenger_intercept_errors &lt;on|off&gt;</a></div>
 <div class="foo toclevel4"><a href="#_passenger_pass_header_lt_header_name_gt">8.6.8. passenger_pass_header &lt;header name&gt;</a></div>
-<div class="foo toclevel4"><a href="#_passenger_buffer_response_lt_on_off_gt">8.6.9. passenger_buffer_response &lt;on|off&gt;</a></div>
-<div class="foo toclevel4"><a href="#_passenger_buffer_size">8.6.10. passenger_buffer_size</a></div>
-<div class="foo toclevel4"><a href="#_passenger_buffers">8.6.11. passenger_buffers</a></div>
-<div class="foo toclevel4"><a href="#_passenger_busy_buffer_size">8.6.12. passenger_busy_buffer_size</a></div>
+<div class="foo toclevel4"><a href="#_passenger_ignore_headers_lt_header_names_8230_gt">8.6.9. passenger_ignore_headers &lt;header names…&gt;</a></div>
+<div class="foo toclevel4"><a href="#_passenger_buffer_response_lt_on_off_gt">8.6.10. passenger_buffer_response &lt;on|off&gt;</a></div>
+<div class="foo toclevel4"><a href="#_passenger_buffer_size">8.6.11. passenger_buffer_size</a></div>
+<div class="foo toclevel4"><a href="#_passenger_buffers">8.6.12. passenger_buffers</a></div>
+<div class="foo toclevel4"><a href="#_passenger_busy_buffer_size">8.6.13. passenger_busy_buffer_size</a></div>
 <div class="foo toclevel3"><a href="#_logging_and_debugging_options">8.7. Logging and debugging options</a></div>
 <div class="foo toclevel4"><a href="#PassengerLogLevel">8.7.1. passenger_log_level &lt;integer&gt;</a></div>
 <div class="foo toclevel4"><a href="#_passenger_debug_log_file_lt_filename_gt">8.7.2. passenger_debug_log_file &lt;filename&gt;</a></div>
@@ -1316,10 +1319,12 @@ width:100%;
 ">
 <col style="width:50%;">
 <col style="width:50%;">
-<thead><tr>
+<thead>
+<tr>
 <th class="tableblock halign-left valign-top"> OS                  </th>
 <th class="tableblock halign-left valign-top"> Minimum version</th>
-</tr></thead>
+</tr>
+</thead>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ubuntu</p></td>
@@ -1362,10 +1367,12 @@ width:100%;
 ">
 <col style="width:50%;">
 <col style="width:50%;">
-<thead><tr>
+<thead>
+<tr>
 <th class="tableblock halign-left valign-top"> Architecture      </th>
 <th class="tableblock halign-left valign-top"> Notes</th>
-</tr></thead>
+</tr>
+</thead>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">x86 (32-bit)</p></td>
@@ -1387,10 +1394,12 @@ width:100%;
 ">
 <col style="width:50%;">
 <col style="width:50%;">
-<thead><tr>
+<thead>
+<tr>
 <th class="tableblock halign-left valign-top"> Language/framework  </th>
 <th class="tableblock halign-left valign-top"> Minimum version</th>
-</tr></thead>
+</tr>
+</thead>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ruby (MRI)</p></td>
@@ -2007,11 +2016,13 @@ width:100%;
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Debian, Ubuntu</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><span class="monospaced">sudo apt-get update</span><br><span class="monospaced">sudo apt-get install ruby rake</span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><span class="monospaced">sudo apt-get update</span><br>
+<span class="monospaced">sudo apt-get install ruby rake</span></p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Red Hat, CentOS, ScientificLinux, Amazon Linux</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Enable <a href="http://fedoraproject.org/wiki/EPEL">EPEL</a>, then run as root:<br><span class="monospaced">yum install ruby rubygem-rake</span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Enable <a href="http://fedoraproject.org/wiki/EPEL">EPEL</a>, then run as root:<br>
+<span class="monospaced">yum install ruby rubygem-rake</span></p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Mac OS X</p></td>
@@ -3833,10 +3844,12 @@ width:100%;
 ">
 <col style="width:50%;">
 <col style="width:50%;">
-<thead><tr>
+<thead>
+<tr>
 <th class="tableblock halign-left valign-top"> Language                        </th>
 <th class="tableblock halign-left valign-top"> Phusion Passenger convention</th>
-</tr></thead>
+</tr>
+</thead>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ruby on Rails &gt;= 3.0, Ruby Rack</p></td>
@@ -5466,7 +5479,34 @@ In an <em>if</em> configuration scope.
 </ul></div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passenger_buffer_response_lt_on_off_gt"></span><h4 data-comment-topic="passenger-buffer-response" data-anchor="_passenger_buffer_response_lt_on_off_gt">8.6.9. passenger_buffer_response &lt;on|off&gt;</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passenger_ignore_headers_lt_header_names_8230_gt"></span><h4 data-comment-topic="passenger-ignore-headers-header-names--12zg5oh" data-anchor="_passenger_ignore_headers_lt_header_names_8230_gt">8.6.9. passenger_ignore_headers &lt;header names…&gt;</h4>
+<div class="paragraph"><p>Disables processing of certain response header fields from the application, similar to how <em>proxy_ignore_headers</em> works.</p></div>
+<div class="paragraph"><p>This option may occur in the following places:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+In the <em>http</em> configuration block.
+</p>
+</li>
+<li>
+<p>
+In a <em>server</em> configuration block.
+</p>
+</li>
+<li>
+<p>
+In a <em>location</em> configuration block.
+</p>
+</li>
+<li>
+<p>
+In an <em>if</em> configuration scope.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect3">
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passenger_buffer_response_lt_on_off_gt"></span><h4 data-comment-topic="passenger-buffer-response" data-anchor="_passenger_buffer_response_lt_on_off_gt">8.6.10. passenger_buffer_response &lt;on|off&gt;</h4>
 <div class="paragraph"><p>When turned on, application-generated responses are buffered by Nginx. Buffering will
 happen in memory and also on disk if the response is larger than a certain threshold.</p></div>
 <div class="paragraph"><p>Before we proceed with explaining this configuration option, we want to state the following to avoid confusion. If you use Phusion Passenger for Nginx, there are in fact two response buffering systems active:</p></div>
@@ -5555,13 +5595,13 @@ In an <em>if</em> configuration scope.
 <div class="paragraph"><p>In each place, it may be specified at most once. The default value is <em>off</em>.</p></div>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passenger_buffer_size"></span><h4 data-comment-topic="passenger-buffer-size-1jfkq87" data-anchor="_passenger_buffer_size">8.6.10. passenger_buffer_size</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passenger_buffer_size"></span><h4 data-comment-topic="passenger-buffer-size-1jfkq87" data-anchor="_passenger_buffer_size">8.6.11. passenger_buffer_size</h4>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passenger_buffers"></span><h4 data-comment-topic="passenger-busy-buffers" data-anchor="_passenger_buffers">8.6.11. passenger_buffers</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passenger_buffers"></span><h4 data-comment-topic="passenger-busy-buffers" data-anchor="_passenger_buffers">8.6.12. passenger_buffers</h4>
 </div>
 <div class="sect3">
-<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passenger_busy_buffer_size"></span><h4 data-comment-topic="passenger-busy-buffer-size-124sj61" data-anchor="_passenger_busy_buffer_size">8.6.12. passenger_busy_buffer_size</h4>
+<a href="javascript:void(0)" class="comments empty" title="Add a comment"><span class="count"></span></a><span class="anchor_helper" id="_passenger_busy_buffer_size"></span><h4 data-comment-topic="passenger-busy-buffer-size-124sj61" data-anchor="_passenger_busy_buffer_size">8.6.13. passenger_busy_buffer_size</h4>
 <div class="paragraph"><p>These options have the same effect as proxy_module’s similarly named options.
 They can be used to modify the maximum allowed HTTP header size.</p></div>
 </div>
@@ -7416,12 +7456,14 @@ Phusion Passenger will look for <em>config.ru</em> instead of <em>config/environ
 Attribution-Share Alike 3.0 Unported License</a>.</p></div>
 <div class="paragraph"><p><span class="image">
 <a class="image" href="http://creativecommons.org/licenses/by-sa/3.0/">
-<img src="images/by_sa.png" alt="images/by_sa.png"></a>
+<img src="images/by_sa.png" alt="images/by_sa.png">
+</a>
 </span></p></div>
 <div class="paragraph"><p>Phusion Passenger is brought to you by <a href="http://www.phusion.nl/">Phusion</a>.</p></div>
 <div class="paragraph"><p><span class="image">
 <a class="image" href="http://www.phusion.nl/">
-<img src="images/phusion_banner.png" alt="images/phusion_banner.png"></a>
+<img src="images/phusion_banner.png" alt="images/phusion_banner.png">
+</a>
 </span></p></div>
 <div class="paragraph"><p>Phusion Passenger is a trademark of Hongli Lai &amp; Ninh Bui.</p></div>
 </div>
@@ -7531,7 +7573,9 @@ a full copy of the Rails application and the Rails framework in memory.</p></div
 because each process has its own private copy of the Rails application
 as well as the Rails framework. This wastes memory as well as startup time.</p></div>
 <div class="paragraph"><p><span class="image">
-<img src="images/direct_spawning.png" alt="Application processes and direct spawning"></span><br><em>Figure: Application processes and direct spawning. Each process has its
+<img src="images/direct_spawning.png" alt="Application processes and direct spawning">
+</span><br>
+<em>Figure: Application processes and direct spawning. Each process has its
 own private copy of the application code and Rails framework code.</em></p></div>
 <div class="paragraph"><p>It is possible to make the different processes share the memory occupied
 by application and Rails framework code, by utilizing so-called
@@ -7553,7 +7597,9 @@ Rails application/framework from scratch. On top of that, the OS also applies an
 optimization called <em>copy-on-write</em>. This means that all memory that the child
 process hasn’t modified, is shared with the parent process.</p></div>
 <div class="paragraph"><p><span class="image">
-<img src="images/smart_spawning.png" alt="images/smart_spawning.png"></span><br><em>Figure: Application processes and the smart spawn method. All processes,
+<img src="images/smart_spawning.png" alt="images/smart_spawning.png">
+</span><br>
+<em>Figure: Application processes and the smart spawn method. All processes,
 as well as the preloader, share the same application code and Rails
 framework code.</em></p></div>
 <div class="paragraph"><p>However, Ruby can only leverage this copy-on-write optimization if its garbage

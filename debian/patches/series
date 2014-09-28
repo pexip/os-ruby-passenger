@@ -1,3 +1,4 @@
 fix_install_path.patch
 system_jsoncpp.patch
 bin_load_path.patch
+nodejs_bin_name.patch

@@ -1,3 +1,23 @@
+ruby-passenger (4.0.52-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Improve autopkgtests:
+    - Be more verbose in case of errors.
+    - Test wsgi application with python 2 and 3.
+    - Add dependencies on python and python3.
+  * Exclude Packaging.html from docs.
+
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 28 Sep 2014 23:52:54 +0200
+
+ruby-passenger (4.0.50-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Change default node.js binary name to "nodejs" instead of "node".
+  * Add nodejs to Suggests.
+  * Add autopkgtests for running simple rack, wsgi and nodejs applications.
+
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 31 Aug 2014 16:31:37 +0200
+
 ruby-passenger (4.0.49-1) unstable; urgency=medium
 
   * New upstream release.

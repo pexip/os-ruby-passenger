@@ -1,0 +1,3 @@
+Tests: rack wsgi-py2 wsgi-py3 nodejs
+Restrictions: needs-root
+Depends: libapache2-mod-passenger, wget, apache2, python, python3, nodejs
