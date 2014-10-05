@@ -1,0 +1,43 @@
+#!/bin/sh
+
+set -e
+
+cat > /etc/apache2/conf-enabled/passenger-nodejs.conf <<EOT
+Alias /testnodejs /var/www/testnodejs/public
+<Location /testnodejs>
+  PassengerBaseURI /testnodejs
+  PassengerAppRoot /var/www/testnodejs
+</Location>
+EOT
+
+mkdir /var/www/testnodejs
+mkdir /var/www/testnodejs/public
+mkdir /var/www/testnodejs/tmp
+cat > /var/www/testnodejs/app.js <<EOT
+var http = require('http');
+var server = http.createServer(function(req, res) {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end("hello world\n");
+});
+server.listen(3000);
+EOT
+chown -R www-data:www-data /var/www/testnodejs
+
+a2enmod passenger
+service apache2 reload
+
+if ! output=`wget -O- http://localhost/testnodejs/ 2>/dev/null`; then
+  echo "wget failed, output was:"
+  echo "$output"
+  echo
+  echo "Retest:"
+  wget -O- http://localhost/testnodejs/
+  exit 1
+else
+  if [ "$output" != "hello world" ]; then
+    echo "output is wrong"
+    echo "got:      | $output |"
+    echo "expected: | hello world |"
+    exit 1
+  fi
+fi

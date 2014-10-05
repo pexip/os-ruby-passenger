@@ -28,6 +28,7 @@ override_dh_auto_install:
 		cp -a pkg/fakeroot$$ruby/* debian/tmp/; \
 	done
 	rm -f debian/tmp/usr/share/doc/phusion-passenger/images/._phusion_banner.png
+	rm -f debian/tmp/usr/share/doc/passenger/Packaging.html
 
 override_dh_auto_clean:
 	dh_auto_clean -O--buildsystem=ruby

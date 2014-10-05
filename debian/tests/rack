@@ -1,0 +1,41 @@
+#!/bin/sh
+
+set -e
+
+cat > /etc/apache2/conf-enabled/passenger-rack.conf <<EOT
+Alias /testrack /var/www/testrack/public
+<Location /testrack>
+  PassengerBaseURI /testrack
+  PassengerAppRoot /var/www/testrack
+</Location>
+EOT
+
+mkdir /var/www/testrack
+mkdir /var/www/testrack/public
+mkdir /var/www/testrack/tmp
+cat > /var/www/testrack/config.ru <<EOT
+app = proc do |env|
+    [200, { "Content-Type" => "text/html" }, ["hello world"]]
+end
+run app
+EOT
+chown -R www-data:www-data /var/www/testrack
+
+a2enmod passenger
+service apache2 reload
+
+if ! output=`wget -O- http://localhost/testrack/ 2>/dev/null`; then
+  echo "wget failed, output was:"
+  echo "$output"
+  echo
+  echo "Retest:"
+  wget -O- http://localhost/testrack/
+  exit 1
+else
+  if [ "$output" != "hello world" ]; then
+    echo "output is wrong"
+    echo "got:      | $output |"
+    echo "expected: | hello world |"
+    exit 1
+  fi
+fi

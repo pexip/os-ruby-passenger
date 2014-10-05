@@ -20,7 +20,7 @@ Package: ruby-passenger
 Architecture: any
 XB-Ruby-Versions: ${ruby:Versions}
 Depends: ${shlibs:Depends}, ${misc:Depends}, ruby | ruby-interpreter, ruby-rack
-Suggests: python, rails, ruby-passenger-doc
+Suggests: python, rails, nodejs, ruby-passenger-doc
 Breaks: libapache2-mod-passenger (<< 3.0.11debian)
 Replaces: libapache2-mod-passenger (<< 3.0.11debian)
 Description: Rails and Rack support
