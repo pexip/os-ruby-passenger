@@ -1,6 +1,6 @@
 /*
  *  Phusion Passenger - https://www.phusionpassenger.com/
- *  Copyright (c) 2010-2013 Phusion
+ *  Copyright (c) 2010-2014 Phusion
  *
  *  "Phusion Passenger" is a trademark of Hongli Lai & Ninh Bui.
  *
@@ -25,8 +25,11 @@
 
 module.paths.unshift(__dirname + "/../node_lib");
 var EventEmitter = require('events').EventEmitter;
+var os = require('os');
+var fs = require('fs');
 var net = require('net');
 var http = require('http');
+var util = require('util');
 
 var LineReader = require('phusion_passenger/line_reader').LineReader;
 
@@ -113,8 +116,9 @@ function configure(_options) {
 }
 
 function loadApplication() {
+	var appRoot = PhusionPassenger.options.app_root || process.cwd();
 	var startupFile = PhusionPassenger.options.startup_file || 'app.js';
-	require(PhusionPassenger.options.app_root + '/' + startupFile);
+	require(appRoot + '/' + startupFile);
 }
 
 function extractCallback(args) {
@@ -124,8 +128,21 @@ function extractCallback(args) {
 }
 
 function generateServerSocketPath() {
-	return PhusionPassenger.options.generation_dir + "/backends/"
-		+ process.pid + "." + ((Math.random() * 0xFFFFFFFF) & 0xFFFFFFF);
+	var options = PhusionPassenger.options;
+	var socketDir, socketPrefix, socketSuffix;
+
+	if (options.generation_dir) {
+		socketDir = options.generation_dir + "/backends";
+		socketPrefix = "node";
+	} else {
+		socketDir = os.tmpdir().replace(/\/$/, '');
+		socketPrefix = "PsgNodeApp";
+	}
+	socketSuffix = ((Math.random() * 0xFFFFFFFF) & 0xFFFFFFF);
+
+	var result = socketDir + "/" + socketPrefix + "." + socketSuffix.toString(36);
+	var UNIX_PATH_MAX = options.UNIX_PATH_MAX || 100;
+	return result.substr(0, UNIX_PATH_MAX);
 }
 
 function addListenerAtBeginning(emitter, event, callback) {
@@ -176,11 +193,12 @@ function installServer() {
 				}
 			}
 
+			var socketPath = PhusionPassenger.options.socket_path = generateServerSocketPath();
 			server.once('error', errorHandler);
-			server.originalListen(generateServerSocketPath(), function() {
+			server.originalListen(socketPath, function() {
 				server.removeListener('error', errorHandler);
 				doneListening(callback);
-				process.nextTick(finalizeStartup);
+				process.nextTick(installControlServer);
 			});
 		}
 
@@ -204,7 +222,7 @@ function installServer() {
 }
 
 function listenAndMaybeInstall(port) {
-	if (port === 'passenger') {
+	if (port === 'passenger' || port == '/passenger') {
 		if (!PhusionPassenger._appInstalled) {
 			return installServer.apply(this, arguments);
 		} else {
@@ -215,15 +233,112 @@ function listenAndMaybeInstall(port) {
 	}
 }
 
+function installControlServer() {
+	var server = net.createServer(onNewClient);
+	var listenTries = 0;
+
+	doListen();
+
+	function onNewClient(client) {
+		client.on('error', function(e) {
+			console.trace(e);
+		});
+		readNextMessageHeader(client);
+	}
+
+	function readNextMessageHeader(client) {
+		client.once('readable', onReadable);
+
+		function onReadable() {
+			var size = client.read(2);
+			if (size !== null) {
+				readNextMessageBody(client, size.readUInt16BE(0));
+			} else {
+				client.once('readable', onReadable);
+			}
+		}
+	}
+
+	function readNextMessageBody(client, size) {
+		client.once('readable', onReadable);
+
+		function onReadable() {
+			var body = client.read(size);
+			if (body !== null) {
+				var args = body.toString('binary').split("\0");
+				args.pop();
+				handleMessage(client, args);
+			} else {
+				client.once('readable', onReadable);
+			}
+		}
+	}
+
+	function handleMessage(client, args) {
+		if (args[0] == 'abort_long_running_connections') {
+			shutdown();
+			client.end();
+		} else {
+			console.error("Invalid control message: " + util.inspect(args));
+			readNextMessageHeader(client);
+		}
+	}
+
+	function doListen() {
+		function errorHandler(error) {
+			if (error.errno == 'EADDRINUSE') {
+				if (listenTries == 100) {
+					server.emit('error', new Error(
+						'Phusion Passenger could not find suitable socket address to bind the control server on'));
+				} else {
+					// Try again with another socket path.
+					listenTries++;
+					doListen();
+				}
+			} else {
+				server.emit('error', error);
+			}
+		}
+
+		var socketPath = PhusionPassenger.options.control_socket_path =
+			generateServerSocketPath();
+		server.once('error', errorHandler);
+		server.listen(socketPath, function() {
+			server.removeListener('error', errorHandler);
+			process.nextTick(finalizeStartup);
+		});
+	}
+}
+
 function finalizeStartup() {
 	process.stdout.write("!> Ready\n");
 	process.stdout.write("!> socket: main;unix:" +
 		PhusionPassenger._server.address() +
 		";http_session;0\n");
+	if (process.env['_PASSENGER_NODE_CONTROL_SERVER']) {
+		process.stdout.write("!> socket: control;unix:" +
+			PhusionPassenger.options.control_socket_path +
+			";control;0\n");
+	}
 	process.stdout.write("!> \n");
 }
 
 function shutdown() {
+	if (PhusionPassenger.shutting_down) {
+		return;
+	}
+
+	PhusionPassenger.shutting_down = true;
+	try {
+		fs.unlinkSync(PhusionPassenger.options.socket_path);
+	} catch (e) {
+		// Ignore error.
+	}
+	try {
+		fs.unlinkSync(PhusionPassenger.options.control_socket_path);
+	} catch (e) {
+		// Ignore error.
+	}
 	if (PhusionPassenger.listeners('exit').length == 0) {
 		process.exit(0);
 	} else {
