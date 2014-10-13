@@ -1,3 +1,11 @@
+ruby-passenger (4.0.53-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Remove inactive uploaders from the list. (Closes: #762563)
+  * Add zlib1g-dev to build-depends. (Closes: #765138)
+
+ -- Felix Geyer <fgeyer@debian.org>  Mon, 13 Oct 2014 21:44:07 +0200
+
 ruby-passenger (4.0.52-1) unstable; urgency=medium
 
   * New upstream release.

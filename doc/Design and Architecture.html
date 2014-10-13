@@ -797,8 +797,7 @@ install: function(toclevels) {
 }
 asciidoc.install();
 /*]]>*/
-</script>
-<style type="text/css">
+</script><style type="text/css">
 body {
 	margin: 1em auto 1em auto;
 	padding: 0 1em 0 1em;
@@ -1070,17 +1069,14 @@ pre {
 <div class="sectionbody">
 <div class="paragraph"><p><span class="image">
 <a class="image" href="http://www.phusion.nl/">
-<img src="images/phusion_banner.png" alt="images/phusion_banner.png">
-</a>
+<img src="images/phusion_banner.png" alt="images/phusion_banner.png"></a>
 </span></p></div>
 <div class="paragraph"><p>This guide describes <a href="https://www.phusionpassenger.com/">Phusion Passenger</a>'s design and architecture in detail. With this guide, we hope that contributors can quickly find their way around the Phusion Passenger codebase.</p></div>
 <div class="paragraph"><p>The guide assumes that you’re familiar with using Phusion Passenger and with Nginx or Apache, and that you’ve read the <a href="https://github.com/phusion/passenger/blob/master/CONTRIBUTING.md">Contributors Guide</a> and the <a href="https://github.com/phusion/passenger/blob/master/doc/DeveloperQuickstart.md">Developer QuickStart</a>.</p></div>
 <div class="paragraph"><p><span class="image">
 <a class="image" href="http://vimeo.com/phusionnl/review/98027409/03ba678684">
-<img src="images/code_walkthrough.jpg" alt="images/code_walkthrough.jpg">
-</a>
-</span><br>
-<em>You should also watch the complementary video: <a href="http://vimeo.com/phusionnl/review/98027409/03ba678684">Phusion Passenger Code Walkthrough</a></em></p></div>
+<img src="images/code_walkthrough.jpg" alt="images/code_walkthrough.jpg"></a>
+</span><br><em>You should also watch the complementary video: <a href="http://vimeo.com/phusionnl/review/98027409/03ba678684">Phusion Passenger Code Walkthrough</a></em></p></div>
 </div>
 </div>
 <div id="toc">
@@ -1137,8 +1133,7 @@ pre {
 <div class="paragraph"><p>Before we describe Phusion Passenger, it is important to understand how typical web applications work from the viewpoint of someone who wants to connect a web application to a web server.</p></div>
 <div class="paragraph"><p>A typical, isolated, web application accepts an HTTP request from some I/O channel, processes it internally, and outputs an HTTP response, which is sent back to the client. This is done in a loop, until the application is commanded to exit. This does not necessarily mean that the web application speaks HTTP directly: it just means that the web application accepts some kind of representation of an HTTP request.</p></div>
 <div class="paragraph"><p><span class="image">
-<img src="images/typical_isolated_web_application.png" alt="Architecture of a typical web application in isolation">
-</span></p></div>
+<img src="images/typical_isolated_web_application.png" alt="Architecture of a typical web application in isolation"></span></p></div>
 <div class="paragraph"><p>Some web applications are directly accessible through the HTTP protocol, while others are not. It depends on the language and framework that the web application is built on. For example, Ruby (Rack/Rails) and Python (WSGI) web applications are typically not directly accessible through the HTTP protocol. On the other hand, Node.js web applications <strong>do</strong> tend to be accessible through the HTTP protocol. The reasons for this are historical, but they’re outside the scope of this guide.</p></div>
 <div class="sect3">
 <span class="anchor_helper" id="_common_models"></span><h4 data-anchor="_common_models">1.1.1. Common models</h4>
@@ -1251,8 +1246,7 @@ end</pre>
 <div class="sect2">
 <span class="anchor_helper" id="_phusion_passenger_architecture_overview"></span><h3 data-anchor="_phusion_passenger_architecture_overview">1.2. Phusion Passenger architecture overview</h3>
 <div class="paragraph"><p><span class="image">
-<img src="images/passenger_architecture_overview.png" alt="An overview of Phusion Passenger’s architecture">
-</span></p></div>
+<img src="images/passenger_architecture_overview.png" alt="An overview of Phusion Passenger’s architecture"></span></p></div>
 <div class="paragraph"><p>Phusion Passenger is not a single, monolithic entity. Instead, it consists of multiple components and processes that work together. Part of the reason why Phusion Passenger is split like this, is because it’s technically necessary (no other way to implement it). But another part of the reason is stability and robustness. Individual components can crash and can be restarted independently from each other. If we were to put everything inside a single process, then a crash will take down all of Phusion Passenger.</p></div>
 <div class="paragraph"><p>Thus, if the HelperAgent crashes, or if an application process crashes, they can both be restarted without affecting the web server’s stability.</p></div>
 <div class="sect3">
@@ -1313,8 +1307,7 @@ The command line tools can be found in <span class="monospaced">bin</span>, with
 <span class="anchor_helper" id="_initialization"></span><h2 data-anchor="_initialization">2. Initialization</h2>
 <div class="sectionbody">
 <div class="paragraph"><p><span class="image">
-<img src="images/startup_sequence.png" alt="Startup sequence">
-</span></p></div>
+<img src="images/startup_sequence.png" alt="Startup sequence"></span></p></div>
 <div class="paragraph"><p>Phusion Passenger initializes as follows.</p></div>
 <div class="olist arabic"><ol class="arabic">
 <li>
@@ -1372,8 +1365,7 @@ The Watchdog reports successful startup back to the Phusion Passenger module tha
 <span class="anchor_helper" id="helper_agent_architecture"></span><h2 data-anchor="helper_agent_architecture">3. HelperAgent architecture</h2>
 <div class="sectionbody">
 <div class="paragraph"><p><span class="image">
-<img src="images/helper_agent_core_architecture.png" alt="HelperAgent architecture">
-</span></p></div>
+<img src="images/helper_agent_core_architecture.png" alt="HelperAgent architecture"></span></p></div>
 <div class="paragraph"><p>The HelperAgent consists of two subsystems. One is the <strong>request handling subsystem</strong>. The other is <strong>the ApplicationPool subsystem</strong>, which performs the bulk of process management. The HelperAgent also uses a number of support libraries. The largest third-party support libraries are shown in the diagram. Many more — internal — support libraries are used, but they’re omitted from the diagram. You can find these internal support libraries in the directory <span class="monospaced">ext/common/Utils</span>.</p></div>
 <div class="sect2">
 <span class="anchor_helper" id="_request_handling"></span><h3 data-anchor="_request_handling">3.1. Request handling</h3>
@@ -1553,8 +1545,7 @@ DummySpawner (not shown in diagram) — only used in unit tests.
 <div class="sect2">
 <span class="anchor_helper" id="_preparation_work"></span><h3 data-anchor="_preparation_work">4.1. Preparation work</h3>
 <div class="paragraph"><p><span class="image">
-<img src="images/spawning_preparation_work.png" alt="Spawning preparation work">
-</span></p></div>
+<img src="images/spawning_preparation_work.png" alt="Spawning preparation work"></span></p></div>
 <div class="sect3">
 <span class="anchor_helper" id="basic_setup_and_forking"></span><h4 data-anchor="basic_setup_and_forking">4.1.1. Basic setup and forking</h4>
 <div class="paragraph"><p>Spawning begins when the <span class="monospaced">spawn()</span> method is called on a <a href="#spawner_subsystem">Spawner object</a>. The Spawner determines <a href="Users%20guide%20Nginx.html#user_switching">which user the process should run as</a>, and sets up some communication channels (anonymous Unix domain socket pairs), and forks a process. The parent waits until the child exits, or replies with something over the communication channel.</p></div>
@@ -1603,13 +1594,11 @@ width:100%;
 <col style="width:33%;">
 <col style="width:33%;">
 <col style="width:33%;">
-<thead>
-<tr>
+<thead><tr>
 <th class="tableblock halign-left valign-top"> Language/Framework         </th>
 <th class="tableblock halign-left valign-top"> Loader                  </th>
 <th class="tableblock halign-left valign-top"> Preloader</th>
-</tr>
-</thead>
+</tr></thead>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Ruby Rack and Rails &gt;= 3.x</p></td>
@@ -1894,12 +1883,10 @@ The method <span class="monospaced">looks_like_app_directory?</span> in the file
 <div class="sectionbody">
 <div class="paragraph"><p>The de-facto standard interface for Ruby web applications is <a href="http://rack.rubyforge.org/">Rack</a>. Rack specifies an programming interface for web application developers to implement. This interface covers HTTP request and response handling, and is not dependent on any particular application server. The idea is that any Rack-compliant application server can implement the Rack specification and work with all Rack-compliant web applications.</p></div>
 <div class="paragraph"><p><span class="image">
-<img src="images/rack.png" alt="images/rack.png">
-</span></p></div>
+<img src="images/rack.png" alt="images/rack.png"></span></p></div>
 <div class="paragraph"><p>In the distant past, each Ruby web framework had its own interface, so application servers needed to explicitly add support for each web framework. Nowadays application servers just support Rack.</p></div>
 <div class="paragraph"><p><span class="image">
-<img src="images/many_web_framework_protocols.png" alt="images/many_web_framework_protocols.png">
-</span></p></div>
+<img src="images/many_web_framework_protocols.png" alt="images/many_web_framework_protocols.png"></span></p></div>
 <div class="paragraph"><p>Ruby on Rails has been fully Rack compliant since version 3.0. Rails 2.3 was partially Rack-compliant while earlier versions were not Rack-compliant at all. Phusion Passenger supports Rack as well as all Rails 1.x and 2.x versions.</p></div>
 </div>
 </div>
