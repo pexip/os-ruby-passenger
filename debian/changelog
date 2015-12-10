@@ -1,3 +1,9 @@
+ruby-passenger (4.0.52-1pexip2) pexip; urgency=medium
+
+  * Backport fix for CVE-2015-7519
+
+ -- John-Mark Bell <jmb@pexip.com>  Thu, 10 Dec 2015 02:25:37 +0000
+
 ruby-passenger (4.0.52-1pexip1) pexip; urgency=medium
 
   * New upstream release.
