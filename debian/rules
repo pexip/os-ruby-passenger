@@ -11,7 +11,7 @@ export USE_VENDORED_LIBEV=false
 # needed to generate docs
 export LC_ALL=C.UTF-8
 
-SUPPORTED_RUBY_VERSIONS=ruby1.8 ruby1.9.1
+SUPPORTED_RUBY_VERSIONS=$(shell dh_ruby --print-supported)
 
 %:
 	dh $@ --buildsystem=ruby --with ruby,apache2,autoreconf

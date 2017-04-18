@@ -6,4 +6,5 @@ usr/share/passenger/node/
 usr/share/passenger/ruby_extension_source/
 usr/share/passenger/templates/
 usr/lib/ruby/vendor_ruby/
+usr/lib/*/ruby/vendor_ruby/
 usr/sbin/

@@ -1,5 +1,11 @@
 ruby-passenger (4.0.52-1pexip2) pexip; urgency=medium
 
+  * Revert changes made in 4.0.37-3pexip1
+
+ -- John-Mark Bell <jmb@pexip.com>  Tue, 18 Apr 2017 08:50:48 +0100
+
+ruby-passenger (4.0.52-1pexip2) pexip; urgency=medium
+
   * Backport fix for CVE-2015-7519
 
  -- John-Mark Bell <jmb@pexip.com>  Thu, 10 Dec 2015 02:25:37 +0000
