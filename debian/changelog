@@ -1,3 +1,17 @@
+ruby-passenger (4.0.53-1pexip1) pexip; urgency=medium
+
+  * New upstream release
+
+ -- John-Mark Bell <jmb@pexip.com>  Tue, 18 Apr 2017 08:54:03 +0100
+
+ruby-passenger (4.0.53-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Remove inactive uploaders from the list. (Closes: #762563)
+  * Add zlib1g-dev to build-depends. (Closes: #765138)
+
+ -- Felix Geyer <fgeyer@debian.org>  Mon, 13 Oct 2014 21:44:07 +0200
+
 ruby-passenger (4.0.52-1pexip2) pexip; urgency=medium
 
   * Revert changes made in 4.0.37-3pexip1

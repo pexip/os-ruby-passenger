@@ -1,5 +1,5 @@
 #  Phusion Passenger - https://www.phusionpassenger.com/
-#  Copyright (C) 2008-2013  Phusion
+#  Copyright (C) 2008-2014  Phusion
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -49,7 +49,12 @@ task :default do
 end
 
 desc "Remove compiled files"
-task :clean => 'clean:cache'
+task :clean => 'clean:cache' do
+	if OUTPUT_DIR == "buildout/"
+		sh "rm -rf buildout"
+	end
+end
+
 task 'common:clean' => 'clean:cache'
 task 'clean:cache' do
 	sh "rm -rf #{OUTPUT_DIR}cache"

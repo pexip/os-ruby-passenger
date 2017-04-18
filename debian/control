@@ -2,13 +2,13 @@ Source: ruby-passenger
 Section: ruby
 Priority: optional
 Maintainer: Pexip AS <packaging@pexip.com>
-XBCS-Original-Maintainer: Debian Ruby Extras Maintainers <pkg-ruby-extras-maintainers@lists.alioth.debian.org>
-XBCS-Original-Uploaders: Filipe Lautert <filipe@debian.org>, Micah Anderson <micah@debian.org>, David Moreno <damog@debian.org>,
+XSBC-Pexip-Original-Maintainer: Debian Ruby Extras Maintainers <pkg-ruby-extras-maintainers@lists.alioth.debian.org>
+XSBC-Pexip-Original-Uploaders: Micah Anderson <micah@debian.org>,
  Felix Geyer <fgeyer@debian.org>
 Build-Depends: debhelper (>= 7.0.50~), gem2deb (>= 0.2.12~), apache2 (>= 2.4),
  apache2-dev (>= 2.4), libapr1-dev, doxygen, asciidoc (>= 8.2), graphviz, rake,
  source-highlight, libcurl4-openssl-dev, libev-dev, dh-autoreconf, ruby-mizuho,
- libjsoncpp-dev
+ libjsoncpp-dev, zlib1g-dev
 Standards-Version: 3.9.5
 Homepage: https://www.phusionpassenger.com/
 Vcs-Git: git://anonscm.debian.org/pkg-ruby-extras/ruby-passenger.git
